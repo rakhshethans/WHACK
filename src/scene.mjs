@@ -170,6 +170,10 @@ const LANDMARK_ART = {
   running: '<path d="M-29-22h17l12 17 14 7 17 3 5 12H-35v-9l7-10Z" fill="#e2aa73"/><path d="M-35 17h71v7h-71Z"/><path d="m-9-12 9-5m-4 12 10-4M-40-17h-8m9 8h-13" fill="none" stroke="#fff0cc" stroke-linecap="round"/>',
   swimming: '<circle cx="21" cy="-12" r="9"/><path d="m-24 5 21-28 22 9M-26 10l24-7 18 7M-37 13q9-7 18 0t18 0 18 0 18 0m-72 11q9-7 18 0t18 0 18 0 18 0" fill="none" stroke="#fff0cc" stroke-width="5" stroke-linecap="round"/>',
   chess: '<path d="M-25 25h50v-8H-25zm6-8C-19 1 9-8 4-15l-19 8-9-8 23-18 14 3c9 9 12 22 7 47Z"/><circle cx="-5" cy="-20" r="2" fill="#31595a"/>',
+  shooter: '<path d="M-40-8h18l6-9h32v7h14v4h13v7H19L9 7l7 16H5L-2 8h-10l-5 11h-10l5-18-18 7Z" fill="#f2d39a"/><path d="M-10-17v-6H8v6M-13-7h23M-8 2h10" fill="none" stroke="#31595a" stroke-linecap="round"/><path d="m29-6 1 7" fill="none" stroke="#d58759"/>',
+  racing: '<path d="M-29 27v-54" fill="none" stroke="#fff0cc" stroke-width="5" stroke-linecap="round"/><path d="M-27-24q14-7 30 0t30 0v32Q18 15 3 8t-30 0Z" fill="#fff0cc"/><path d="M-12-26v16l15 4v-18m0 18v14l15 4V-3m0 0 15-5v-16M-27-8l15-2V7l-15 1" fill="#31595a" stroke-width="1"/>',
+  'building-game': '<path d="m-30-13 30-16 30 16v32L0 34l-30-15Z" fill="#d0a273"/><path d="m-30-13 30 15 30-15L0-29Z" fill="#a8c982"/><path d="M0 2v32m-30-38 11 6v6l10 4V6L0 11 10 6v7l9-5V2l11-6" fill="none"/>',
+  controller: '<path d="M-18-18h36q13 0 17 17l4 15q2 12-10 11l-16-12h-26l-16 12q-12 1-10-11l4-15q4-17 17-17Z" fill="#aed5c7"/><path d="M-20-8V8m-8-8h16" fill="none" stroke-width="4" stroke-linecap="round"/><circle cx="16" cy="-3" r="3"/><circle cx="25" cy="4" r="3"/>',
 };
 
 const LANDFORMS = {
@@ -214,6 +218,7 @@ const THEMED_LANDFORMS = {
   film: ['alpine', 'mesa'], piano: ['mesa', 'dunes'], drums: ['mesa', 'dunes'], violin: ['mesa', 'dunes'],
   breakdance: ['dunes', 'cove'], pottery: ['mesa', 'dunes'], woodwork: ['forest', 'cove'],
   textiles: ['cove', 'forest'], running: ['alpine', 'forest'], swimming: ['archipelago', 'cove'], chess: ['mesa', 'archipelago'],
+  shooter: ['mesa', 'dunes'], racing: ['mesa', 'alpine'], 'building-game': ['forest', 'mesa'], controller: ['cove', 'archipelago'],
 };
 
 const PALETTES = [

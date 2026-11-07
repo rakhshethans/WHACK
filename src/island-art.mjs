@@ -1,4 +1,7 @@
 const SUBJECTS = [
+  ['shooter', /\b(?:valorant|counter[- ]?strike|cs2|cs[: ]?go|overwatch(?: 2)?|apex legends|rainbow six siege|call of duty|fortnite|first[- ]person shooters?|shooter games?)\b/i],
+  ['racing', /\b(?:mario kart|gran turismo|forza|iracing|sim racing|racing games?)\b/i],
+  ['building-game', /\b(?:minecraft|block[- ]building games?)\b/i],
   ['film', /\b(?:cinematograph\w*|filmmak\w*|video edit\w*)\b/i],
   ['camera', /\b(?:photograph\w*|photos?|camera)\b/i],
   ['guitar', /\b(?:guitar|ukulele)\b/i],
@@ -27,7 +30,9 @@ const SUBJECTS = [
   ['book', /\b(?:writing|essays?|read(?:ing)?|stud(?:y|ying)|novels?|poetry)\b/i],
 ];
 
-export const LANDMARKS = [...SUBJECTS.map(([key]) => key), 'compass'];
+const GENERAL_GAMING = /\b(?:gaming|video games?|esports|league of legends|dota(?: 2)?|street fighter|tekken)\b/i;
+
+export const LANDMARKS = [...SUBJECTS.map(([key]) => key), 'controller', 'compass'];
 
 export function knownLandmark({ topic, objective }) {
   for (const text of [topic, objective]) {
@@ -42,6 +47,7 @@ export function knownLandmark({ topic, objective }) {
       }
     }
     if (landmark) return landmark;
+    if (GENERAL_GAMING.test(text)) return 'controller';
   }
 }
 

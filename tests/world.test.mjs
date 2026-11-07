@@ -199,10 +199,12 @@ test('terrain colours vary independently of shape and stay put across refresh an
 });
 
 test('related skills get different landmarks and unlisted topics get safe personal seals', () => {
-  const topics = ['Photography', 'Filmmaking', 'Piano', 'Drums', 'Violin', 'Learn to breakdance', 'Ballet', 'Pottery', 'Whittling'];
+  const topics = ['Photography', 'Filmmaking', 'Piano', 'Drums', 'Violin', 'Learn to breakdance', 'Ballet', 'Pottery', 'Whittling',
+    'Getting better at Valorant', 'Competitive gaming in Counter-Strike 2', 'Mario Kart', 'Minecraft', 'Video games'];
   const art = topic => renderIsland({ id: 'island-1', category: 'custom', landmark: 'compass', topic }, 1);
   const landmarks = topics.map(topic => art(topic).match(/data-landmark="([^"]+)"/)[1]);
-  assert.deepEqual(landmarks, ['camera', 'film', 'piano', 'drums', 'violin', 'breakdance', 'dance', 'pottery', 'woodwork']);
+  assert.deepEqual(landmarks, ['camera', 'film', 'piano', 'drums', 'violin', 'breakdance', 'dance', 'pottery', 'woodwork',
+    'shooter', 'shooter', 'racing', 'building-game', 'controller']);
   const seals = ['Learn bookbinding', 'Learn birdwatching', '<img src=x onerror=alert(1)>'].map(topic =>
     art(topic).match(/<g class="topic-seal">[\s\S]*?<\/text>/)[0],
   );
