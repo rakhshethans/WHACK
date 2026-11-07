@@ -5,6 +5,7 @@ import { generateCustomRoadmap, generateAdaptiveGoal } from './local-planner.mjs
 import { DIFFICULTIES } from './difficulty.mjs';
 import { relatedSkill } from './skill-connections.mjs';
 import { layoutIslands } from './map-layout.mjs';
+import { connectMap } from './map-camera.mjs';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#onboarding');
@@ -49,6 +50,12 @@ function loadWorld() {
 let world = loadWorld();
 let selectedId = world.islands[0]?.id;
 let activeView = 'world';
+let renderedView = 'world';
+let logOpen = false;
+const cameras = {
+  world: { zoom: 1, left: 0, top: 0 },
+  explore: { zoom: 1, left: 0, top: 0 },
+};
 let activeDemo = 0;
 let storageUnavailable = false;
 let animateIsland = false;
@@ -82,24 +89,17 @@ function announce(message) {
 }
 
 function changeView(view) {
+  if (activeView !== view) logOpen = false;
   activeView = view;
   render();
 }
 
-function emptyMap() {
-  return `<section class="map-frame" aria-label="Island map">
-    <div class="map-coordinates"><span>✦</span> 07° 24′ N &nbsp; / &nbsp; 48° 12′ W</div>
-    <div class="map-art">${renderOcean()}</div>
-    <div class="map-footer"><span><i></i> UNCHARTED WATERS</span><span class="map-scale">└────┘ <b>1 NM</b></span></div>
-  </section>`;
-}
-
 function archipelagoMap(islands, selection, explore = false) {
-  if (!islands.length) return emptyMap();
+  const populated = islands.length > 0;
   return `<section class="map-frame archipelago-frame" aria-label="Archipelago map">
+    <div class="map-viewport" tabindex="0" role="region" aria-label="Pan the archipelago with arrow keys or drag the map">
+    <div class="map-scene">
     <div class="map-water">${renderOcean(true)}</div>
-    <div class="map-coordinates"><span>✦</span> ${explore ? 'SAMPLE ARCHIPELAGO' : 'MY ARCHIPELAGO'}</div>
-    ${explore ? '' : '<a class="map-goal-jump" href="#active-goal-title">Current goal ↓</a>'}
     <div class="island-water">
       ${islands.map(island => {
         const selected = island.id === selection;
@@ -112,8 +112,21 @@ function archipelagoMap(islands, selection, explore = false) {
         </button>`;
       }).join('')}
     </div>
-    <div class="map-footer"><span><i></i> ${islands.length} ${islands.length === 1 ? 'ISLAND' : 'ISLANDS'} CHARTED</span><span class="map-scale">SELECT AN ISLAND</span></div>
+    </div></div>
+    <div class="map-coordinates"><span>✦</span> ${populated ? (explore ? 'SAMPLE ARCHIPELAGO' : 'MY ARCHIPELAGO') : '07° 24′ N &nbsp; / &nbsp; 48° 12′ W'}</div>
+    <div class="map-tools" role="group" aria-label="Map controls">
+      <button type="button" data-zoom="out" aria-label="Zoom out">−</button>
+      <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+      <button type="button" data-zoom="reset" aria-label="Reset map view">Reset</button>
+    </div>
+    <div class="map-footer"><span><i></i> ${populated ? islands.length + (islands.length === 1 ? ' ISLAND' : ' ISLANDS') + ' CHARTED' : 'UNCHARTED WATERS'}</span><span class="map-pan-hint">Pan the map</span><button type="button" data-action="show-log" aria-controls="island-log" aria-expanded="${logOpen}">Island log</button></div>
   </section>`;
+}
+
+function logPanel(content) {
+  return `<aside class="field-notes map-log" id="island-log" aria-label="Island log" ${logOpen ? '' : 'hidden'}>
+    <button type="button" class="icon log-close" data-action="close-log" aria-label="Close island log">×</button>
+    ${content}</aside>`;
 }
 
 function roadmapSummary(island) {
@@ -172,7 +185,7 @@ function currentWorld() {
   return `<div class="intro"><div><p class="eyebrow">THE PERSONAL ATLAS / MY WORLD</p><h1>Your archipelago<span>.</span></h1><p class="lede">${subheading}</p></div>
     <button class="primary" data-action="new">+ New island</button></div>
     <div class="workspace">${archipelagoMap(world.islands, island?.id)}
-      <aside class="field-notes">
+      ${logPanel(`
         ${island ? `<p class="eyebrow">ISLAND LOG / LEVEL ${stage.level}</p>
           <h2>${escapeHtml(island.title)}</h2>${island.attribution ? `<p class="caption">Roadmap by ${escapeHtml(island.attribution)}</p>` : ''}<p class="stage-name">${escapeHtml(stage.name)} · ${island.xp} XP</p>
           <progress value="${levelXp}" max="${levelTarget}" aria-label="XP toward Level ${stage.level + 1}"></progress>
@@ -183,7 +196,7 @@ function currentWorld() {
           `<p class="eyebrow">ISLAND LOG / 00</p><h2>Open waters</h2>
           <p>Choose a skill, an objective and how much practice time you have.</p>
           <button class="small-action" data-action="new">Chart your first island ↗</button>`}
-      </aside></div>`;
+      `)}</div>`;
 }
 
 function discoverWorlds() {
@@ -192,15 +205,24 @@ function discoverWorlds() {
   return `<div class="intro"><div><p class="eyebrow">THE PERSONAL ATLAS / EXPLORE</p><h1>Beyond your shore<span>.</span></h1>
     <p class="lede">Explore sample worlds and bring a roadmap back to your own.</p></div></div>
     <div class="workspace">${archipelagoMap(demoIslands.map(item => item.source), demo.source.id, true)}
-      <aside class="field-notes"><p class="eyebrow">PUBLIC ATLAS / SAMPLE PROFILE</p><h2>${escapeHtml(demo.title)}</h2>
+      ${logPanel(`<p class="eyebrow">PUBLIC ATLAS / SAMPLE PROFILE</p><h2>${escapeHtml(demo.title)}</h2>
       <p class="stage-name">${escapeHtml(demo.creator)} · Level ${stage.level}</p>
       <p>${escapeHtml(demo.objective)}.</p>
       <p><strong>First goal</strong><br>${escapeHtml(getActiveGoal(demo.source)?.title)}</p>
       <button class="primary" data-action="adopt">Adopt roadmap <span aria-hidden="true">↗</span></button>
-      <p class="caption">Your island starts at Level 1. The original roadmap keeps its attribution.</p></aside></div>`;
+      <p class="caption">Your island starts at Level 1. The original roadmap keeps its attribution.</p>`)}</div>`;
 }
 
 function render() {
+  const previous = app.querySelector('.map-viewport');
+  const previousLog = app.querySelector('.map-log');
+  const sameView = renderedView === activeView;
+  const opening = logOpen && (!previousLog || previousLog.hidden || !sameView);
+  const logScroll = sameView && !opening ? previousLog?.scrollTop : 0;
+  if (previous) {
+    cameras[renderedView].left = previous.scrollLeft;
+    cameras[renderedView].top = previous.scrollTop;
+  }
   mapResize.disconnect();
   worldTab.setAttribute('aria-pressed', String(activeView === 'world'));
   exploreTab.setAttribute('aria-pressed', String(activeView === 'explore'));
@@ -212,8 +234,39 @@ function render() {
     positionIslands(map);
     mapResize.observe(map);
   }
+  const viewport = app.querySelector('.map-viewport');
+  connectMap(viewport, cameras[activeView]);
+  const log = app.querySelector('.map-log');
+  if (opening) log.classList.add('log-enter');
+  if (logScroll) log.scrollTop = logScroll;
+  if (animateIsland) {
+    const pin = map.querySelector('[aria-pressed="true"]');
+    if (pin) {
+      const bounds = viewport.getBoundingClientRect();
+      const target = pin.getBoundingClientRect();
+      viewport.scrollBy(target.left - bounds.left - (bounds.width - target.width) / 2,
+        target.top - bounds.top - (bounds.height - target.height) / 2);
+    }
+  }
+  renderedView = activeView;
   animateIsland = false;
 }
+
+function focusLog() {
+  const heading = app.querySelector('.map-log h2');
+  heading.tabIndex = -1;
+  heading.focus({ preventScroll: true });
+}
+
+function closeLog() {
+  logOpen = false;
+  render();
+  app.querySelector('[data-action="show-log"]').focus({ preventScroll: true });
+}
+
+app.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && logOpen && !dialog.open) closeLog();
+});
 
 worldTab.addEventListener('click', () => changeView('world'));
 exploreTab.addEventListener('click', () => changeView('explore'));
@@ -245,6 +298,16 @@ app.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
   const { action, id, rating } = button.dataset;
+  if (action === 'close-log') {
+    closeLog();
+    return;
+  }
+  if (action === 'show-log') {
+    logOpen = true;
+    render();
+    focusLog();
+    return;
+  }
   if (action === 'new') {
     openOnboarding();
     return;
@@ -269,6 +332,7 @@ app.addEventListener('click', event => {
   }
   if (action === 'select') selectedId = id;
   if (action === 'demo') activeDemo = Number(id);
+  if (action === 'select' || action === 'demo') logOpen = true;
   if (action === 'complete') {
     const island = world.islands.find(item => item.id === selectedId);
     if (!island) return;
@@ -291,13 +355,12 @@ app.addEventListener('click', event => {
     persist(adoptIsland(world, demo.source));
     selectedId = world.islands.at(-1).id;
     activeView = 'world';
+    logOpen = true;
     animateIsland = true;
     announce(demo.title + ' added to your world.');
   }
   render();
-  const nextFocus = action === 'select' || action === 'demo' ?
-    app.querySelector('[data-action="' + action + '"][aria-pressed="true"]') :
-    app.querySelector(action === 'complete' ? '#active-goal-title' : '.field-notes h2');
+  const nextFocus = app.querySelector(action === 'complete' ? '#active-goal-title' : '.field-notes h2');
   if (nextFocus) {
     if (nextFocus.matches('h2, h3')) nextFocus.tabIndex = -1;
     nextFocus.focus({ preventScroll: true });
@@ -350,10 +413,10 @@ form.addEventListener('submit', async event => {
   dialog.close();
   form.reset();
   animateIsland = true;
-  changeView('world');
-  const heading = app.querySelector('.field-notes h2');
-  heading.tabIndex = -1;
-  heading.focus({ preventScroll: true });
+  activeView = 'world';
+  logOpen = true;
+  render();
+  focusLog();
   announce('Your island is ready.');
 });
 
