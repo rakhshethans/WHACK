@@ -177,25 +177,27 @@ function islandScenery(island) {
   const biomeIndex = (seed >>> 8) % BIOMES.length;
   const biome = BIOMES[biomeIndex];
   const coast = COASTLINES[coastIndex];
-  const reef = seed & 1
-    ? '<path d="m280 387 18-9 14 5-9 7-17 3Zm370-105 12-7 11 5-9 7Z" fill="currentColor" opacity=".65"/>'
-    : '<path d="M270 374q18-10 33-4m362 41q15-12 29-10M318 265q11-9 21-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".68"/>';
-  const biomeMark = [
-    '<path d="M290 356q9-20 19-27m345 25q9-20 19-27" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="311" cy="324" r="3" fill="currentColor"/><circle cx="675" cy="323" r="3" fill="currentColor"/>',
-    '<path d="m296 355 8-19 8 19m337 8 8-19 8 19m-326-88 8-19 8 19" fill="currentColor" stroke="currentColor" stroke-linejoin="round" stroke-width="2"/>',
-    '<path d="M286 374q18-9 36-3m318 30q19-10 37-6M316 276q16-9 29-4" fill="none" stroke="currentColor" stroke-width="2" opacity=".9"/>',
-    '<path d="m290 368 4-16m11 13 1-19m329 32 4-17m12 15 1-20" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>',
-    '<path d="m289 363 11-14 11 14m330 6 11-14 11 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>',
-    '<path d="M287 369q16-10 34-5m316 33q17-12 35-9" fill="none" stroke="currentColor" stroke-width="4" opacity=".8"/>',
-    '<g fill="currentColor"><circle cx="302" cy="354" r="3"/><circle cx="311" cy="361" r="2"/><circle cx="650" cy="387" r="3"/><circle cx="662" cy="378" r="2.5"/></g>',
-    '<path d="M285 377q20-12 40-9m318 33q20-14 40-12m-361-121q13-7 26-4" fill="none" stroke="currentColor" stroke-width="2" opacity=".9"/>',
-  ][biomeIndex];
   return `<g class="biome-shoreline" data-biome="${biome.name}" data-coast="${coastIndex}" aria-hidden="true">
     <path d="${coast}" transform="translate(0 9)" fill="#082e3a" opacity=".48"/>
     <path d="${coast}" fill="${biome.shore}" stroke="${biome.detail}" stroke-width="3"/>
     <path d="${coast}" transform="translate(0 5)" fill="none" stroke="${biome.rock}" stroke-width="8" opacity=".52"/>
-    <g color="${biome.accent}">${reef}${biomeMark}</g>
   </g>`;
+}
+
+function islandBiomeDetails(island) {
+  const seed = stableHash(`${island.id || ''}|${island.category || ''}|${island.topic || island.title || ''}`);
+  const biomeIndex = (seed >>> 8) % BIOMES.length;
+  const details = [
+    '<ellipse cx="307" cy="370" rx="25" ry="10" fill="#52c4bd" stroke="#d0f2d0" stroke-width="3"/><path d="m294 367 13-4 11 3m334 10 23-9 13 6-21 10Z" fill="#62c3bb" stroke="#d0f2d0" stroke-width="3"/>',
+    '<path d="m286 362 13-32 13 32Zm31 6 12-29 12 29Zm317-2 13-34 13 34Zm34 4 12-27 12 27Z" fill="#52734e" stroke="#c4d39b" stroke-width="3" stroke-linejoin="round"/>',
+    '<path d="M281 379q22-18 48-12m300 47q25-20 52-12M310 271q20-18 44-14" fill="none" stroke="#e9c58c" stroke-width="5" stroke-linecap="round"/><path d="m637 296 5-23 9 14 13-19" fill="none" stroke="#d89162" stroke-width="4"/>',
+    '<path d="m286 372 1-24m10 20 5-31m-2 35 12-26m326 45 3-28m8 23 8-34m-1 39 12-24" stroke="#8fc2a4" stroke-width="4" stroke-linecap="round"/><path d="M296 397q22-9 40-5m284 16q21-11 39-8" fill="none" stroke="#70a89a" stroke-width="4"/>',
+    '<path d="M280 390q26-13 51-7m299 17q26-13 53-9m-364-111q20-13 40-9" fill="none" stroke="#d6edf0" stroke-width="4" stroke-linecap="round"/><circle cx="316" cy="385" r="5" fill="#a3d9df"/><circle cx="648" cy="406" r="5" fill="#a3d9df"/>',
+    '<path d="m585 329 25-44 17 16 23-39 25 68-29 17-31-5Z" fill="#574b52" stroke="#dc9a72" stroke-width="3"/><path d="m614 297 13 13 20-33 13 42m-50 3 10 4 10-6" fill="none" stroke="#ed9667" stroke-width="4" stroke-linecap="round"/>',
+    '<g stroke="#708153" stroke-width="3" stroke-linecap="round"><path d="m295 378 6-20m-6 20-8-9m8 9 9-10m339 20 5-19m-5 19-8-9m8 9 10-11"/></g><g fill="#e1a0b1" stroke="#fff0cf" stroke-width="2"><circle cx="301" cy="355" r="6"/><circle cx="641" cy="376" r="6"/></g>',
+    '<path d="M280 382q25-15 51-8m295 37q26-18 53-12m-365-119q19-13 41-8" fill="none" stroke="#f1d08d" stroke-width="5" stroke-linecap="round"/><path d="M285 391q23-11 43-7m299 37q22-13 46-11" fill="none" stroke="#fff0c0" stroke-width="2" stroke-linecap="round"/>',
+  ][biomeIndex];
+  return `<g class="biome-details" aria-hidden="true">${details}</g>`;
 }
 
 function customTerrain(island, stage) {
@@ -238,7 +240,7 @@ export function renderIsland(island, stage) {
   const seed = stableHash(`${island.id || ''}|${island.category || ''}|${island.topic || island.title || ''}`);
   const biome = BIOMES[(seed >>> 8) % BIOMES.length];
   const coast = seed % COASTLINES.length;
-  return `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false"><g class="island-biome" data-biome="${biome.name}" data-coast="${coast}">${islandScenery(island)}${islandTerrain(island, stage)}</g></svg>`;
+  return `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false"><g class="island-biome" data-biome="${biome.name}" data-coast="${coast}">${islandScenery(island)}${islandTerrain(island, stage)}${islandBiomeDetails(island)}</g></svg>`;
 }
 
 const waves = [[114,167],[198,293],[282,203],[359,121],[537,161],[671,224],[813,173],[771,302],[124,424],[227,465],[330,510],[596,484],[720,438],[836,401],[785,511],[413,466],[195,208],[755,115]];
