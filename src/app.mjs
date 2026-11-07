@@ -2,9 +2,7 @@ import { createWorld, createGeneratedIsland, completeGoal, getActiveGoal, getSta
 import { DAY_MS, PRACTICE_GRACE_DAYS, maintenanceStatus, practiceXp } from './progression.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
-import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation, generateIslandIcon, generateGoalRevision, warmStarterModel } from './local-planner.mjs';
-import { knownLandmark } from './island-art.mjs';
-import { iconCandidates, iconForTopic, iconTopicKey, storeGeneratedIcon } from './generated-icons.mjs';
+import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation, generateGoalRevision, warmStarterModel } from './local-planner.mjs';
 import { DIFFICULTIES } from './difficulty.mjs';
 import { relatedSkill } from './skill-connections.mjs';
 import { layoutIslands } from './map-layout.mjs';
@@ -32,9 +30,6 @@ let revisingId;
 const adaptationDrafts = new Map();
 const pendingPractice = new Map();
 const practiceErrors = new Map();
-const attemptedIcons = new Set();
-let iconTimer;
-let iconJob;
 
 const PLAN_ERRORS = {
   clarify: 'Name one specific skill or outcome. Try “Bake a sourdough loaf” or “Learn Spanish for a train trip”. Make sure the optional outcome fits that skill.',
@@ -118,11 +113,6 @@ function changeView(view) {
   render();
 }
 
-function islandArt(island, level) {
-  const library = Array.isArray(world.islandIcons) ? world.islandIcons : [];
-  return renderIsland(island, level, island.topic ? iconForTopic(library, island.topic) : undefined);
-}
-
 function archipelagoMap(islands, selection) {
   const populated = islands.length > 0;
   return `<section class="map-frame archipelago-frame" aria-label="Archipelago map">
@@ -136,7 +126,7 @@ function archipelagoMap(islands, selection) {
         const skill = island.topic || (Object.hasOwn(SKILLS, island.category) ? SKILLS[island.category].label : 'Skill');
         return `<button type="button" class="map-island${selected && animateIsland ? ' animate-island' : ''}"
           data-action="select" data-id="${escapeHtml(island.id)}" aria-pressed="${selected}">
-          <span class="island-art">${islandArt(island, level)}</span>
+          <span class="island-art">${renderIsland(island, level)}</span>
           <span class="island-pin" title="${escapeHtml(island.title)}"><strong>${escapeHtml(island.title)}</strong><small>${skill === island.title ? '' : escapeHtml(skill) + ' · '}Lv ${level}</small></span>
         </button>`;
       }).join('')}
@@ -312,10 +302,7 @@ function changeDemoVisibility(id, { isPublic }, persona) {
 }
 
 function render() {
-  if (activeView === 'explore' && socialController) {
-    scheduleIslandIcon();
-    return;
-  }
+  if (activeView === 'explore' && socialController) return;
   socialController?.destroy();
   socialController = undefined;
   disconnectMap?.();
@@ -338,7 +325,6 @@ function render() {
       client: socialClient, viewerWorld: world, onAdopt: adoptRoadmap, onAnnounce: announce,
       onTogglePublish: changeDemoVisibility,
     });
-    scheduleIslandIcon();
     return;
   }
   const map = app.querySelector('.island-water');
@@ -362,7 +348,6 @@ function render() {
   }
   renderedView = activeView;
   animateIsland = false;
-  scheduleIslandIcon();
 }
 
 function focusLog() {
@@ -403,49 +388,6 @@ function discardGoalRevision() {
   const task = goalRevision;
   goalRevision = undefined;
   task?.controller?.abort();
-}
-
-function cancelIslandIcon() {
-  clearTimeout(iconTimer);
-  const job = iconJob;
-  iconJob = undefined;
-  job?.abort();
-}
-
-function canGenerateIcon() {
-  return globalThis.LanguageModel && !document.hidden && !iconJob && !dialog.open &&
-    !pendingCreation && !goalRevision?.controller && !pendingPractice.size && ![...adaptationDrafts.values()].some(draft => draft.pending);
-}
-
-function scheduleIslandIcon() {
-  clearTimeout(iconTimer);
-  if (canGenerateIcon()) iconTimer = setTimeout(generateNextIslandIcon, 800);
-}
-
-async function generateNextIslandIcon() {
-  if (!canGenerateIcon()) return;
-  const library = Array.isArray(world.islandIcons) ? world.islandIcons : [];
-  const island = world.islands.findLast(item => item.roadmap?.onDevice && item.topic && !knownLandmark({ topic: item.topic }) &&
-    !attemptedIcons.has(iconTopicKey(item.topic)) && !iconForTopic(library, item.topic));
-  if (!island) return;
-  const controller = new AbortController();
-  iconJob = controller;
-  const candidates = iconCandidates(library);
-  const suggestion = await generateIslandIcon(island, candidates, { signal: controller.signal }).catch(() => null);
-  if (iconJob !== controller) return;
-  iconJob = undefined;
-  attemptedIcons.add(iconTopicKey(island.topic));
-  const updated = storeGeneratedIcon(library, island.topic, suggestion, candidates);
-  if (updated !== library) {
-    persist({ ...world, islandIcons: updated });
-    for (const button of app.querySelectorAll('.map-island[data-action="select"]')) {
-      const current = world.islands.find(item => item.id === button.dataset.id);
-      if (current && iconForTopic(updated, current.topic) !== iconForTopic(library, current.topic)) {
-        button.querySelector('.island-art').innerHTML = islandArt(current, getStage(current.xp).level);
-      }
-    }
-  }
-  scheduleIslandIcon();
 }
 
 function syncProgress(now = Date.now()) {
@@ -494,9 +436,7 @@ function resetIslandsForTesting() {
   if (!testingMode || activeView !== 'world' || !world.islands.length) return;
   if (!window.confirm('Remove all your islands and progress from this browser? This cannot be undone.')) return;
 
-  cancelIslandIcon();
   discardGoalRevision();
-  attemptedIcons.clear();
   for (const id of adaptationDrafts.keys()) discardDraft(id);
   for (const task of pendingPractice.values()) task.controller.abort();
   pendingPractice.clear();
@@ -521,17 +461,13 @@ function draftNextGoal(island, goalId) {
   if (!globalThis.LanguageModel) return;
   const request = getAdaptationRequest(island, goalId);
   if (!request) return;
-  cancelIslandIcon();
   const controller = new AbortController();
-  const draft = { goalId, controller, candidate: null, pending: true };
+  const draft = { goalId, controller, candidate: null };
   adaptationDrafts.set(island.id, draft);
   generateAdaptiveGoal(request, { signal: controller.signal }).then(candidate => {
     if (!controller.signal.aborted) draft.candidate = candidate;
   }).catch(() => {
     if (adaptationDrafts.get(island.id) === draft) discardDraft(island.id);
-  }).finally(() => {
-    draft.pending = false;
-    scheduleIslandIcon();
   });
 }
 
@@ -654,7 +590,6 @@ app.addEventListener('submit', async event => {
   const goal = island?.roadmap?.onDevice && getActiveGoal(island);
   if (islandId !== selectedId || goal?.id !== goalId) return;
 
-  cancelIslandIcon();
   discardDraft(islandId);
   const prefetch = pendingPractice.get(islandId);
   pendingPractice.delete(islandId);
@@ -694,7 +629,6 @@ async function preparePractice(id, ahead = false) {
   if (!island || pendingPractice.has(id) || dialog.open || goalRevision?.controller) return;
   const waiting = needsGeneratedPractice(island);
   if (ahead ? !canQueueGeneratedPractice(island) || pendingPractice.size : !waiting) return;
-  cancelIslandIcon();
   const controller = new AbortController();
   pendingPractice.set(id, { controller, ahead });
   practiceErrors.delete(id);
@@ -725,7 +659,6 @@ async function preparePractice(id, ahead = false) {
     app.querySelector(result.status === 'ready' ? '#active-goal-title' : '[data-action="generate-practice"]')?.focus({ preventScroll: true });
     if (result.status === 'ready') announce('Your next goal is ready.');
   }
-  scheduleIslandIcon();
 }
 
 function setPlanMessage(message = '', error = false) {
@@ -736,7 +669,6 @@ function setPlanMessage(message = '', error = false) {
 }
 
 function openOnboarding(topic = '', objective = '', island) {
-  cancelIslandIcon();
   let refreshWaitingGoal = Boolean(goalRevision);
   discardGoalRevision();
   for (const [id, task] of pendingPractice) {
@@ -780,7 +712,6 @@ dialog.addEventListener('close', () => {
   pendingCreation?.abort();
   pendingCreation = undefined;
   setCreating(false);
-  scheduleIslandIcon();
 });
 
 form.addEventListener('submit', async event => {
@@ -849,10 +780,6 @@ syncProgress();
 render();
 window.addEventListener('focus', refreshMaintenance);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) cancelIslandIcon();
-  else {
-    refreshMaintenance();
-    scheduleIslandIcon();
-  }
+  if (!document.hidden) refreshMaintenance();
 });
 scheduleMaintenance();

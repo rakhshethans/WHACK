@@ -1,5 +1,4 @@
 import { knownLandmark } from './island-art.mjs';
-import { renderGeneratedIcon } from './generated-icons.mjs';
 
 const trees = [[314,335,.8],[345,309,1],[383,292,.7],[405,290,.9],[426,277,.7],[570,292,.85],[601,307,1],[620,325,.8],[644,340,.72],[346,367,.7],[367,378,.92],[575,379,.7],[600,369,.88],[630,357,.68]];
 
@@ -174,6 +173,37 @@ const LANDMARK_ART = {
   racing: '<path d="M-29 27v-54" fill="none" stroke="#fff0cc" stroke-width="5" stroke-linecap="round"/><path d="M-27-24q14-7 30 0t30 0v32Q18 15 3 8t-30 0Z" fill="#fff0cc"/><path d="M-12-26v16l15 4v-18m0 18v14l15 4V-3m0 0 15-5v-16M-27-8l15-2V7l-15 1" fill="#31595a" stroke-width="1"/>',
   'building-game': '<path d="m-30-13 30-16 30 16v32L0 34l-30-15Z" fill="#d0a273"/><path d="m-30-13 30 15 30-15L0-29Z" fill="#a8c982"/><path d="M0 2v32m-30-38 11 6v6l10 4V6L0 11 10 6v7l9-5V2l11-6" fill="none"/>',
   controller: '<path d="M-18-18h36q13 0 17 17l4 15q2 12-10 11l-16-12h-26l-16 12q-12 1-10-11l4-15q4-17 17-17Z" fill="#aed5c7"/><path d="M-20-8V8m-8-8h16" fill="none" stroke-width="4" stroke-linecap="round"/><circle cx="16" cy="-3" r="3"/><circle cx="25" cy="4" r="3"/>',
+  football: '<circle r="28"/><path d="m0-10 10 7-4 12H-6l-4-12Z" fill="#31595a"/><path d="M0-10v-18M10-3l16-8M6 9l10 14M-6 9l-10 14M-10-3l-16-8" fill="none"/>',
+  basketball: '<circle r="28" fill="#e5a16b"/><path d="M-28 0h56M0-28v56M-23-16q22 16 0 32m46-32q-22 16 0 32" fill="none"/>',
+  racket: '<ellipse cx="10" cy="-10" rx="18" ry="24" transform="rotate(34 10 -10)" fill="#b6d5c7"/><path d="m-3 8-18 23M1-29v35m9-37V8m10-31v24M-7-16h34M-9-7h34" fill="none" stroke-width="2.5"/><circle cx="29" cy="21" r="7"/>',
+  golf: '<path d="M-9 24v-53l28 10-28 11" fill="#df9e70"/><ellipse cy="26" rx="29" ry="7" fill="#9dc68d"/><circle cx="11" cy="14" r="9"/><path d="m13 11 1 2m-4 3 1 1" stroke-width="1.5"/>',
+  'bat-sports': '<path d="m-29 24 9 7L13 1l5-10 13-12-6-7L11-16l-9 2Z" fill="#e3ad74"/><path d="m9-8 9 9" fill="none"/><circle cx="-17" cy="-14" r="9"/><path d="m-21-21 9 13" fill="none" stroke-width="1.5"/>',
+  volleyball: '<circle r="28" fill="#f3dda8"/><path d="M-27 2Q-9-8 2-25M-19 20Q-1 11 16 16M4 28Q1 5 24-14M-9-7q4 9 17 13" fill="none"/>',
+  cycling: '<circle cx="-25" cy="13" r="14" fill="none"/><circle cx="25" cy="13" r="14" fill="none"/><path d="M-25 13-10-12 2 13Zm27 0 16-24h-28m35 24-9-37h10m-42 9h12" fill="none" stroke="#fff0cc" stroke-width="4" stroke-linecap="round"/>',
+  climbing: '<path d="M-34 24-8-21 1-10 15-30 35 24Z" fill="#8fb8c0"/><path d="m15-30-8 12 8-3 10 7ZM-8-21l-9 16 9-5 9 1Z"/><path d="M15-20Q25 2 8 11T-8 24" fill="none" stroke="#fff0cc"/>',
+  outdoors: '<path d="m-35 23 35-51 35 51Z" fill="#e6b377"/><path d="M0-28v51m-17 0L0-9l18 32" fill="#a6cbb4"/><path d="M-39 24h78" stroke="#fff0cc" stroke-linecap="round"/>',
+  'snow-sports': '<path d="m-29 26 52-46q8-6 10-2T31-12L-22 33Zm-8-14 53-46q7-4 10 0t-3 9L-30 19Z" fill="#bdd8dc"/><path d="m-22 13 9 9m3-24 9 9" fill="none"/>',
+  'water-sports': '<path d="M0-30v42h-28Zm5 11 22 27H5Z" fill="#f4d99e"/><path d="M-36 15h72l-10 12h-52Z" fill="#8fc4c0"/><path d="M-34 31q8-5 17 0t17 0 17 0 17 0" fill="none" stroke="#fff0cc"/>',
+  'martial-arts': '<path d="M-27-7q-4-18 11-23 18-6 27 5 14 1 15 16v9l-13 14H-9l-12-7Z" fill="#d99377"/><path d="M-11 13h25v14h-25Z"/><path d="M-20-8q8-7 16 1m15-18 2 11" fill="none"/>',
+  skating: '<path d="M-32-12q2 14 21 14h24q17 0 19-14v10q0 12-17 13h-28q-19 0-19-12Z" fill="#e8b97e"/><circle cx="-19" cy="19" r="7"/><circle cx="20" cy="19" r="7"/>',
+  mobility: '<circle cy="-23" r="7"/><path d="M0-13v23m0-21-20 13m20-13L20 2M0 9-19 20l-13-8m32-3 19 11 13-8" fill="none" stroke="#fff0cc" stroke-width="6" stroke-linecap="round"/><path d="M-29 26h58" stroke="#fff0cc" stroke-linecap="round"/>',
+  audio: '<rect x="-12" y="-28" width="24" height="41" rx="12" fill="#9cc9c3"/><path d="M-21-2v4a21 21 0 0 0 42 0v-4M0 23v8m-12 0h24m-19-47H7M-7-8H7" fill="none" stroke-linecap="round"/>',
+  baking: '<path d="M-33 16v-9q0-29 33-29T33 7v9l-8 8h-50Z" fill="#e9ad69"/><path d="m-17-11 9 10M-4-16 9-2m1-15L24-5" fill="none" stroke="#fff0cc" stroke-width="4" stroke-linecap="round"/>',
+  coffee: '<path d="M-27-9h48v18q0 14-17 16h-14q-17-2-17-16Z" fill="#e7be91"/><path d="M21-4h8q11 0 9 9t-17 8M-32 27h62M-11-16q-6-7 1-13M5-16q-6-7 1-13" fill="none" stroke="#fff0cc" stroke-linecap="round"/>',
+  calligraphy: '<path d="M-30 28-17-11 12-30 30-13 10 15Z" fill="#c8ded6"/><path d="m-30 28 25-25m-12-14 27 26" fill="none"/><circle cx="-3" cy="0" r="4" fill="#31595a"/>',
+  repair: '<path d="m-29 25 26-31q-4-12 6-20 8-6 19-3L12-17l8 7L32-21q4 14-6 23-9 7-18 3l-26 30Z" fill="#b8d2d5"/><path d="m-23 25 5 5" fill="none"/>',
+  electronics: '<rect x="-27" y="-22" width="54" height="44" rx="4" fill="#9ac59a"/><path d="M-18-22v-9m18 9v-9m18 9v-9m-36 53v9m18-9v9m18-9v9m-45-43h-9m9 22h-9m63-22h9m-9 22h9" stroke="#fff0cc" stroke-linecap="round"/><rect x="-11" y="-10" width="22" height="20" rx="3"/>',
+  design: '<rect x="-32" y="-24" width="64" height="48" rx="4" fill="#c2d7da"/><path d="M-32-13h64M-13-13v37" fill="none"/><path d="M-7-6h32v22H-7Z" fill="#e5b483"/><path d="M-26-19h8m-8 13h7m-7 8h7" fill="none" stroke-linecap="round"/>',
+  maths: '<rect x="-24" y="-29" width="48" height="58" rx="6" fill="#acd0ca"/><rect x="-15" y="-20" width="30" height="13" rx="2"/><path d="M-14 6h5m8 0h5m8 0h3m-29 12h5m8 0h5m8 0h3" stroke-width="5" stroke-linecap="round"/>',
+  science: '<path d="M-8-26H8v18l21 27q5 9-5 10h-48q-10-1-5-10L-8-8Z" fill="#c5dedd"/><path d="M-20 8q10 6 20 0t20 0l9 13q4 7-5 8h-48q-9-1-5-8Z" fill="#87beb0"/><path d="M-12-26h24" stroke="#fff0cc" stroke-linecap="round"/><circle cx="6" cy="19" r="3"/>',
+  astronomy: '<path d="m-29 3 52-29 8 14L-21 17Zm11 4 7 12 12-7" fill="#d7c1dd"/><path d="M0 7v9m0 0-15 16m15-16 15 16M-22-24v12m-6-6h12" fill="none" stroke="#fff0cc" stroke-width="4" stroke-linecap="round"/>',
+  finance: '<ellipse cy="15" rx="26" ry="12" fill="#c48c54"/><path d="M-26 1v14q0 12 26 12t26-12V1Z" fill="#d9a465"/><ellipse cy="1" rx="26" ry="12" fill="#efd39a"/><path d="M-8 1h16M0-5v12" fill="none" stroke-linecap="round"/>',
+  business: '<rect x="-32" y="-13" width="64" height="39" rx="5" fill="#d2a479"/><path d="M-13-13v-10h26v10M-32 0q32 16 64 0" fill="none"/><path d="M-6 4H6v9H-6Z" fill="#f8dd9e"/>',
+  organisation: '<rect x="-27" y="-22" width="54" height="49" rx="4" fill="#c3d9c0"/><path d="M-27-9h54M-14-29v13m28-13v13m-27 28 10 9 18-20" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>',
+  travel: '<path d="m-35-14 23-10 24 9 23-9v43l-23 9-24-9-23 9Z" fill="#ead09c"/><path d="M-12-24v43m24-34v43m-36-12Q-9-3 2 5T26-5" fill="none"/><circle cx="25" cy="-5" r="5" fill="#d88f72"/>',
+  animals: '<ellipse cy="12" rx="20" ry="15" fill="#dbab83"/><circle cx="-23" cy="-3" r="7"/><circle cx="-9" cy="-16" r="7"/><circle cx="9" cy="-16" r="7"/><circle cx="23" cy="-3" r="7"/>',
+  beauty: '<circle cx="8" cy="-9" r="20" fill="#c9dbe6"/><path d="m-4 6-16 23-8-6L-9 1Z" fill="#e2a6b4"/><path d="m2-20 10-4m-3 12 12-5" stroke="#fff0cc" stroke-linecap="round"/>',
+  magic: '<path d="m-29 25 49-49 8 8-49 49Z" fill="#bba6ce"/><path d="m19-24 9 8m-43-13v17m-8-8h16M29-5v14m-7-7h14" fill="none" stroke="#fff0cc" stroke-width="3.5" stroke-linecap="round"/>',
 };
 
 const LANDFORMS = {
@@ -245,7 +275,8 @@ function blendTerrain(base, palette) {
 }
 
 function topicSeal(island) {
-  const topic = String(island.topic || island.title || '').normalize('NFC').toLowerCase();
+  const topic = String(island.topic || island.title || '').normalize('NFC').toLowerCase().trim()
+    .replace(/^(?:i (?:want|would like) to )?(?:get(?:ting)? better at|learn(?:ing)?(?: how to)?|improv(?:e|ing)(?: my)?|practi[cs](?:e|ing))\s+/, '');
   const words = (topic.match(/[\p{L}\p{N}]+/gu) ?? [])
     .filter(word => !['a', 'an', 'i', 'to', 'the', 'learn', 'how', 'want', 'improve', 'practice', 'practise'].includes(word));
   const initials = words.length > 1
@@ -269,11 +300,8 @@ function landmarkArt(island, landmark) {
   return LANDMARK_ART[landmark];
 }
 
-function themedTerrain(island, stage, palette, icon) {
+function themedTerrain(island, stage, palette, landmark) {
   const { landmark: savedLandmark } = island;
-  const known = knownLandmark(island);
-  const generated = !knownLandmark({ topic: island.topic }) && renderGeneratedIcon(icon);
-  const landmark = known ?? savedLandmark;
   const choices = Object.hasOwn(THEMED_LANDFORMS, savedLandmark) ? THEMED_LANDFORMS[savedLandmark] : Object.keys(LANDFORMS);
   const seed = stableHash(`${island.id}|${island.topic ?? island.title}`);
   const landform = choices[seed % choices.length];
@@ -292,8 +320,7 @@ function themedTerrain(island, stage, palette, icon) {
     <ellipse cx="485" cy="337" rx="61" ry="19" fill="${cliff}" opacity=".72"/>
     <ellipse cx="485" cy="329" rx="60" ry="19" fill="${sand}" stroke="#fff0cc" stroke-width="2.5"/>
     <g transform="translate(485 291) scale(1.25)" fill="#fff0cc" stroke="#31595a" stroke-width="3" stroke-linejoin="round">
-      ${generated || landmarkArt(island, landmark)}
-      ${!generated && !known && landmark !== 'compass' ? `<g transform="translate(43 20) scale(.4)">${topicSeal(island)}</g>` : ''}
+      ${landmarkArt(island, landmark)}
     </g>
   </g>`;
 }
@@ -356,18 +383,15 @@ function islandBiomeDetails(island) {
   return `<g class="biome-details" aria-hidden="true">${details}</g>`;
 }
 
-function customTerrain(island, stage, [, sand, ground, cliff], generatedIcon) {
+function customTerrain(island, stage, [, sand, ground, cliff], landmark) {
   const seed = stableHash((island.topic + ' ' + island.objective).toLowerCase());
   const alternate = (seed & 1) === 1;
   const coast = alternate
     ? 'm280 341 62-43 48-44 105 4 71 26 50-9 55 44 22 38-65 29-80 35-111-5-61-26-58 3Z'
     : 'm277 348 57-24 55-57 82-28 92 21 44 42 65 15 29 33-46 35-55 10-80 37-97-16-49-34-52-3Z';
   const inset = 'm322 345 62-33 36-33 56-19 78 14 41 36 58 20-24 30-76 33-87 7-81-26-49-7Z';
-  const landmark = knownLandmark(island);
-  const generated = !knownLandmark({ topic: island.topic }) && renderGeneratedIcon(generatedIcon);
-  const icon = generated || (landmark ? landmarkArt(island, landmark)
-    : island.theme !== 'compass' && Object.hasOwn(CUSTOM_ICONS, island.theme) ? CUSTOM_ICONS[island.theme] : topicSeal(island));
-  return `<g class="wh-island custom-terrain">
+  const icon = landmarkArt(island, landmark);
+  return `<g class="wh-island custom-terrain" data-landmark="${landmark}">
     <ellipse cx="484" cy="410" rx="210" ry="36" fill="#142f39" opacity=".4"/>
     <path d="${coast}" fill="${cliff}" transform="translate(0 12)"/>
     <path d="${coast}" fill="${sand}" stroke="#e6ecc6" stroke-width="2"/>
@@ -383,11 +407,12 @@ function customTerrain(island, stage, [, sand, ground, cliff], generatedIcon) {
   </g>`;
 }
 
-function islandTerrain(island, stage, palette, icon) {
-  const track = island.category === 'custom' ? island.theme : island.category;
+function islandTerrain(island, stage, palette, landmark) {
+  const originalIcon = { guitar: 'guitar', songwriting: 'music', photography: 'camera' };
+  const track = island.category === 'custom' && originalIcon[island.theme] === landmark ? island.theme : island.category;
   if (track === 'songwriting') return songwritingTerrain(stage, blendTerrain(['#e7a687', '#ae7497', '#724e64'], palette));
   if (track === 'photography') return photographyTerrain(stage, blendTerrain(['#a7c6d3', '#6d8ca9', '#4f637e'], palette));
-  if (island.category === 'custom' && (icon || track !== 'guitar')) return customTerrain(island, stage, palette, icon);
+  if (track === 'custom') return customTerrain(island, stage, palette, landmark);
   return guitarTerrain(stage, blendTerrain(['#d3ae74', '#92ac72', '#615947'], palette));
 }
 
@@ -402,17 +427,18 @@ function laterBuildings(stage) {
   </g>`;
 }
 
-export function renderIsland(island, stage, icon) {
+export function renderIsland(island, stage) {
   const buildings = laterBuildings(stage);
+  const landmark = knownLandmark(island) ?? 'compass';
   const seed = stableHash(`${island.id || ''}|${island.category || ''}|${island.topic || island.title || ''}`);
   const palette = PALETTES[(stableHash(`palette|${seed}`) >>> 16) % PALETTES.length];
   const open = `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false" data-palette="${palette[0]}">`;
   if (typeof island.landmark === 'string' && Object.hasOwn(LANDMARK_ART, island.landmark)) {
-    return `${open}${themedTerrain(island, stage, palette, icon)}${buildings}</svg>`;
+    return `${open}${themedTerrain(island, stage, palette, landmark)}${buildings}</svg>`;
   }
   const biome = BIOMES[(seed >>> 8) % BIOMES.length];
   const coast = seed % COASTLINES.length;
-  return `${open}<g class="island-biome" data-biome="${biome.name}" data-coast="${coast}">${islandScenery(island, palette)}${islandTerrain(island, stage, palette, icon)}${islandBiomeDetails(island)}${buildings}</g></svg>`;
+  return `${open}<g class="island-biome" data-biome="${biome.name}" data-coast="${coast}">${islandScenery(island, palette)}${islandTerrain(island, stage, palette, landmark)}${islandBiomeDetails(island)}${buildings}</g></svg>`;
 }
 
 const waves = [[114,167],[198,293],[282,203],[359,121],[537,161],[671,224],[813,173],[771,302],[124,424],[227,465],[330,510],[596,484],[720,438],[836,401],[785,511],[413,466],[195,208],[755,115]];

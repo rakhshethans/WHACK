@@ -7,7 +7,6 @@ import { toAdoptableRoadmap, toPublicIsland, validateAdoptableRoadmap } from './
 import { createFixtureSocialClient } from './fixtures.mjs';
 import { rankNeighborsByGraph, normalizeIslandSkill } from './graph.mjs';
 import { recommendExplorers } from './recommendations.mjs';
-import { iconForTopic } from '../generated-icons.mjs';
 
 const SAMPLE_ROADMAPS = [
   ['user-maya', 'island-chord-coast', 'The Chord Coast'],
@@ -75,9 +74,7 @@ function renderHomeCluster(viewerWorld, activePersona, activeCluster, selectedHo
           data-social-action="select-home-island"
           data-island-id="${escapeHtml(island.id)}"
           aria-pressed="${selected}">
-          <span class="island-art">${renderIsland(island, level, iconForTopic(
-            Array.isArray(viewerWorld.islandIcons) ? viewerWorld.islandIcons : [], island.topic,
-          ))}</span>
+          <span class="island-art">${renderIsland(island, level)}</span>
           <span class="island-pin" title="${escapeHtml(island.title)}"><strong>${escapeHtml(island.title)}</strong><small>${skill === island.title ? '' : escapeHtml(skill) + ' · '}Lv ${level}</small></span>
         </button>`;
       }).join('') : `
