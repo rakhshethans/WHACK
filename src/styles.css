@@ -276,6 +276,7 @@ p { color: var(--muted); }
 .map-log > .eyebrow, .map-log > h2 { padding-right: 37px; }
 .field-notes h2, .active-goal p { overflow-wrap: anywhere; }
 .stage-name { color: var(--focus); margin: 9px 0 6px; font-size: 14px; font-weight: 680; }
+.xp-maintenance { margin: 12px 0 4px; color: var(--ink); font-size: 14px; font-weight: 680; }
 progress { appearance: none; width: 100%; height: 7px; border: 0; border-radius: 10px; overflow: hidden; background: #dce5da; }
 progress::-webkit-progress-bar { background: #dce5da; }
 progress::-webkit-progress-value { background: var(--focus); }

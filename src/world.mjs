@@ -2,33 +2,16 @@ import { buildRoadmap, nextPractice, SKILLS } from './roadmaps.mjs';
 import { buildCustomRoadmap, customArtworkTheme, nextCustomPractice } from './custom-roadmap.mjs';
 import { coachGoal, DIFFICULTIES, guidedNextGoal } from './difficulty.mjs';
 import { isBoilerplateGoal, unclearTopic } from './local-planner.mjs';
+import { applyIslandInactivity, getStage, levelChallenge, practiceDeadline, practiceXp } from './progression.mjs';
+import { knownLandmark, validLandmark } from './island-art.mjs';
 
-const STAGES = [
-  [0, 'Settlement'], [100, 'Village'], [250, 'Town'],
-  [500, 'City'], [900, 'Metropolis'],
-];
+export { getStage } from './progression.mjs';
 
 const XP_AWARDS = [40, 60, 65, 85, 110, 140, 175, 225];
 const POST_CHECKPOINT_XP = [150, 175, 175];
-const XP_PER_LATER_LEVEL = 500;
 
 export function createWorld() {
   return { islands: [] };
-}
-
-export function getStage(xp) {
-  const [lastThreshold, lastName] = STAGES.at(-1);
-  if (xp >= lastThreshold) {
-    const extraLevels = Math.floor((xp - lastThreshold) / XP_PER_LATER_LEVEL);
-    const threshold = lastThreshold + extraLevels * XP_PER_LATER_LEVEL;
-    return {
-      level: STAGES.length + extraLevels, name: lastName,
-      threshold, nextThreshold: threshold + XP_PER_LATER_LEVEL,
-    };
-  }
-  const levelIndex = Math.max(0, STAGES.findLastIndex(([threshold]) => xp >= threshold));
-  const [threshold, name] = STAGES[levelIndex];
-  return { level: levelIndex + 1, name, threshold, nextThreshold: STAGES[levelIndex + 1][0] };
 }
 
 function addIsland(world, island) {
@@ -56,6 +39,13 @@ export function createIsland(world, { title = '', experience = 'beginner', minut
   const landmark = onDevice && (knownLandmark(input) ?? (validLandmark(plan.landmark) ? plan.landmark : 'compass'));
   const goals = steps.map((step, index) => starterGoal(step, index,
     skill === 'custom' ? sessionMinutes : Math.min(sessionMinutes, 10 + index * 5), index ? 'goal-' + index : undefined));
+  if (onDevice) {
+    let projectedXp = 0;
+    for (const goal of goals) {
+      goal.practiceLevel = getStage(projectedXp).level;
+      projectedXp = practiceXp(projectedXp, goal.xp);
+    }
+  }
   return addIsland(world, {
     title: name, category: skill, topic: customTopic, theme, experience, objective: target,
     ...(landmark ? { landmark } : {}),
@@ -80,11 +70,11 @@ export function reviseIslandRoadmap(world, islandId, input) {
   if (!island || !needsRoadmapRevision(island)) return world;
   const [replacement] = createGeneratedIsland(createWorld(), input).islands;
   if (!replacement) return world;
-  const { id, xp, attribution } = island;
+  const { id, xp, attribution, nextXpLossAt } = island;
   if (replacement.goals.length === 1) {
-    const revised = { ...replacement, id, xp, attribution, difficulty: island.difficulty,
+    const revised = { ...replacement, id, xp, attribution, nextXpLossAt, difficulty: island.difficulty,
       goals: island.goals.filter(goal => goal.completed) };
-    revised.goals.push(generatedPracticeGoal(revised, replacement.goals[0]));
+    revised.goals.push({ ...generatedPracticeGoal(revised, replacement.goals[0]), practiceLevel: getStage(xp).level });
     return replaceIsland(world, revised);
   }
   const starters = island.goals.filter(goal => !goal.continuation);
@@ -93,7 +83,7 @@ export function reviseIslandRoadmap(world, islandId, input) {
     return previous?.completed ? previous : previous ? { ...goal, id: previous.id, xp: previous.xp, prerequisites: previous.prerequisites } : goal;
   });
   goals.push(...island.goals.filter(goal => goal.continuation && goal.completed));
-  return replaceIsland(world, { ...replacement, id, xp, attribution, goals });
+  return replaceIsland(world, { ...replacement, id, xp, attribution, nextXpLossAt, goals });
 }
 
 export function needsGeneratedPractice(island) {
@@ -116,10 +106,49 @@ function generatedPracticeGoal(island, goal) {
   return continuationGoal(island, goal, island.goals.filter(item => item.continuation).length);
 }
 
-export function appendGeneratedPractice(world, islandId, goal, { ahead = false } = {}) {
+export function plannedPracticeLevel(island, ahead = false) {
+  const active = ahead ? availableGoal(island) : null;
+  return getStage(active ? practiceXp(island.xp, active.xp) : island.xp).level;
+}
+
+export function appendGeneratedPractice(world, islandId, goal, { ahead = false, practiceLevel } = {}) {
   const island = world.islands.find(item => item.id === islandId);
   if (!island || !(ahead ? canQueueGeneratedPractice(island) : needsGeneratedPractice(island)) || !goal || isBoilerplateGoal(goal)) return world;
-  return replaceIsland(world, { ...island, goals: [...island.goals, generatedPracticeGoal(island, goal)] });
+  const currentLevel = plannedPracticeLevel(island, ahead);
+  if (practiceLevel !== undefined && practiceLevel !== currentLevel) return world;
+  return replaceIsland(world, { ...island, goals: [...island.goals, { ...generatedPracticeGoal(island, goal), practiceLevel: currentLevel }] });
+}
+
+function discardOutdatedPractice(island, previousLevel) {
+  if (!island.roadmap?.onDevice) return island;
+  const changedLevel = getStage(island.xp).level !== previousLevel;
+  let projectedXp = island.xp;
+  let outdated = false;
+  const goals = island.goals.filter(goal => {
+    if (goal.completed) return true;
+    const level = getStage(projectedXp).level;
+    outdated ||= goal.practiceLevel === undefined ? changedLevel : goal.practiceLevel !== level;
+    if (outdated) return false;
+    projectedXp = practiceXp(projectedXp, goal.xp);
+    return true;
+  });
+  if (!outdated) return island;
+  return { ...island, goals, goalFeedback: undefined, nextGoalAdjustment: undefined };
+}
+
+export function applyInactivity(world, now = Date.now()) {
+  let changed = false;
+  const islands = world.islands.map(island => {
+    const updated = applyIslandInactivity(island, now);
+    if (updated === island) return island;
+    changed = true;
+    if (updated.xp === island.xp) return updated;
+    const previousLevel = getStage(island.xp).level;
+    const dropped = getStage(updated.xp).level < previousLevel;
+    const reset = dropped ? { ...updated, difficulty: 'standard', goalFeedback: undefined, nextGoalAdjustment: undefined } : updated;
+    return discardOutdatedPractice(reset, previousLevel);
+  });
+  return changed ? { ...world, islands } : world;
 }
 
 function availableGoal(island) {
@@ -153,8 +182,10 @@ function goalVersion(island, goal) {
 
 export function getActiveGoal(island) {
   const goal = goalVersion(island, availableGoal(island));
-  if (island.roadmap?.onDevice) return goal;
-  return goal?.adapted && island.goalFeedback?.id !== goal.id ? goal : coachGoal(goal, island);
+  if (!goal || island.roadmap?.onDevice) return goal;
+  const coached = goal.adapted && island.goalFeedback?.id !== goal.id ? goal : coachGoal(goal, island);
+  const practiceLevel = getStage(island.xp).level;
+  return { ...coached, practiceLevel, levelPractice: levelChallenge(practiceLevel) };
 }
 
 export function setDifficulty(world, islandId, goalId, rating) {
@@ -174,7 +205,7 @@ function withGoalCompleted(island, goal) {
   const goals = island.goals.some(item => item.id === goal.id)
     ? island.goals.map(item => item.id === goal.id ? completed : item)
     : [...island.goals, completed];
-  return { ...island, xp: island.xp + goal.xp, goals };
+  return { ...island, xp: practiceXp(island.xp, goal.xp), goals };
 }
 
 function adaptationRequest(island, completed, plannedGoal) {
@@ -187,6 +218,7 @@ function adaptationRequest(island, completed, plannedGoal) {
     experience: island.experience,
     theme: island.theme,
     feedback,
+    skillLevel: getStage(practiceXp(island.xp, completed.xp)).level,
     completed: goalVersion(island, completed),
     plannedGoal,
   };
@@ -195,15 +227,19 @@ function adaptationRequest(island, completed, plannedGoal) {
 export function getAdaptationRequest(island, goalId) {
   const goal = availableGoal(island);
   if (!goal || goal.id !== goalId) return null;
-  return adaptationRequest(island, goal, availableGoal(withGoalCompleted(island, goal)));
+  const projected = discardOutdatedPractice(withGoalCompleted(island, goal), getStage(island.xp).level);
+  return adaptationRequest(island, goal, availableGoal(projected));
 }
 
-export function completeGoal(world, islandId, goalId, generated) {
+export function completeGoal(world, islandId, goalId, generated, now = Date.now()) {
+  world = applyInactivity(world, now);
   const island = world.islands.find(({ id }) => id === islandId);
   const goal = island && availableGoal(island);
   if (!goal || goal.id !== goalId) return world;
 
-  const updatedIsland = withGoalCompleted(island, island.roadmap?.onDevice ? goalVersion(island, goal) : goal);
+  const completed = withGoalCompleted(island, island.roadmap?.onDevice ? goalVersion(island, goal) : goal);
+  const updatedIsland = discardOutdatedPractice(completed, getStage(island.xp).level);
+  updatedIsland.nextXpLossAt = practiceDeadline(now);
   const request = adaptationRequest(island, goal, availableGoal(updatedIsland));
   delete updatedIsland.goalFeedback;
   delete updatedIsland.nextGoalAdjustment;
@@ -233,4 +269,3 @@ export function adoptIsland(world, source) {
     goals: source.goals.filter(goal => !goal.continuation).map(goal => ({ ...goal, prerequisites: [...goal.prerequisites], completed: false })),
   });
 }
-import { knownLandmark, validLandmark } from './island-art.mjs';

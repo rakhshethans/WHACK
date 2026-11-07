@@ -24,15 +24,15 @@ test('only unlocked goals earn XP, and each goal can earn it once', () => {
   const updated = completeGoal(world, island.id, first.id);
   assert.equal(updated.islands[0].xp, 40);
   assert.equal(getStage(updated.islands[0].xp).level, 1);
-  assert.equal(getStage(updated.islands[0].xp).nextThreshold, 100);
+  assert.equal(getStage(updated.islands[0].xp).nextThreshold, 350);
   assert.equal(getActiveGoal(updated.islands[0]).id, second.id);
-  const levelTwo = completeGoal(updated, island.id, second.id);
-  assert.equal(levelTwo.islands[0].xp, 100);
-  assert.equal(getStage(levelTwo.islands[0].xp).level, 2);
+  const secondCompletion = completeGoal(updated, island.id, second.id);
+  assert.equal(secondCompletion.islands[0].xp, 100);
+  assert.equal(getStage(secondCompletion.islands[0].xp).level, 1);
   assert.equal(world.islands[0].xp, 0);
   assert.equal(completeGoal(updated, island.id, first.id), updated);
   const completed = island.goals.slice(1).reduce((state, goal) => completeGoal(state, island.id, goal.id), updated);
-  assert.deepEqual(getStage(completed.islands[0].xp), { level: 5, name: 'Metropolis', threshold: 900, nextThreshold: 1400 });
+  assert.deepEqual(getStage(completed.islands[0].xp), { level: 2, name: 'Hamlet', threshold: 350, nextThreshold: 950 });
 });
 
 test('adoption starts a separate island at level one and preserves credit', () => {
@@ -102,11 +102,11 @@ test('one goal remains available across many practice rounds and higher levels',
     if (index === starterCount) {
       assert.equal(island.xp, 900);
       assert.match(goal.title, /Expand your live set/);
-      assert.equal(getStage(island.xp).level, 5);
+      assert.equal(getStage(island.xp).level, 2);
     }
     if (index === starterCount + 3) {
       assert.equal(island.xp, 1400);
-      assert.equal(getStage(island.xp).level, 6);
+      assert.equal(getStage(island.xp).level, 3);
     }
     seen.add(goal.id);
     world = completeGoal(world, island.id, goal.id);

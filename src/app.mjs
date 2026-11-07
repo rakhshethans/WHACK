@@ -1,4 +1,5 @@
-import { createWorld, createIsland, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice } from './world.mjs';
+import { createWorld, createIsland, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice, applyInactivity, plannedPracticeLevel } from './world.mjs';
+import { DAY_MS, PRACTICE_GRACE_DAYS, maintenanceStatus, practiceXp } from './progression.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
 import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation, warmStarterModel } from './local-planner.mjs';
@@ -80,6 +81,7 @@ let disconnectMap;
 let activeDemo = 0;
 let storageUnavailable = false;
 let animateIsland = false;
+let maintenanceTimer;
 
 const demoIslands = [
   { title: 'The Chord Coast', category: 'guitar', objective: 'Play a song from start to finish', creator: 'Maya Chen', xp: 250, experience: 'beginner', minutes: 20 },
@@ -103,6 +105,7 @@ function persist(nextWorld) {
   } catch {
     storageUnavailable = true;
   }
+  scheduleMaintenance();
 }
 
 function announce(message) {
@@ -161,15 +164,17 @@ function roadmapSummary(island) {
   </details>`;
 }
 
-function goalMarkup(goal, number, difficulty, ambition) {
+function goalMarkup(goal, number, difficulty, ambition, xp) {
   if (!goal) return '<p>Complete the prerequisite for the next practice goal.</p>';
   return `<section class="active-goal" aria-labelledby="active-goal-title">
-    <div class="goal-card-top"><p class="eyebrow">CURRENT GOAL / ${number}</p><span class="goal-reward">+${escapeHtml(goal.xp)} XP</span></div>
+    <div class="goal-card-top"><p class="eyebrow">CURRENT GOAL / ${number}</p><span class="goal-reward">${xp ? '+' + xp + ' XP' : 'Maintain mastery'}</span></div>
     <h3 id="active-goal-title" tabindex="-1">${escapeHtml(goal.title)}</h3>
     ${goal.adapted ? `<p class="goal-adaptation">${goal.adapted === 'support' ? 'Smaller next step based on your feedback' : 'Stretch goal based on your feedback'}</p>` : ''}
     <p>${escapeHtml(goal.description)}</p>
+    ${goal.levelPractice ? `<p class="practice-adjustment"><strong>Level ${goal.practiceLevel} practice</strong> ${escapeHtml(goal.levelPractice)}</p>` : ''}
     ${goal.practiceAdjustment ? `<p class="practice-adjustment"><strong>${difficulty === 'support' ? 'Start here' : 'Stretch practice'}</strong> ${escapeHtml(goal.practiceAdjustment)}</p>` : ''}
-    ${goal.finish ? `<p class="goal-finish"><strong>Done when</strong> ${escapeHtml(goal.finish)}</p>` : ''}
+    ${goal.levelPractice && goal.practiceLevel <= 3 ? `<p class="goal-finish"><strong>Done when</strong> You can repeat the part you practised once with control.</p>` : ''}
+    ${goal.finish ? `<p class="goal-finish"><strong>${goal.levelPractice && goal.practiceLevel <= 3 ? 'Full exercise target' : 'Done when'}</strong> ${escapeHtml(goal.finish)}</p>` : ''}
     ${ambition ? `<p class="goal-ambition"><strong>Working toward</strong> ${escapeHtml(ambition)}</p>` : ''}
     <p class="goal-meta">${escapeHtml(goal.minutes)} MIN${goal.finish ? ' / SESSION' : ''}</p>
     <button class="primary" data-action="complete" data-id="${escapeHtml(goal.id)}">Complete goal <span aria-hidden="true">✓</span></button>
@@ -202,7 +207,22 @@ function currentPracticeMarkup(island, goal, number) {
     <h3>Ready for your next goal</h3><p>Generate a new exercise that builds on what you’ve already completed.</p>
     <button class="primary" data-action="generate-practice" data-id="${escapeHtml(island.id)}" ${pendingPractice.has(island.id) ? 'disabled' : ''}>${pendingPractice.has(island.id) ? 'Preparing your next goal…' : 'Generate next goal'}</button>
     ${practiceErrors.has(island.id) ? `<p role="status">${escapeHtml(practiceErrors.get(island.id))}</p>` : ''}</section>`;
-  return goalMarkup(goal, number, island.category === 'custom' ? island.goalFeedback?.rating : island.difficulty ?? 'standard', island.objective);
+  const reward = goal ? practiceXp(island.xp, goal.xp) - island.xp : 0;
+  return goalMarkup(goal, number, island.category === 'custom' ? island.goalFeedback?.rating : island.difficulty ?? 'standard', island.objective, reward);
+}
+
+function maintenanceMessage(island, now = Date.now()) {
+  const status = maintenanceStatus(island, now);
+  if (!status) return 'Complete a goal to start your ' + PRACTICE_GRACE_DAYS + '-day practice window.';
+  const remaining = status.nextLossAt - now;
+  const days = Math.ceil(remaining / DAY_MS);
+  const hours = Math.ceil(remaining / (DAY_MS / 24));
+  const minutes = Math.ceil(remaining / 60000);
+  const countdown = remaining <= 0 ? 'now' : 'in ' + (
+    days > 1 ? days + ' days' : hours === 24 ? '1 day' :
+      hours > 1 ? hours + ' hours' : minutes > 1 ? minutes + ' minutes' : 'under a minute'
+  );
+  return 'Next XP loss ' + countdown + ' · −' + status.xpLoss + ' XP';
 }
 
 function currentWorld() {
@@ -220,8 +240,11 @@ function currentWorld() {
       ${logPanel(`
         ${island ? `<p class="eyebrow">ISLAND LOG / LEVEL ${stage.level}</p>
           <h2>${escapeHtml(island.title)}</h2>${island.attribution ? `<p class="caption">Roadmap by ${escapeHtml(island.attribution)}</p>` : ''}<p class="stage-name">${escapeHtml(stage.name)} · ${island.xp} XP</p>
-          <progress value="${levelXp}" max="${levelTarget}" aria-label="XP toward Level ${stage.level + 1}"></progress>
-          <p class="caption">${levelXp} / ${levelTarget} XP toward Level ${stage.level + 1}</p>
+          ${stage.nextThreshold === null ? '<p class="caption">Max level · Keep practising to maintain mastery.</p>' : `
+            <progress value="${levelXp}" max="${levelTarget}" aria-label="XP toward Level ${stage.level + 1}"></progress>
+            <p class="caption">${levelXp} / ${levelTarget} XP toward Level ${stage.level + 1}</p>`}
+          <p class="xp-maintenance" data-maintenance>${maintenanceMessage(island)}</p>
+          ${island.xp ? `<p class="caption">Completing a goal gives you ${PRACTICE_GRACE_DAYS} days before XP starts dropping daily.</p>` : ''}
           ${currentPracticeMarkup(island, activeGoal, goalsCompleted + 1)}
           ${roadmapSummary(island)}
           ${connectionMarkup(island)}` :
@@ -314,6 +337,47 @@ function discardDraft(islandId) {
   return draft;
 }
 
+function syncProgress(now = Date.now()) {
+  const next = applyInactivity(world, now);
+  if (next === world) return false;
+  next.islands.forEach((island, index) => {
+    const previous = world.islands[index];
+    if (island.xp === previous.xp) return;
+    const { id } = island;
+    discardDraft(id);
+    pendingPractice.get(id)?.controller.abort();
+    pendingPractice.delete(id);
+    practiceErrors.delete(id);
+    const { level } = getStage(island.xp);
+    if (id === selectedId && activeView === 'world' && logOpen) {
+      announce((previous.xp - island.xp) + ' XP lost to inactivity.' +
+        (level < getStage(previous.xp).level ? ' Island dropped to Level ' + level + '.' : ''));
+    }
+  });
+  persist(next);
+  return true;
+}
+
+function refreshMaintenance() {
+  if (syncProgress()) {
+    render();
+    if (activeView === 'world' && logOpen && !dialog.open) void preparePractice(selectedId, true);
+  } else {
+    const countdown = app.querySelector('[data-maintenance]');
+    const island = world.islands.find(item => item.id === selectedId);
+    if (countdown && island) countdown.textContent = maintenanceMessage(island);
+  }
+  scheduleMaintenance();
+}
+
+function scheduleMaintenance() {
+  clearTimeout(maintenanceTimer);
+  const now = Date.now();
+  const delay = world.islands.reduce((shortest, island) =>
+    island.xp > 0 ? Math.min(shortest, island.nextXpLossAt - now) : shortest, 60000);
+  maintenanceTimer = setTimeout(refreshMaintenance, Math.max(1, delay));
+}
+
 function resetIslandsForTesting() {
   if (!testingMode || activeView !== 'world' || !world.islands.length) return;
   if (!window.confirm('Remove all your islands and progress from this browser? This cannot be undone.')) return;
@@ -356,6 +420,17 @@ app.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
   const { action, id, rating } = button.dataset;
+  const now = Date.now();
+  const previous = world.islands.find(island => island.id === selectedId);
+  if (syncProgress(now)) {
+    render();
+    const current = world.islands.find(island => island.id === selectedId);
+    if ((action === 'complete' || action === 'difficulty') && current &&
+      (getStage(previous.xp).level !== getStage(current.xp).level || getActiveGoal(current)?.id !== id)) {
+      void preparePractice(selectedId, true);
+      return;
+    }
+  }
   if (action === 'reset-islands') {
     resetIslandsForTesting();
     return;
@@ -411,13 +486,13 @@ app.addEventListener('click', event => {
     const goal = getActiveGoal(island);
     if (goal?.id !== id) return;
     const draft = discardDraft(island.id);
-    const next = completeGoal(world, island.id, id, draft?.goalId === id ? draft.candidate : null);
+    const next = completeGoal(world, island.id, id, draft?.goalId === id ? draft.candidate : null, now);
     if (next === world) return;
     const updated = next.islands.find(item => item.id === island.id);
     const newLevel = getStage(updated.xp).level;
     persist(next);
     animateIsland = newLevel > getStage(island.xp).level;
-    const reward = goal.xp + ' XP earned. ';
+    const reward = updated.xp > island.xp ? (updated.xp - island.xp) + ' XP earned. ' : 'Mastery maintained. ';
     const nextGoal = getActiveGoal(updated);
     announce(reward + (animateIsland ? 'Island advanced to Level ' + newLevel + '. ' : '')
       + (nextGoal?.adapted ? 'Next goal adapted to your feedback.' : nextGoal ? 'Next goal ready.' : 'Generate your next goal when you’re ready.'));
@@ -454,13 +529,15 @@ async function preparePractice(id, ahead = false) {
   }
   const activeGoal = getActiveGoal(island);
   const context = activeGoal?.adapted ? { ...island, goals: [...island.goals.slice(0, -1), activeGoal] } : island;
-  const result = await generateContinuation(context, { signal: controller.signal, allowDownload: !ahead });
+  const practiceLevel = plannedPracticeLevel(island, ahead);
+  const result = await generateContinuation(context, { signal: controller.signal, allowDownload: !ahead, skillLevel: practiceLevel });
+  refreshMaintenance();
   if (pendingPractice.get(id)?.controller !== controller) return;
   pendingPractice.delete(id);
   const current = world.islands.find(item => item.id === id);
   const needsGoal = current && needsGeneratedPractice(current);
   if (result.status === 'ready') {
-    const updated = appendGeneratedPractice(world, id, result.goal, { ahead });
+    const updated = appendGeneratedPractice(world, id, result.goal, { ahead, practiceLevel });
     if (updated !== world) {
       persist(updated);
       if (!needsGoal && current?.goalFeedback) draftNextGoal(updated.islands.find(item => item.id === id), current.goalFeedback.id);
@@ -537,9 +614,11 @@ form.addEventListener('submit', async event => {
     topicField.reportValidity();
     return;
   }
+  refreshMaintenance();
   const previous = world.islands.find(item => item.id === revisingId);
   const recent = previous?.goals.filter(goal => goal.completed).slice(-3).map(({ title, description }) => ({ title, description }));
-  const planInput = { ...input, topic, objective: input.objective.trim() || topic, minutes: Number(input.minutes), recent };
+  const skillLevel = getStage(previous?.xp ?? 0).level;
+  const planInput = { ...input, topic, objective: input.objective.trim() || topic, minutes: Number(input.minutes), recent, skillLevel };
   const controller = new AbortController();
   pendingCreation = controller;
   setCreating(true);
@@ -563,6 +642,11 @@ form.addEventListener('submit', async event => {
     else createButton.focus();
     return;
   }
+  refreshMaintenance();
+  if (previous && getStage(world.islands.find(item => item.id === previous.id)?.xp ?? 0).level !== skillLevel) {
+    setPlanMessage('Your island changed levels while this goal was being prepared. Generate it again at your current level.', true);
+    return;
+  }
   const inputWithPlan = { ...planInput, localRoadmap: result.plan };
   const next = revisingId ? reviseIslandRoadmap(world, revisingId, inputWithPlan) : createGeneratedIsland(world, inputWithPlan);
   if (next === world) {
@@ -582,4 +666,10 @@ form.addEventListener('submit', async event => {
   void preparePractice(selectedId, true);
 });
 
+syncProgress();
 render();
+window.addEventListener('focus', refreshMaintenance);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) refreshMaintenance();
+});
+scheduleMaintenance();

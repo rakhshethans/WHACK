@@ -314,14 +314,26 @@ function islandTerrain(island, stage) {
   return guitarTerrain(stage);
 }
 
+function laterBuildings(stage) {
+  if (stage < 6) return '';
+  return `<g class="late-stage-buildings" data-stage="${stage}">
+    ${lodge(360,375,.62,'#659d9d')}
+    ${stage >= 7 ? lodge(594,384,.67,'#ddb16a') : ''}
+    ${stage >= 8 ? tower(414,362,.75) : ''}
+    ${stage >= 9 ? `<path d="m438 394 32 12 39-12v-12l-39 12-32-12Z" fill="#bbc6b0" stroke="#617a73" stroke-width="2"/>${tower(444,388,.55)}${tower(506,388,.55)}` : ''}
+    ${stage === 10 ? `<path d="m477 338 14 19-14 19-14-19Z" fill="#ffe2a0" stroke="#8c6740" stroke-width="2"/><path d="M477 345v24m-8-12h16" stroke="#fff8e2" stroke-width="2"/>` : ''}
+  </g>`;
+}
+
 export function renderIsland(island, stage) {
+  const buildings = laterBuildings(stage);
   if (typeof island.landmark === 'string' && Object.hasOwn(LANDMARK_ART, island.landmark)) {
-    return `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false">${themedTerrain(island, stage)}</svg>`;
+    return `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false">${themedTerrain(island, stage)}${buildings}</svg>`;
   }
   const seed = stableHash(`${island.id || ''}|${island.category || ''}|${island.topic || island.title || ''}`);
   const biome = BIOMES[(seed >>> 8) % BIOMES.length];
   const coast = seed % COASTLINES.length;
-  return `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false"><g class="island-biome" data-biome="${biome.name}" data-coast="${coast}">${islandScenery(island)}${islandTerrain(island, stage)}${islandBiomeDetails(island)}</g></svg>`;
+  return `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false"><g class="island-biome" data-biome="${biome.name}" data-coast="${coast}">${islandScenery(island)}${islandTerrain(island, stage)}${islandBiomeDetails(island)}${buildings}</g></svg>`;
 }
 
 const waves = [[114,167],[198,293],[282,203],[359,121],[537,161],[671,224],[813,173],[771,302],[124,424],[227,465],[330,510],[596,484],[720,438],[836,401],[785,511],[413,466],[195,208],[755,115]];
