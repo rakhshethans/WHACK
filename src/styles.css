@@ -32,6 +32,7 @@ p { color: var(--muted); }
 .map-coordinates, .map-footer { position: absolute; z-index: 1; padding: 10px 13px; color: #fff0d0; background: #112c2dde; border: 1px solid #648382a0; border-radius: 5px; pointer-events: none; }
 .map-coordinates { top: 17px; left: 17px; }
 .map-coordinates span { color: var(--accent); margin-right: 4px; }
+.map-goal-jump { display: none; }
 .map-footer { bottom: 17px; left: 17px; right: 17px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .map-footer i { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--accent); }
 .map-scale b { margin-left: 4px; }
@@ -55,10 +56,15 @@ form label { display: grid; gap: 4px; margin: 11px 0; }
 input, select { width: 100%; min-width: 0; color: var(--text); background: var(--background); border: 1px solid #5b7673; border-radius: 5px; padding: 9px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 form .primary { width: 100%; margin-top: 9px; }
+.topic-label { color: var(--text); font-size: 17px; font-weight: 650; }
+.topic-label input { margin-top: 2px; padding: 12px; font-weight: 400; }
+.name-option { margin: 12px 0; color: var(--muted); font-size: 13px; }
+.name-option summary { cursor: pointer; width: fit-content; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 790px) {
   .workspace { grid-template-columns: 1fr; }
   .map-art { min-height: 0; aspect-ratio: 1.48; }
+  .map-goal-jump { display: block; position: absolute; z-index: 1; top: 17px; right: 17px; padding: 6px 9px; border: 1px solid #648382a0; border-radius: 5px; background: #112c2ded; color: var(--accent); font-size: 12px; }
 }
 @media (max-width: 500px) {
   .masthead { grid-template-columns: auto 1fr; min-height: 60px; padding-inline: 12px; gap: 4px; }
@@ -68,6 +74,7 @@ form .primary { width: 100%; margin-top: 9px; }
   .intro { align-items: start; flex-direction: column; gap: 12px; }
   .map-coordinates, .map-footer { font-size: 9px; padding: 6px 8px; }
   .map-coordinates { top: 8px; left: 8px; }
+  .map-goal-jump { top: 8px; right: 8px; padding-block: 3px; }
   .map-footer { bottom: 8px; left: 8px; right: 8px; }
   .field-notes { padding: 16px; }
 }
@@ -77,33 +84,23 @@ form .primary { width: 100%; margin-top: 9px; }
 }
 
 
-.archipelago-frame { min-height: 390px; }
 .map-water { position: absolute; inset: 0; pointer-events: none; }
 .map-water svg { display: block; width: 100%; height: 100%; object-fit: cover; }
-.archipelago-grid {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 174px), 1fr));
-  align-items: start;
-  gap: clamp(6px, 1vw, 16px);
-  padding: 63px clamp(12px, 2vw, 30px) 63px;
-  min-height: 390px;
-}
-.archipelago-grid.single-island { grid-template-columns: minmax(0, 480px); place-content: center; }
+.island-water { position: relative; margin-block: 54px; }
 .map-island {
+  position: absolute;
   display: grid;
   justify-items: center;
   gap: 1px;
-  width: 100%;
   min-width: 0;
   color: var(--text);
   background: transparent;
   border: 0;
   border-radius: 8px;
-  padding: 6px 0;
+  padding: 0;
 }
 .island-art { display: block; width: 100%; }
-.island-art svg { display: block; width: 100%; height: auto; overflow: visible; }
+.island-art svg { display: block; width: 100%; height: auto; }
 .map-island:hover .island-art { filter: brightness(1.13); }
 .island-pin {
   display: grid;
@@ -112,22 +109,23 @@ form .primary { width: 100%; margin-top: 9px; }
   border: 1px solid #6e8e88;
   border-radius: 5px;
   background: #112c2ded;
-  overflow-wrap: anywhere;
-  line-height: 1.25;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 17px;
 }
-.island-pin small { margin-top: 3px; color: var(--muted); font-size: 11px; }
+.island-pin strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.island-pin small { color: var(--muted); font-size: 11px; line-height: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .map-island[aria-pressed="true"] .island-pin { border-color: var(--accent); color: var(--accent); }
 .roadmap-summary { margin-top: 18px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
 .roadmap-summary p { display: grid; gap: 2px; margin: 0 0 8px; font-size: 12px; overflow-wrap: anywhere; }
 .roadmap-summary p:last-child { margin-bottom: 0; }
-.roadmap-summary strong, .goal-finish strong { color: var(--text); }
-.goal-finish strong { margin-right: 4px; }
+.roadmap-summary strong, .goal-finish strong, .goal-ambition strong { color: var(--text); }
+.goal-finish strong, .goal-ambition strong { margin-right: 4px; }
 form label small { display: inline; color: var(--muted); }
 form label:has(small) { display: block; }
 form label:has(small) input { display: block; margin-top: 4px; }
 @media (max-width: 500px) {
-  .archipelago-frame, .archipelago-grid { min-height: 285px; }
-  .archipelago-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); padding: 43px 8px 44px; }
+  .island-water { margin-block: 37px; }
   .island-pin { font-size: 12px; padding-inline: 5px; }
 }
 
@@ -136,7 +134,7 @@ form label:has(small) input { display: block; margin-top: 4px; }
 .goal-card-top .eyebrow { margin: 0; }
 .goal-reward { color: var(--accent); border: 1px solid #796744; border-radius: 4px; padding: 2px 6px; font-size: 11px; white-space: nowrap; }
 .active-goal h3 { font-size: 19px; line-height: 1.22; margin: 9px 0 0; overflow-wrap: anywhere; }
-.active-goal p:not(.eyebrow) { margin: 7px 0; font-size: 13px; }
+.active-goal p:not(.eyebrow) { margin: 7px 0; font-size: 13px; overflow-wrap: anywhere; }
 .active-goal .goal-meta { font-size: 10px; }
 .active-goal .primary { width: 100%; margin-top: 4px; }
 .roadmap-summary summary { color: var(--text); cursor: pointer; font-size: 13px; }

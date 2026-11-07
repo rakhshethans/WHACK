@@ -65,9 +65,9 @@ const DEFAULT_COACHING = {
 
 export function coachGoal(goal, island) {
   if (!goal || (island.difficulty !== 'support' && island.difficulty !== 'stretch')) return goal;
-  const guitarMatch = island.category === 'guitar'
-    && GUITAR_COACHING.find(item => item.match.test(goal.title + ' ' + goal.description));
   const track = island.category === 'custom' ? island.theme : island.category;
+  const guitarMatch = track === 'guitar'
+    && GUITAR_COACHING.find(item => item.match.test(goal.title + ' ' + goal.description));
   const coaching = guitarMatch || (Object.hasOwn(COACHING, track) ? COACHING[track] : DEFAULT_COACHING);
   return { ...goal, practiceAdjustment: coaching[island.difficulty] };
 }

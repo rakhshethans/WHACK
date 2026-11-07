@@ -4,6 +4,7 @@ import { SKILLS } from './roadmaps.mjs';
 import { generateCustomRoadmap, generateAdaptiveGoal } from './local-planner.mjs';
 import { DIFFICULTIES } from './difficulty.mjs';
 import { relatedSkill } from './skill-connections.mjs';
+import { layoutIslands } from './map-layout.mjs';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#onboarding');
@@ -12,16 +13,26 @@ const worldTab = document.querySelector('#world-tab');
 const exploreTab = document.querySelector('#explore-tab');
 const announcement = document.querySelector('#announcement');
 const storageKey = 'worldhopper-world-v1';
-const skillField = form.elements.category;
-const titleField = form.elements.title;
 const objectiveField = form.elements.objective;
 const topicField = form.elements.topic;
-const customTopic = document.querySelector('#custom-topic');
-const objectiveLabel = document.querySelector('#objective-label');
 const createLabel = document.querySelector('#create-island-label');
 const createButton = form.querySelector('button[type="submit"]');
 let pendingCreation;
 const adaptationDrafts = new Map();
+
+function positionIslands(map) {
+  const buttons = [...map.querySelectorAll('.map-island')];
+  const { height, positions } = layoutIslands(buttons.map(button => button.dataset.id), map.clientWidth);
+  map.style.height = height + 'px';
+  buttons.forEach((button, index) => {
+    const { left, top, width } = positions[index];
+    Object.assign(button.style, { left: left + 'px', top: top + 'px', width: width + 'px' });
+  });
+}
+
+const mapResize = new ResizeObserver(entries => {
+  for (const { target } of entries) positionIslands(target);
+});
 
 function loadWorld() {
   try {
@@ -88,7 +99,8 @@ function archipelagoMap(islands, selection, explore = false) {
   return `<section class="map-frame archipelago-frame" aria-label="Archipelago map">
     <div class="map-water">${renderOcean(true)}</div>
     <div class="map-coordinates"><span>✦</span> ${explore ? 'SAMPLE ARCHIPELAGO' : 'MY ARCHIPELAGO'}</div>
-    <div class="archipelago-grid${islands.length === 1 ? ' single-island' : ''}">
+    ${explore ? '' : '<a class="map-goal-jump" href="#active-goal-title">Current goal ↓</a>'}
+    <div class="island-water">
       ${islands.map(island => {
         const selected = island.id === selection;
         const { level } = getStage(island.xp);
@@ -96,7 +108,7 @@ function archipelagoMap(islands, selection, explore = false) {
         return `<button type="button" class="map-island${selected && animateIsland ? ' animate-island' : ''}"
           data-action="${explore ? 'demo' : 'select'}" data-id="${escapeHtml(island.id)}" aria-pressed="${selected}">
           <span class="island-art">${renderIsland(island, level)}</span>
-          <span class="island-pin"><strong>${escapeHtml(island.title)}</strong><small>${escapeHtml(skill === island.title ? 'Custom island' : skill)} · Lv ${level}</small></span>
+          <span class="island-pin" title="${escapeHtml(island.title)}"><strong>${escapeHtml(island.title)}</strong><small>${skill === island.title ? '' : escapeHtml(skill) + ' · '}Lv ${level}</small></span>
         </button>`;
       }).join('')}
     </div>
@@ -115,15 +127,16 @@ function roadmapSummary(island) {
   </details>`;
 }
 
-function goalMarkup(goal, number, difficulty) {
+function goalMarkup(goal, number, difficulty, ambition) {
   if (!goal) return '<p>Complete the prerequisite for the next practice goal.</p>';
   return `<section class="active-goal" aria-labelledby="active-goal-title">
     <div class="goal-card-top"><p class="eyebrow">CURRENT GOAL / ${number}</p><span class="goal-reward">+${escapeHtml(goal.xp)} XP</span></div>
-    <h3 id="active-goal-title">${escapeHtml(goal.title)}</h3>
+    <h3 id="active-goal-title" tabindex="-1">${escapeHtml(goal.title)}</h3>
     ${goal.adapted ? `<p class="goal-adaptation">${goal.adapted === 'support' ? 'Smaller next step based on your feedback' : 'Stretch goal based on your feedback'}</p>` : ''}
     <p>${escapeHtml(goal.description)}</p>
     ${goal.practiceAdjustment ? `<p class="practice-adjustment"><strong>${difficulty === 'support' ? 'Start here' : 'Stretch practice'}</strong> ${escapeHtml(goal.practiceAdjustment)}</p>` : ''}
     ${goal.finish ? `<p class="goal-finish"><strong>Done when</strong> ${escapeHtml(goal.finish)}</p>` : ''}
+    ${ambition ? `<p class="goal-ambition"><strong>Working toward</strong> ${escapeHtml(ambition)}</p>` : ''}
     <p class="goal-meta">${escapeHtml(goal.minutes)} MIN${goal.finish ? ' / SESSION' : ''}</p>
     <button class="primary" data-action="complete" data-id="${escapeHtml(goal.id)}">Complete goal <span aria-hidden="true">✓</span></button>
     <div class="goal-feedback" role="group" aria-label="Practice difficulty">
@@ -164,7 +177,7 @@ function currentWorld() {
           <h2>${escapeHtml(island.title)}</h2>${island.attribution ? `<p class="caption">Roadmap by ${escapeHtml(island.attribution)}</p>` : ''}<p class="stage-name">${escapeHtml(stage.name)} · ${island.xp} XP</p>
           <progress value="${levelXp}" max="${levelTarget}" aria-label="XP toward Level ${stage.level + 1}"></progress>
           <p class="caption">${levelXp} / ${levelTarget} XP toward Level ${stage.level + 1}</p>
-          ${goalMarkup(activeGoal, goalsCompleted + 1, island.category === 'custom' ? island.goalFeedback?.rating : island.difficulty ?? 'standard')}
+          ${goalMarkup(activeGoal, goalsCompleted + 1, island.category === 'custom' ? island.goalFeedback?.rating : island.difficulty ?? 'standard', island.objective)}
           ${roadmapSummary(island)}
           ${connectionMarkup(island)}` :
           `<p class="eyebrow">ISLAND LOG / 00</p><h2>Open waters</h2>
@@ -188,11 +201,17 @@ function discoverWorlds() {
 }
 
 function render() {
+  mapResize.disconnect();
   worldTab.setAttribute('aria-pressed', String(activeView === 'world'));
   exploreTab.setAttribute('aria-pressed', String(activeView === 'explore'));
   app.innerHTML = (activeView === 'world' ? currentWorld() : discoverWorlds()) +
     (storageUnavailable ? '<p class="storage-note">This browser blocked storage. Progress is available until you close or reload the page.</p>' : '') +
     '<footer><span>WORLDHOPPER</span><span>WARWICKHACK 2026 / NEW WORLDS</span></footer>';
+  const map = app.querySelector('.island-water');
+  if (map) {
+    positionIslands(map);
+    mapResize.observe(map);
+  }
   animateIsland = false;
 }
 
@@ -227,20 +246,14 @@ app.addEventListener('click', event => {
   if (!button) return;
   const { action, id, rating } = button.dataset;
   if (action === 'new') {
-    updateSkillHints();
-    dialog.showModal();
+    openOnboarding();
     return;
   }
   if (action === 'start-connection') {
     const island = world.islands.find(item => item.id === selectedId);
     const recommendation = island && relatedSkill(island, world.islands);
     if (!recommendation) return;
-    form.reset();
-    skillField.value = recommendation.category;
-    updateSkillHints();
-    topicField.value = recommendation.topic ?? '';
-    objectiveField.value = recommendation.objective;
-    dialog.showModal();
+    openOnboarding(recommendation.topic ?? recommendation.name, recommendation.objective);
     return;
   }
   if (action === 'difficulty') {
@@ -291,19 +304,13 @@ app.addEventListener('click', event => {
   }
 });
 
-function updateSkillHints() {
-  const skill = SKILLS[skillField.value];
-  const isCustom = skillField.value === 'custom';
-  customTopic.hidden = !isCustom;
-  topicField.disabled = !isCustom;
-  topicField.required = isCustom;
-  objectiveField.required = !isCustom;
-  objectiveLabel.textContent = isCustom ? 'More specific outcome (optional)' : 'Your objective';
-  titleField.placeholder = isCustom ? 'Defaults to your skill or goal' : 'e.g. ' + skill.label + ' Island';
-  objectiveField.placeholder = skill.objective;
+function openOnboarding(topic = '', objective = '') {
+  form.reset();
+  form.querySelector('.name-option').open = false;
+  topicField.value = topic;
+  objectiveField.value = objective;
+  dialog.showModal();
 }
-
-skillField.addEventListener('change', updateSkillHints);
 
 function setCreating(creating) {
   createButton.disabled = creating;
@@ -321,18 +328,14 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   if (pendingCreation) return;
   const input = Object.fromEntries(new FormData(form));
-  const isCustom = input.category === 'custom';
-  const topic = input.topic?.trim();
-  const objective = input.objective.trim() || (isCustom ? topic : '');
-  const missing = isCustom && !topic ? topicField : !objective ? objectiveField : null;
-  if (missing) {
-    missing.value = '';
-    missing.reportValidity();
+  const topic = input.topic.trim();
+  if (!topic) {
+    topicField.value = '';
+    topicField.reportValidity();
     return;
   }
-  const title = input.title.trim() || (isCustom ? topic : SKILLS[input.category].label + ' Island');
-  const planInput = { ...input, title, topic, objective, minutes: Number(input.minutes) };
-  if (isCustom && globalThis.LanguageModel) {
+  const planInput = { ...input, topic, objective: input.objective.trim() || topic, minutes: Number(input.minutes) };
+  if (globalThis.LanguageModel) {
     const controller = new AbortController();
     pendingCreation = controller;
     setCreating(true);

@@ -34,32 +34,31 @@ function addIsland(world, island) {
   return { ...world, islands: [...world.islands, { ...island, id: 'island-' + (world.islands.length + 1), xp: 0 }] };
 }
 
-export function createIsland(world, { title, experience, minutes, objective, category, topic, localRoadmap }) {
-  const name = title.trim();
-  if (!name) return world;
+export function createIsland(world, { title = '', experience = 'beginner', minutes, objective, category = 'custom', topic, localRoadmap }) {
   const skill = Object.hasOwn(SKILLS, category) ? category : 'guitar';
   const customTopic = skill === 'custom' ? String(topic ?? '').trim() : undefined;
-  if (skill === 'custom' && !customTopic) return world;
+  const name = title.trim() || customTopic;
+  if (!name || (skill === 'custom' && !customTopic)) return world;
   const sessionMinutes = Math.min(120, Math.max(1, Math.round(Number(minutes)) || 15));
   const target = String(objective ?? '').trim() || customTopic || '';
   const authored = skill === 'custom'
-    ? buildCustomRoadmap({ topic: customTopic, objective: target, experience })
+    ? buildCustomRoadmap({ topic: customTopic, objective: target, experience, minutes: sessionMinutes })
     : buildRoadmap({ category: skill, objective: target, experience });
-  const { focus, theme, checkpoint, next, steps } = skill === 'custom' && localRoadmap
+  const { focus, theme, checkpoint, next, practiceFocus, steps } = skill === 'custom' && localRoadmap
     ? { ...authored, ...localRoadmap } : authored;
   const goals = steps.map(([title, description, finish], index) => ({
     id: 'goal-' + (index + 1),
     title,
     description,
     finish,
-    minutes: Math.min(sessionMinutes, 10 + index * 5),
+    minutes: skill === 'custom' ? sessionMinutes : Math.min(sessionMinutes, 10 + index * 5),
     xp: XP_AWARDS[index],
     prerequisites: index ? ['goal-' + index] : [],
     completed: false,
   }));
   return addIsland(world, {
     title: name, category: skill, topic: customTopic, theme, experience, objective: target,
-    sessionMinutes, roadmap: { focus, checkpoint, next, onDevice: skill === 'custom' && Boolean(localRoadmap) }, goals,
+    sessionMinutes, roadmap: { focus, checkpoint, next, practiceFocus, onDevice: skill === 'custom' && Boolean(localRoadmap) }, goals,
   });
 }
 

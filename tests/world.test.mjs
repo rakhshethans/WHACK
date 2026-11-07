@@ -176,8 +176,8 @@ test('the local planner accepts structured goals and falls back on unavailable o
   let destroyed = 0;
   const goals = Array.from({ length: 8 }, (_, index) => ({
     title: 'Shape practice piece ' + (index + 1),
-    practice: 'Use a small piece of clay and practise a single shaping motion.',
-    finish: 'Compare the rim against an earlier attempt.',
+    practice: 'Shape the clay using motion ' + (index + 1) + ' from your cup reference.',
+    finish: 'Compare the rim on attempt ' + (index + 1) + ' with the reference.',
   }));
   const model = {
     availability: async () => 'available',
@@ -200,7 +200,7 @@ test('the local planner accepts structured goals and falls back on unavailable o
   const [island] = createIsland(createWorld(), { ...input, title: 'Pottery', category: 'custom', localRoadmap: generated }).islands;
   assert.equal(island.roadmap.onDevice, true);
   assert.equal(getActiveGoal(island).title, goals[0].title);
-  goals[1].title = goals[0].title;
+  goals[1].practice = goals[0].practice;
   assert.equal(await generateCustomRoadmap(input, { model }), null);
   assert.equal(destroyed, 2);
 });
@@ -255,7 +255,7 @@ test('related custom skills start with relevant practice goals', () => {
   ]) {
     const suggestion = relatedSkill({ ...source, id: 'island-1', xp: 100 }, []);
     assert.equal(suggestion.name, title);
-    const [island] = createIsland(createWorld(), { ...guitar, ...suggestion, title }).islands;
+    const [island] = createIsland(createWorld(), { ...guitar, ...suggestion, title, experience: 'beginner' }).islands;
     assert.equal(getActiveGoal(island).title, first);
   }
 });
