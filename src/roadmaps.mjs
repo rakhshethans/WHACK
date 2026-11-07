@@ -154,3 +154,52 @@ export function buildRoadmap({ category, objective, experience }) {
   if (category === 'photography') return photographyPath(objective, level);
   return guitarPath(objective, level);
 }
+
+const PRACTICE_SERIES = {
+  'Acoustic singer-songwriter': [
+    ['Expand your live set', 'Add one original or contrasting cover to your set. Plan its introduction and where the guitar, voice or loop enters.', 'Play it between two familiar songs without a pause to reset.'],
+    ['Write for a different groove', 'Write a new hook in a groove or metre your existing songs use rarely. Pair it with a rhythm you can sing over.', 'Record a verse and chorus where the groove stays steady under the vocal.'],
+    ['Strengthen your live looping', 'Arrange a song around a loop entrance and a deliberate layer drop. Rehearse the two transitions separately.', 'Record both transitions on the bar line in one take.'],
+    ['Rehearse for a new room', 'Choose a setting you have not rehearsed for, such as a quiet listening room or an open mic with a short slot.', 'Play an uninterrupted set that fits the time and dynamic range of that setting.'],
+  ],
+  'Fingerstyle arrangement': [
+    ['Arrange a new melody', 'Choose an unfamiliar melody and find two places to support it with alternating bass.', 'Play an eight-bar passage with clearly separated melody and bass.'],
+    ['Work on your dynamic range', 'Practise a passage with a quiet opening and a stronger ending while keeping the bass even.', 'Record a take where the change in intensity is audible and the tempo holds.'],
+    ['Try a new picking texture', 'Adapt a section to use an arpeggio or syncopated fingerpicking pattern.', 'Play both the original and the adapted versions at the same tempo.'],
+  ],
+  'Lead guitar and improvisation': [
+    ['Build a new vocabulary phrase', 'Transcribe a short phrase from a player you admire, then alter its ending.', 'Record the original and your variation against the same backing track.'],
+    ['Improvise through a change', 'Choose a progression with one unfamiliar chord and practise landing on its chord tones.', 'Record an improvised chorus with intentional phrasing across that change.'],
+    ['Recover from a mistake', 'Practise restarting a phrase on the next beat while a backing track continues.', 'Record a short solo and keep time through one deliberately interrupted phrase.'],
+  ],
+  guitar: [
+    ['Learn a contrasting song', 'Choose a song outside your current set with a different tempo, metre or strumming feel.', 'Play a verse and chorus with a steady pulse and a clear transition.'],
+    ['Play with another part', 'Practise alongside a recording or a second player and leave room for their melody.', 'Record one section where your part stays in time and supports the melody.'],
+    ['Rearrange a familiar song', 'Change the accompaniment texture or move the song to a different key.', 'Play the original and new arrangements with clean transitions.'],
+  ],
+  songwriting: [
+    ['Write under a new constraint', 'Draft a song with a different point of view, metre or structure from your last one.', 'Record a verse and chorus where the constraint is audible and the idea is clear.'],
+    ['Develop a contrasting bridge', 'Write a short section that changes the emotional angle of your draft.', 'Record it between two existing sections and check that the return to the hook feels earned.'],
+    ['Rework the arrangement', 'Give a draft a contrasting tempo or accompaniment without changing its central hook.', 'Record both versions and explain which better supports the lyric or melody.'],
+  ],
+  photography: [
+    ['Start a new photo study', 'Choose a new subject within your chosen genre and limit the shoot to one lighting or framing idea.', 'Select four frames that explore the idea without repeating the same composition.'],
+    ['Reshoot under different conditions', 'Revisit a subject from your last series under a different light, at a different distance or in a new setting.', 'Choose one before-and-after pair and explain what the change added.'],
+    ['Build a second photo sequence', 'Make a short sequence about a new place, person or visual motif within your chosen genre.', 'Select an opening, middle and closing frame with distinct roles.'],
+  ],
+};
+
+export function nextPractice(island, practiceIndex) {
+  const series = Object.hasOwn(PRACTICE_SERIES, island.roadmap?.focus) ? PRACTICE_SERIES[island.roadmap.focus] :
+    PRACTICE_SERIES[island.category] ?? PRACTICE_SERIES.guitar;
+  const round = Math.floor(practiceIndex / 3) + 1;
+  const [challenge, practice, finish] = series[(round - 1) % series.length];
+  const medium = island.category === 'photography' ? 'photo set' : 'recording';
+  const steps = [
+    [challenge, practice + ' Choose material you haven’t used for this challenge before.', finish],
+    ['Get feedback on your ' + medium, 'Show the work from “' + challenge + '” to a listener or viewer. If you are practising alone, review it against an earlier attempt.', 'Write down one strength and one specific change you can make.'],
+    ['Revise and compare', 'Use the feedback to revise the work from “' + challenge + '”. Keep both versions.', 'Point to one concrete improvement you can hear or see in the new version.'],
+  ];
+  const [title, description, done] = steps[practiceIndex % steps.length];
+  return { title: title + ' · Practice round ' + round, description, finish: done };
+}

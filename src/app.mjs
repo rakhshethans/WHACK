@@ -1,4 +1,4 @@
-import { createWorld, createIsland, completeGoal, getStage, adoptIsland } from './world.mjs';
+import { createWorld, createIsland, completeGoal, getActiveGoal, getStage, adoptIsland } from './world.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
 
@@ -96,32 +96,33 @@ function archipelagoMap(islands, selection, explore = false) {
 
 function roadmapSummary(island) {
   if (!island.roadmap) return '';
-  return `<div class="roadmap-summary">
+  return `<details class="roadmap-summary"><summary>Long-term plan</summary>
     ${island.objective ? `<p><strong>Your ambition</strong><span>${escapeHtml(island.objective)}</span></p>` : ''}
     <p><strong>Focus</strong><span>${escapeHtml(island.roadmap.focus)}</span></p>
     <p><strong>Roadmap checkpoint</strong><span>${escapeHtml(island.roadmap.checkpoint)}</span></p>
     ${island.roadmap.next ? `<p><strong>Beyond this roadmap</strong><span>${escapeHtml(island.roadmap.next)}</span></p>` : ''}
-  </div>`;
+  </details>`;
 }
 
-function goalMarkup(goal, completedIds) {
-  const locked = !goal.prerequisites.every(id => completedIds.has(id));
-  const action = goal.completed ? '<span class="complete-label">✓ Complete</span>' :
-    locked ? '<span class="lock-label">Prerequisite required</span>' :
-      `<button class="small-action" data-action="complete" data-id="${escapeHtml(goal.id)}">Mark complete</button>`;
-  return `<li class="goal ${goal.completed ? 'done' : ''}"><div><h3>${escapeHtml(goal.title)}</h3>
+function goalMarkup(goal, number) {
+  if (!goal) return '<p>Complete the prerequisite for the next practice goal.</p>';
+  return `<section class="active-goal" aria-labelledby="active-goal-title">
+    <div class="goal-card-top"><p class="eyebrow">CURRENT GOAL / ${number}</p><span class="goal-reward">+${escapeHtml(goal.xp)} XP</span></div>
+    <h3 id="active-goal-title">${escapeHtml(goal.title)}</h3>
     <p>${escapeHtml(goal.description)}</p>
     ${goal.finish ? `<p class="goal-finish"><strong>Done when</strong> ${escapeHtml(goal.finish)}</p>` : ''}
-    <span class="goal-meta">${escapeHtml(goal.minutes)} MIN${goal.finish ? ' / SESSION' : ''} · +${escapeHtml(goal.xp)} XP</span></div>
-    ${action}</li>`;
+    <p class="goal-meta">${escapeHtml(goal.minutes)} MIN${goal.finish ? ' / SESSION' : ''}</p>
+    <button class="primary" data-action="complete" data-id="${escapeHtml(goal.id)}">Complete goal <span aria-hidden="true">✓</span></button>
+  </section>`;
 }
 
 function currentWorld() {
   const island = world.islands.find(item => item.id === selectedId) ?? world.islands[0];
   const stage = getStage(island?.xp ?? 0);
-  const progress = stage.nextThreshold == null ? 100 :
-    Math.max(0, Math.min(100, 100 * (island?.xp - stage.threshold) / (stage.nextThreshold - stage.threshold)));
-  const completedIds = new Set(island?.goals.filter(goal => goal.completed).map(goal => goal.id));
+  const activeGoal = island && getActiveGoal(island);
+  const goalsCompleted = island?.goals.filter(goal => goal.completed).length ?? 0;
+  const levelXp = (island?.xp ?? 0) - stage.threshold;
+  const levelTarget = stage.nextThreshold - stage.threshold;
   const subheading = island ? 'Select any island on the map to see its roadmap and progress.' :
     'Choose a skill you want to develop. As you practise, its island grows.';
   return `<div class="intro"><div><p class="eyebrow">THE PERSONAL ATLAS / MY WORLD</p><h1>Your archipelago<span>.</span></h1><p class="lede">${subheading}</p></div>
@@ -130,11 +131,10 @@ function currentWorld() {
       <aside class="field-notes">
         ${island ? `<p class="eyebrow">ISLAND LOG / LEVEL ${stage.level}</p>
           <h2>${escapeHtml(island.title)}</h2>${island.attribution ? `<p class="caption">Roadmap by ${escapeHtml(island.attribution)}</p>` : ''}<p class="stage-name">${escapeHtml(stage.name)} · ${island.xp} XP</p>
-          <progress value="${progress}" max="100" aria-label="Progress to next level"></progress>
-          <p class="caption">${stage.nextThreshold == null ? 'Final stage reached' : (stage.nextThreshold - island.xp) + ' XP to the next level'}</p>
-          ${roadmapSummary(island)}
-          <h3 class="section-title">Your roadmap</h3>${island.roadmap ? '<p class="caption">Take as many sessions as you need to finish each goal.</p>' : ''}
-          <ol class="goal-list">${island.goals.map(goal => goalMarkup(goal, completedIds)).join('')}</ol>` :
+          <progress value="${levelXp}" max="${levelTarget}" aria-label="XP toward Level ${stage.level + 1}"></progress>
+          <p class="caption">${levelXp} / ${levelTarget} XP toward Level ${stage.level + 1}</p>
+          ${goalMarkup(activeGoal, goalsCompleted + 1)}
+          ${roadmapSummary(island)}` :
           `<p class="eyebrow">ISLAND LOG / 00</p><h2>Open waters</h2>
           <p>Choose a skill, an objective and how much practice time you have.</p>
           <button class="small-action" data-action="new">Chart your first island ↗</button>`}
@@ -150,8 +150,7 @@ function discoverWorlds() {
       <aside class="field-notes"><p class="eyebrow">PUBLIC ATLAS / SAMPLE PROFILE</p><h2>${escapeHtml(demo.title)}</h2>
       <p class="stage-name">${escapeHtml(demo.creator)} · Level ${stage.level}</p>
       <p>${escapeHtml(demo.objective)}.</p>
-      <h3 class="section-title">Roadmap preview</h3>
-      <ol class="preview-list">${demo.source.goals.slice(0, 3).map(goal => `<li>${escapeHtml(goal.title)}</li>`).join('')}</ol>
+      <p><strong>First goal</strong><br>${escapeHtml(getActiveGoal(demo.source)?.title)}</p>
       <button class="primary" data-action="adopt">Adopt roadmap <span aria-hidden="true">↗</span></button>
       <p class="caption">Your island starts at Level 1. The original roadmap keeps its attribution.</p></aside></div>`;
 }
@@ -183,13 +182,15 @@ app.addEventListener('click', event => {
   if (action === 'complete') {
     const island = world.islands.find(item => item.id === selectedId);
     if (!island) return;
+    const goal = getActiveGoal(island);
     const next = completeGoal(world, island.id, id);
     if (next === world) return;
     const updated = next.islands.find(item => item.id === island.id);
     const newLevel = getStage(updated.xp).level;
     persist(next);
     animateIsland = newLevel > getStage(island.xp).level;
-    announce(animateIsland ? 'Island advanced to level ' + newLevel : 'Goal complete. XP added.');
+    const reward = goal.xp + ' XP earned. ';
+    announce(reward + (animateIsland ? 'Island advanced to Level ' + newLevel + '. ' : '') + 'Next goal ready.');
   }
   if (action === 'adopt') {
     const demo = demoIslands[activeDemo];
@@ -201,9 +202,10 @@ app.addEventListener('click', event => {
   }
   render();
   const nextFocus = action === 'select' || action === 'demo' ?
-    app.querySelector('[data-action="' + action + '"][aria-pressed="true"]') : app.querySelector('.field-notes h2');
+    app.querySelector('[data-action="' + action + '"][aria-pressed="true"]') :
+    app.querySelector(action === 'complete' ? '#active-goal-title' : '.field-notes h2');
   if (nextFocus) {
-    if (nextFocus.tagName === 'H2') nextFocus.tabIndex = -1;
+    if (nextFocus.matches('h2, h3')) nextFocus.tabIndex = -1;
     nextFocus.focus({ preventScroll: true });
   }
 });

@@ -1,20 +1,31 @@
-import { buildRoadmap, SKILLS } from './roadmaps.mjs';
+import { buildRoadmap, nextPractice, SKILLS } from './roadmaps.mjs';
 
 const STAGES = [
   [0, 'Settlement'], [100, 'Village'], [250, 'Town'],
   [500, 'City'], [900, 'Metropolis'],
 ];
 
-const XP_AWARDS = [100, 60, 90, 110, 140, 150, 150, 100];
+const XP_AWARDS = [40, 60, 65, 85, 110, 140, 175, 225];
+const POST_CHECKPOINT_XP = [150, 175, 175];
+const XP_PER_LATER_LEVEL = 500;
 
 export function createWorld() {
   return { islands: [] };
 }
 
 export function getStage(xp) {
+  const [lastThreshold, lastName] = STAGES.at(-1);
+  if (xp >= lastThreshold) {
+    const extraLevels = Math.floor((xp - lastThreshold) / XP_PER_LATER_LEVEL);
+    const threshold = lastThreshold + extraLevels * XP_PER_LATER_LEVEL;
+    return {
+      level: STAGES.length + extraLevels, name: lastName,
+      threshold, nextThreshold: threshold + XP_PER_LATER_LEVEL,
+    };
+  }
   const levelIndex = Math.max(0, STAGES.findLastIndex(([threshold]) => xp >= threshold));
   const [threshold, name] = STAGES[levelIndex];
-  return { level: levelIndex + 1, name, threshold, nextThreshold: STAGES[levelIndex + 1]?.[0] ?? null };
+  return { level: levelIndex + 1, name, threshold, nextThreshold: STAGES[levelIndex + 1][0] };
 }
 
 function addIsland(world, island) {
@@ -39,21 +50,36 @@ export function createIsland(world, { title, experience, minutes, objective, cat
     completed: false,
   }));
   return addIsland(world, {
-    title: name, category: skill, objective: target, roadmap: { focus, checkpoint, next }, goals,
+    title: name, category: skill, objective: target, sessionMinutes, roadmap: { focus, checkpoint, next }, goals,
   });
+}
+
+export function getActiveGoal(island) {
+  const completedIds = new Set(island.goals.filter(goal => goal.completed).map(goal => goal.id));
+  const next = island.goals.find(goal => !goal.completed && goal.prerequisites.every(id => completedIds.has(id)));
+  if (next || completedIds.size < island.goals.length) return next;
+
+  const practiceIndex = island.goals.filter(goal => goal.continuation).length;
+  const { title, description, finish } = nextPractice(island, practiceIndex);
+  return {
+    id: 'goal-' + (island.goals.length + 1), title, description, finish,
+    minutes: island.sessionMinutes ?? (Math.max(0, ...island.goals.map(goal => goal.minutes || 0)) || 15),
+    xp: POST_CHECKPOINT_XP[practiceIndex % POST_CHECKPOINT_XP.length],
+    prerequisites: island.goals.length ? [island.goals.at(-1).id] : [],
+    completed: false, continuation: true,
+  };
 }
 
 export function completeGoal(world, islandId, goalId) {
   const island = world.islands.find(({ id }) => id === islandId);
-  const goal = island?.goals.find(({ id }) => id === goalId);
-  if (!goal || goal.completed || !goal.prerequisites.every(id => island.goals.some(other => other.id === id && other.completed))) {
-    return world;
-  }
-  const updatedIsland = {
-    ...island,
-    xp: island.xp + goal.xp,
-    goals: island.goals.map(other => other.id === goalId ? { ...other, completed: true } : other),
-  };
+  const goal = island && getActiveGoal(island);
+  if (!goal || goal.id !== goalId) return world;
+
+  const completed = { ...goal, completed: true };
+  const goals = island.goals.some(item => item.id === goalId)
+    ? island.goals.map(item => item.id === goalId ? completed : item)
+    : [...island.goals, completed];
+  const updatedIsland = { ...island, xp: island.xp + goal.xp, goals };
   return { ...world, islands: world.islands.map(other => other.id === islandId ? updatedIsland : other) };
 }
 
@@ -62,8 +88,9 @@ export function adoptIsland(world, source) {
     title: source.title,
     category: source.category,
     objective: source.objective,
+    sessionMinutes: source.sessionMinutes,
     roadmap: source.roadmap ? { ...source.roadmap } : undefined,
     attribution: source.attribution ?? source.owner ?? source.title,
-    goals: source.goals.map(goal => ({ ...goal, prerequisites: [...goal.prerequisites], completed: false })),
+    goals: source.goals.filter(goal => !goal.continuation).map(goal => ({ ...goal, prerequisites: [...goal.prerequisites], completed: false })),
   });
 }

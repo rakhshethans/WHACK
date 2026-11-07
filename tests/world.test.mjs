@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { adoptIsland, completeGoal, createIsland, createWorld, getStage } from '../src/world.mjs';
+import { adoptIsland, completeGoal, createIsland, createWorld, getActiveGoal, getStage } from '../src/world.mjs';
 
 const guitar = { title: 'Learn guitar', category: 'guitar', experience: 'intermediate', minutes: 8, objective: 'play at an open mic' };
 
@@ -19,12 +19,17 @@ test('only unlocked goals earn XP, and each goal can earn it once', () => {
   const [first, second] = island.goals;
   assert.equal(completeGoal(world, island.id, second.id), world);
   const updated = completeGoal(world, island.id, first.id);
-  assert.equal(getStage(updated.islands[0].xp).level, 2);
-  assert.equal(getStage(updated.islands[0].xp).nextThreshold, 250);
+  assert.equal(updated.islands[0].xp, 40);
+  assert.equal(getStage(updated.islands[0].xp).level, 1);
+  assert.equal(getStage(updated.islands[0].xp).nextThreshold, 100);
+  assert.equal(getActiveGoal(updated.islands[0]).id, second.id);
+  const levelTwo = completeGoal(updated, island.id, second.id);
+  assert.equal(levelTwo.islands[0].xp, 100);
+  assert.equal(getStage(levelTwo.islands[0].xp).level, 2);
   assert.equal(world.islands[0].xp, 0);
   assert.equal(completeGoal(updated, island.id, first.id), updated);
   const completed = island.goals.slice(1).reduce((state, goal) => completeGoal(state, island.id, goal.id), updated);
-  assert.deepEqual(getStage(completed.islands[0].xp), { level: 5, name: 'Metropolis', threshold: 900, nextThreshold: null });
+  assert.deepEqual(getStage(completed.islands[0].xp), { level: 5, name: 'Metropolis', threshold: 900, nextThreshold: 1400 });
 });
 
 test('adoption starts a separate island at level one and preserves credit', () => {
@@ -80,4 +85,49 @@ test('a saved island without roadmap metadata can still earn XP and be adopted',
   assert.equal(original.xp, 250);
   assert.equal(adopted.xp, 0);
   assert.ok(adopted.goals.every(goal => !goal.completed));
+});
+
+test('one goal remains available across many practice rounds and higher levels', () => {
+  let world = createIsland(createWorld(), { ...guitar, objective: 'Better than Ed Sheeran' });
+  const starterCount = world.islands[0].goals.length;
+  const seen = new Set();
+  for (let index = 0; index < starterCount + 20; index += 1) {
+    const [island] = world.islands;
+    const goal = getActiveGoal(island);
+    assert.ok(!seen.has(goal.id), 'each goal receives a fresh ID');
+    assert.ok(goal.minutes <= guitar.minutes);
+    if (index === starterCount) {
+      assert.equal(island.xp, 900);
+      assert.match(goal.title, /Expand your live set/);
+      assert.equal(getStage(island.xp).level, 5);
+    }
+    if (index === starterCount + 3) {
+      assert.equal(island.xp, 1400);
+      assert.equal(getStage(island.xp).level, 6);
+    }
+    seen.add(goal.id);
+    world = completeGoal(world, island.id, goal.id);
+    assert.equal(world.islands[0].xp, island.xp + goal.xp);
+    assert.equal(completeGoal(world, island.id, goal.id), world);
+  }
+  const [source] = world.islands;
+  const saved = JSON.parse(JSON.stringify(source));
+  assert.deepEqual(getActiveGoal(saved), getActiveGoal(source));
+  const adopted = adoptIsland(createWorld(), source).islands[0];
+  assert.equal(adopted.goals.length, starterCount);
+  assert.equal(getActiveGoal(adopted).id, 'goal-1');
+});
+
+test('a legacy island with all goals complete receives a continuation', () => {
+  const island = {
+    id: 'island-1', title: 'Old Guitar Island', category: 'guitar', xp: 900,
+    goals: [{ id: 'goal-1', xp: 900, minutes: 20, prerequisites: [], completed: true }],
+  };
+  const goal = getActiveGoal(island);
+  assert.equal(goal.id, 'goal-2');
+  assert.equal(goal.minutes, 20);
+  assert.equal(goal.continuation, true);
+  const progressed = completeGoal({ islands: [island] }, island.id, goal.id);
+  assert.equal(progressed.islands[0].xp, 1050);
+  assert.notEqual(getActiveGoal(progressed.islands[0]).id, goal.id);
 });

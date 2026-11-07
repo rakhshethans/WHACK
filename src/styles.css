@@ -43,19 +43,9 @@ progress::-webkit-progress-bar { background: #314648; }
 progress::-webkit-progress-value { background: var(--accent); }
 progress::-moz-progress-bar { background: var(--accent); }
 .caption { font-size: 12px; margin: 5px 0 0; }
-.section-title { font-size: 14px; margin: 23px 0 8px; }
-.goal-list { list-style: none; padding: 0; margin: 0; }
-.goal { border-top: 1px solid var(--line); padding: 11px 0; }
-.goal:last-child { padding-bottom: 0; }
-.goal h3 { font-size: 14px; margin: 0; }
-.goal p { margin: 3px 0; font-size: 13px; }
 .goal-meta { font-size: 10px; color: var(--muted); }
 .small-action { display: block; color: var(--accent); background: transparent; border: 1px solid #7c694c; padding: 7px 10px; border-radius: 5px; font-size: 12px; font-weight: 700; margin-top: 7px; }
 .small-action:hover { color: var(--ink); background: var(--accent); }
-.complete-label, .lock-label { display: block; font-size: 11px; }
-.complete-label { color: #afd3a3; }
-.lock-label { color: var(--muted); }
-.preview-list { padding-left: 18px; color: var(--muted); }
 footer { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); border-top: 1px solid var(--line); padding: 18px 0; margin-top: 30px; }
 dialog { width: min(480px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; border: 1px solid #566f6e; border-radius: 12px; color: var(--text); background: #192e31; padding: 25px; }
 dialog::backdrop { background: #061516c9; }
@@ -131,9 +121,7 @@ form .primary { width: 100%; margin-top: 9px; }
 .roadmap-summary p { display: grid; gap: 2px; margin: 0 0 8px; font-size: 12px; overflow-wrap: anywhere; }
 .roadmap-summary p:last-child { margin-bottom: 0; }
 .roadmap-summary strong, .goal-finish strong { color: var(--text); }
-.goal .goal-finish { margin-top: 6px; }
 .goal-finish strong { margin-right: 4px; }
-.goal-list { margin-top: 9px; }
 form label small { display: inline; color: var(--muted); }
 form label:has(small) { display: block; }
 form label:has(small) input { display: block; margin-top: 4px; }
@@ -142,3 +130,14 @@ form label:has(small) input { display: block; margin-top: 4px; }
   .archipelago-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); padding: 43px 8px 44px; }
   .island-pin { font-size: 12px; padding-inline: 5px; }
 }
+
+.active-goal { margin-top: 19px; padding: 14px; border: 1px solid #5f6650; border-radius: 8px; background: #1b3132; }
+.goal-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.goal-card-top .eyebrow { margin: 0; }
+.goal-reward { color: var(--accent); border: 1px solid #796744; border-radius: 4px; padding: 2px 6px; font-size: 11px; white-space: nowrap; }
+.active-goal h3 { font-size: 19px; line-height: 1.22; margin: 9px 0 0; overflow-wrap: anywhere; }
+.active-goal p:not(.eyebrow) { margin: 7px 0; font-size: 13px; }
+.active-goal .goal-meta { font-size: 10px; }
+.active-goal .primary { width: 100%; margin-top: 4px; }
+.roadmap-summary summary { color: var(--text); cursor: pointer; font-size: 13px; }
+.roadmap-summary[open] summary { margin-bottom: 9px; }
