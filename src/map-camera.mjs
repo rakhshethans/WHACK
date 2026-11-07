@@ -1,5 +1,9 @@
-export function zoomAround(camera, requested, width, height) {
-  const zoom = Math.min(1.8, Math.max(0.7, requested));
+export function fitMapZoom(width, height, sceneWidth, sceneHeight) {
+  return Math.min(1, width / sceneWidth, height / sceneHeight);
+}
+
+export function zoomAround(camera, requested, width, height, minimum = 0.7) {
+  const zoom = Math.min(1.8, Math.max(minimum, requested));
   const ratio = zoom / camera.zoom;
   return {
     zoom,
@@ -11,11 +15,19 @@ export function zoomAround(camera, requested, width, height) {
 export function connectMap(viewport, camera) {
   const scene = viewport.querySelector('.map-scene');
   const frame = viewport.closest('.map-frame');
+  const overviewZoom = () => fitMapZoom(viewport.offsetWidth - 12, Math.max(1, viewport.offsetHeight - 116),
+    scene.offsetWidth, scene.offsetHeight);
   const apply = () => {
+    const minimum = overviewZoom();
+    if (camera.overview || camera.zoom <= minimum) {
+      Object.assign(camera, { overview: true, zoom: minimum, left: 0, top: 0 });
+    }
+    viewport.classList.toggle('is-overview', camera.overview);
     scene.style.zoom = camera.zoom;
     viewport.scrollTo(camera.left, camera.top);
+    frame.querySelector('.map-pan-hint').textContent = camera.overview ? 'Zoom in to explore' : 'Pan the map';
     frame.querySelector('[data-zoom="in"]').disabled = camera.zoom >= 1.8;
-    frame.querySelector('[data-zoom="out"]').disabled = camera.zoom <= 0.7;
+    frame.querySelector('[data-zoom="out"]').disabled = camera.overview;
   };
   apply();
   viewport.addEventListener('scroll', () => {
@@ -26,8 +38,15 @@ export function connectMap(viewport, camera) {
     button.addEventListener('click', () => {
       const action = button.dataset.zoom;
       const current = { zoom: camera.zoom, left: viewport.scrollLeft, top: viewport.scrollTop };
-      Object.assign(camera, action === 'reset' ? { zoom: 1, left: 0, top: 0 }
-        : zoomAround(current, camera.zoom * (action === 'in' ? 1.25 : 0.8), viewport.clientWidth, viewport.clientHeight));
+      if (camera.overview) {
+        const viewBounds = viewport.getBoundingClientRect();
+        const sceneBounds = scene.getBoundingClientRect();
+        current.left = viewBounds.left - sceneBounds.left;
+        current.top = viewBounds.top - sceneBounds.top;
+      }
+      Object.assign(camera, action === 'reset' ? { overview: true }
+        : { ...zoomAround(current, camera.zoom * (action === 'in' ? 1.25 : 0.8),
+          viewport.clientWidth, viewport.clientHeight, overviewZoom()), overview: false });
       apply();
     });
   }
@@ -65,4 +84,9 @@ export function connectMap(viewport, camera) {
       event.stopPropagation();
     }
   }, true);
+
+  const resize = new ResizeObserver(() => { if (camera.overview) apply(); });
+  resize.observe(viewport);
+  resize.observe(scene);
+  return () => resize.disconnect();
 }

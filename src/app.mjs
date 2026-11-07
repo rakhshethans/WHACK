@@ -53,9 +53,10 @@ let activeView = 'world';
 let renderedView = 'world';
 let logOpen = false;
 const cameras = {
-  world: { zoom: 1, left: 0, top: 0 },
-  explore: { zoom: 1, left: 0, top: 0 },
+  world: { overview: true },
+  explore: { overview: true },
 };
+let disconnectMap;
 let activeDemo = 0;
 let storageUnavailable = false;
 let animateIsland = false;
@@ -182,7 +183,7 @@ function currentWorld() {
   const levelTarget = stage.nextThreshold - stage.threshold;
   const subheading = island ? 'Select any island on the map to see its roadmap and progress.' :
     'Choose a skill you want to develop. As you practise, its island grows.';
-  return `<div class="intro"><div><p class="eyebrow">THE PERSONAL ATLAS / MY WORLD</p><h1>Your archipelago<span>.</span></h1><p class="lede">${subheading}</p></div>
+  return `<div class="intro"><div><h1>Your archipelago<span>.</span></h1><p class="lede">${subheading}</p></div>
     <button class="primary" data-action="new">+ New island</button></div>
     <div class="workspace">${archipelagoMap(world.islands, island?.id)}
       ${logPanel(`
@@ -214,6 +215,7 @@ function discoverWorlds() {
 }
 
 function render() {
+  disconnectMap?.();
   const previous = app.querySelector('.map-viewport');
   const previousLog = app.querySelector('.map-log');
   const sameView = renderedView === activeView;
@@ -235,7 +237,7 @@ function render() {
     mapResize.observe(map);
   }
   const viewport = app.querySelector('.map-viewport');
-  connectMap(viewport, cameras[activeView]);
+  disconnectMap = connectMap(viewport, cameras[activeView]);
   const log = app.querySelector('.map-log');
   if (opening) log.classList.add('log-enter');
   if (logScroll) log.scrollTop = logScroll;
