@@ -30,18 +30,105 @@ Start both workstreams from `worldhopper/first-island`, the branch behind the sh
 
 ---
 
-## Social Module Status & Codex Sync (`worldhopper/social`)
+## Social & Explore Architecture (`worldhopper/social`)
 
-1. **Graph-Ranked Surrounding Neighbours (`src/social/graph.mjs`, `src/social/recommendations.mjs`)**:
-   - **`normalizeIslandSkill` & `normalizeInterestToken`**: Keeps exact skills distinct from broad themes (`Japanese` vs `Spanish`, `Chess` vs `Shogi`, `Origami`) and ignores generic `'compass'` artwork fallbacks so unrelated custom skills never falsely link.
-   - **`rankNeighborsByGraph`**: Only recommends explorers who **share at least one exact skill or interest** with the viewer, so there is no quota: 0–8 neighbours appear depending on overlap (an empty world gets none). Eligible explorers fill up to 8 collision-free compass sectors (`NW`, `N`, `NE`, `E`, `SE`, `S`, `SW`, `W`) around Home Waters.
-   - **Mentor-style level complementarity**: Each shared skill scores `rarity × (0.35 + 1.65 × gap)`, where `gap = |levelA − levelB| / max(levelA, levelB)` (`levelComplementarity`). A Lv 50 guitarist is matched with a Lv 1 guitarist (gap 0.98) ahead of a Lv 37 guitarist (gap 0.26). Related-skill bridges, follow ties and Personalized PageRank only add small tie-breaking boosts between explorers who already qualify.
-   - **Evidence-Based Labels & Stable Sectors**: Badges state the relationship (`Mentor · Origami Lv 4 (you Lv 1)`, `You could mentor · Guitar Lv 2 (you Lv 4)`, `Peer · Chess Lv 3`, `Shared interest · Photography`) instead of percentages. Each neighbour keeps the same sector across follow/unfollow actions. The Social Compass only lists explorers who also appear on the map.
-2. **Dummy Account Switcher (`src/social/fixtures.mjs`, `src/social/explore.mjs`)**:
-   - No login/auth required: includes an interactive **Viewing as dummy account** bar (`You (My world)`, `Maya Chen`, `Sora Takahashi`, `Elena Rostova`, `Ari Patel`) at the top of Explore.
-   - Switching dummy accounts places that persona's islands at the center of the ocean (`Home Waters`), re-computes the surrounding 8 graph-ranked neighbours, updates the Social Compass recommendations, and switches the active Following & Followers graph.
-3. **Following & Followers Network + Individual Archipelago Map View (`data-map-mode="solo"`)**:
-   - Tracks both `isFollowing` and `followsViewer` via `listNetworkProfiles()`, independent of the map's top 8 ranked subset (including followers with `0` public islands such as `Lin Zhou`).
-   - Clicking **View archipelago ↗** on any profile in **Following** or **Followers** (or **Solo archipelago view ↗** on any cluster) fetches their world via `getPublicWorld(profileId)` and switches the map to `data-map-mode="solo"`, rendering only that explorer's islands with `layoutIslands` (`src/map-layout.mjs`) and a **← Back to neighbourhood** button that restores neighbourhood camera state and focus.
-4. **Supabase Schema & Row-Level Security (`supabase/migrations/20261107000000_social_schema.sql`, `src/social/supabase-client.mjs`)**:
-   - Defines `public.profiles`, `public.islands` (`is_public` defaults to `false`), `public.island_private_state`, and `public.follows` (with `follows_select_public` requiring both endpoints to be public unless `auth.uid()` is a participant).
+The **Explore** tab transforms social discovery into an interactive, pannable shared ocean map backed by a graph-based mentor/interest recommender, a multi-persona dummy account switcher, a Following & Followers network with solo archipelago inspection, and an optional Supabase + Row-Level Security (RLS) backend.
+
+---
+
+### 1. Nearest-Neighbours Graph & Mentor-Complementarity Matching (`src/social/graph.mjs`)
+
+Instead of showing a static list of profiles or filling an arbitrary fixed quota of 8 neighbours, [`rankNeighborsByGraph`](src/social/graph.mjs) recommends **between `0` and `8` surrounding neighbours** who genuinely share skills or interests with the active viewer and prioritises **complementary (mentor/mentee) skill level gaps**.
+
+#### Step 1: Canonical Skill & Interest Normalization
+- **[`normalizeIslandSkill(island)`](src/social/graph.mjs)** and **[`normalizeInterestToken(token)`](src/social/graph.mjs)** map islands and profile interest tags into canonical `skillKey` nodes (e.g., `guitar`, `songwriting`, `photography`, `japanese`, `spanish`, `french`, `origami`, `chess`, `shogi`, `public-speaking`, `visual-storytelling`, `meeting-people`, `urban-sketching`) and optional broad `themeKey` nodes (`language`, `board`, `speaking`, `visual`, `people`, `craft`, `music`).
+- Exact skills remain distinct (`Japanese` vs `Spanish`, `Chess` vs `Shogi`), and generic `'compass'` / `'custom'` artwork fallback themes are ignored so unrelated custom islands never create false graph edges.
+
+#### Step 2: Strict Shared-Interest Eligibility Filter (`0..8` Neighbours, No Quota Padding)
+- A candidate explorer is **only eligible** to appear as a recommended neighbour if they have at least one public island (`publicIslands.length > 0`) **and** share **at least one exact `skillKey`** with the viewer's islands (either via one of the candidate's public islands or via their declared `interests`).
+- If the viewer has no islands yet, or if only 3 candidates share an interest with the viewer, `rankNeighborsByGraph` returns `0` or `3` neighbours respectively—never padding the ocean with unrelated profiles just to hit `8`.
+
+#### Step 3: Mentor-Style Level Complementarity Scoring
+For every shared skill $s$ between the viewer (at level $L_{\text{viewer}}$) and a candidate (at level $L_{\text{candidate}}$):
+
+1. **Inverse-Frequency Skill Rarity (Adamic–Adar style)**:
+   $$\text{rarity}(s) = \frac{18}{\ln(1.7 + \text{df}(s))}$$
+   where $\text{df}(s)$ is the number of candidate explorers who have skill $s$. Rare shared skills carry higher weight than ubiquitous ones.
+
+2. **Scale-Independent Level Complementarity (`levelComplementarity`)**:
+   $$\text{complementarity}(L_{\text{viewer}}, L_{\text{candidate}}) = \frac{|L_{\text{viewer}} - L_{\text{candidate}}|}{\max(L_{\text{viewer}}, L_{\text{candidate}})} \in [0, 1)$$
+   - **Example (Guitar Lv 50 viewer)**:
+     - Candidate A at **Guitar Lv 1**: $\text{complementarity} = \frac{|50 - 1|}{50} = \mathbf{0.98}$ (strong mentor/mentee pairing)
+     - Candidate B at **Guitar Lv 37**: $\text{complementarity} = \frac{|50 - 37|}{50} = \mathbf{0.26}$ (closer levels)
+     - Candidate C at **Guitar Lv 50**: $\text{complementarity} = \frac{|50 - 50|}{50} = \mathbf{0.00}$ (same-level peer)
+   - If the match comes from a declared profile interest tag without a public island level (`theirLevel == null`), a neutral complementarity of `0.30` is used.
+
+3. **Per-Skill Score**:
+   $$\text{skillScore}(s) = \text{rarity}(s) \times \bigl(0.35 + 1.65 \times \text{complementarity}(L_{\text{viewer}}, L_{\text{candidate}})\bigr)$$
+   Because the complementarity multiplier scales the weight from `0.35x` (equal levels) up to `2.00x` (maximum level gap), large mentor/mentee level gaps are strongly prioritised over near-equal skill levels on the same skill, while multi-skill overlap also accumulates across all shared skills:
+   $$\text{sharedScore} = \sum_{s \in \text{sharedSkills}} \text{skillScore}(s)$$
+
+#### Step 4: Graph Construction & Personalized PageRank Tie-Breaking
+To break ties and reward broader neighbourhood cohesion among already-eligible candidates, [`buildInterestGraph`](src/social/graph.mjs) and [`computePersonalizedPageRank`](src/social/graph.mjs) run a 24-iteration **Random Walk with Restart (Personalized PageRank, $\alpha = 0.80$)** starting from `user:viewer` across a multipartite graph containing:
+- **User nodes**: `user:viewer` and `user:<profile.id>`
+- **Skill nodes**: `skill:<skillKey>` (weighted by island level: $3.0 + 0.3 \times L$ for viewer, $2.5 + 0.25 \times L$ for candidates, $1.1$ for declared interest tags)
+- **Curated 1-hop related-skill bridges (`RELATED_SKILLS`)**: e.g. `guitar <-> songwriting`, `japanese <-> origami`, `chess <-> shogi`, `photography <-> visual-storytelling`
+- **Theme bridges**: `skill:<skillKey> <-> theme:<themeKey>`
+- **Social follow edges**: directed edges between `user:viewer` and followed/follower candidates
+
+The final composite score for each eligible candidate is:
+$$\text{score} = \text{sharedScore} + 2 \times \text{relatedBridgeCount} + \text{socialScore} + 3 \times \frac{\text{PPR}(u)}{\max_v \text{PPR}(v)}$$
+Candidates are sorted by descending `score` (with deterministic alphabetical tie-breaking on `profile.id`), capped at `limit = 8`, and assigned to the `inner` ring (ranks `1..4`) or `outer` ring (ranks `5..8`).
+
+#### Step 5: Evidence-Based Relationship Badges
+Each recommended neighbour receives an explicit, human-readable relationship badge and explanation based on their highest-scoring shared skill:
+- **Mentor** (`theirLevel > viewerLevel`): e.g. `Mentor · Origami Lv 4 (you Lv 1)`
+- **You could mentor** (`theirLevel < viewerLevel`): e.g. `You could mentor · Guitar Lv 2 (you Lv 4)`
+- **Peer** (`theirLevel === viewerLevel`): e.g. `Peer · Chess Lv 3`
+- **Shared interest** (interest tag match): e.g. `Shared interest · Photography`
+
+---
+
+### 2. Shared Ocean Map & Collision-Free Sector Layout (`src/social/explore.mjs`, `src/social/social.css`)
+
+- **Home Waters at Center**: The active viewer's own islands are rendered at the center of a `2400 × 1720` pannable ocean canvas (`Home Waters`), surrounded by a dashed territory ring.
+- **8 Compass Sectors (`NW`, `N`, `NE`, `E`, `SE`, `S`, `SW`, `W`)**: Up to 8 recommended neighbours are placed around Home Waters. Ranks `1..4` (closest matches) pull slightly closer to the center (`radialScale = 0.93`), while ranks `5..8` sit on the outer ring (`radialScale = 1.07`).
+- **Stable Sector Assignment**: Each neighbour's compass sector is persisted in `assignedSectorsByProfileId` for the current viewer persona so clicking **Follow / Following** in the inspector never causes islands to jump to a different sector on the map.
+- **Collision-Free Island Clusters**: Within each neighbour's cluster (`450 × 310`), up to 3 public islands are positioned in non-overlapping slots using each island's actual visual stage (`getStage(xp)`) and artwork (`islandArt(island)`), with a `+N more` pill when a user has more than 3 public islands.
+- **Drag-to-Pan & Quick-Jump Controls**: Users can click-and-drag (or touch-drag) anywhere on the ocean, click any neighbour cluster to pan smoothly to it and open the bottom-right **Selected Archipelago Inspector**, or use the top overlay pills (`Home Waters` + neighbour pills with relationship badges) to jump directly to any cluster.
+
+---
+
+### 3. Dummy Account Switcher (`src/social/fixtures.mjs`, `src/social/explore.mjs`)
+
+- **No Login Required**: A **Viewing as dummy account** switcher bar sits at the top of Explore with 5 distinct personas (`You (My world)`, `Maya Chen`, `Sora Takahashi`, `Elena Rostova`, and `Ari Patel`) backed by 11 rich dummy profiles in [`src/social/fixtures.mjs`](src/social/fixtures.mjs).
+- **Live Persona Switching**: Clicking any dummy persona:
+  1. Places that persona's islands at the center of the ocean (`Home Waters`),
+  2. Excludes that persona from the candidate pool (`viewerId`),
+  3. Re-runs `rankNeighborsByGraph` so you immediately see how different skill sets and levels produce different mentor/mentee recommendations and neighbour counts,
+  4. Loads that persona's own **Following** and **Followers** relationships.
+
+---
+
+### 4. Following & Followers Network + Solo Archipelago Map View (`data-map-mode="solo"`)
+
+- **Dedicated Network Panel (`listNetworkProfiles`)**: Below the ocean map, the **Following & Followers** section displays two columns (**Following** and **Followers**) sourced from the full profile dataset (`listNetworkProfiles()`), completely independent of which `0..8` profiles are currently shown as surrounding neighbours on the map.
+- **Zero-Island Follower Support**: Followers who have `0` public islands (such as `Lin Zhou`) still appear in **Followers** with a clear `No public islands shared yet` note, while remaining excluded from the ocean map clusters.
+- **Individual (Solo) Archipelago Map View**: Clicking **View archipelago ↗** on any profile card in Following/Followers (or **Solo archipelago view ↗** in the map inspector) fetches that explorer's world via `getPublicWorld(profileId)` and switches the canvas to `data-map-mode="solo"`.
+  - In solo mode, the canvas renders **only** that explorer's public islands laid out cleanly via [`layoutIslands`](src/map-layout.mjs), along with a banner (`Viewing <Name>'s Archipelago (Solo Map View)`), a **Follow / Following** toggle, an **Adopt starter roadmap** action for any selected island, and a **← Back to neighbourhood** button that restores the shared ocean view and camera focus.
+
+---
+
+### 5. Social Compass Matchmaker & Roadmap Adoption (`src/social/recommendations.mjs`)
+
+- **Social Compass Drawer**: Clicking **🧭 Compass** on the map opens the AI Matchmaker drawer (`recommendExplorers`), which aligns with the active map neighbours (`rankNeighborsByGraph`) and optionally filters by a prompt (e.g., `"fingerstyle guitar"` or `"origami"`) while highlighting matching clusters directly on the ocean canvas.
+- **Adopt Starter Roadmap**: Selecting any neighbour's island lets the viewer click **Adopt starter roadmap**, which clones a fresh Lv 1 (`xp: 0`) starter island with that skill's roadmap into the viewer's own world without copying private state.
+
+---
+
+### 6. Supabase Schema & Row-Level Security (`supabase/migrations/20261107000000_social_schema.sql`, `src/social/supabase-client.mjs`)
+
+- **Automatic Offline/Fixture Fallback**: [`createSocialClient`](src/social/index.mjs) uses the deterministic local fixture client by default and seamlessly upgrades to [`createSupabaseSocialClient`](src/social/supabase-client.mjs) when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are configured.
+- **Strict Public/Private Separation**:
+  - `public.profiles`, `public.islands` (`is_public` defaults to `false`), `public.island_private_state` (owner-only RLS), and `public.follows`.
+  - `follows_select_public` RLS requires both `follower_id` and `following_id` to belong to public profiles unless `auth.uid()` is a participant in the follow row.
