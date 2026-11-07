@@ -112,6 +112,15 @@ test('Chrome can generate validated JSON when native response constraints are un
   assert.equal(calls, 2);
 });
 
+test('a valid first exercise is accepted when Nano omits or leaves the checkpoint blank', async () => {
+  for (const checkpoint of ['', undefined]) {
+    const result = await generateStarterRoadmap(input, { model: mockModel({ decision: 'ready', checkpoint, goals: [goals[0]] }) });
+    assert.equal(result.status, 'ready');
+    assert.equal(result.plan.checkpoint, undefined);
+    assert.equal(result.plan.steps[0][0], goals[0].title);
+  }
+});
+
 test('model setup and prompt timeouts are reported separately', async () => {
   const expire = async signal => {
     if (!signal.aborted) await new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }));

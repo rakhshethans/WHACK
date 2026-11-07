@@ -154,7 +154,7 @@ function roadmapSummary(island) {
     ${island.objective ? `<p><strong>Your ambition</strong><span>${escapeHtml(island.objective)}</span></p>` : ''}
     <p><strong>Focus</strong><span>${escapeHtml(island.roadmap.focus)}</span></p>
     ${island.roadmap.onDevice ? '<p class="caption">Initial plan generated on this device.</p>' : ''}
-    <p><strong>Roadmap checkpoint</strong><span>${escapeHtml(island.roadmap.checkpoint)}</span></p>
+    ${island.roadmap.checkpoint ? `<p><strong>Roadmap checkpoint</strong><span>${escapeHtml(island.roadmap.checkpoint)}</span></p>` : ''}
     ${island.roadmap.next ? `<p><strong>Beyond this roadmap</strong><span>${escapeHtml(island.roadmap.next)}</span></p>` : ''}
   </details>`;
 }
