@@ -1,4 +1,5 @@
 import { buildRoadmap, nextPractice, SKILLS } from './roadmaps.mjs';
+import { buildCustomRoadmap, nextCustomPractice } from './custom-roadmap.mjs';
 
 const STAGES = [
   [0, 'Settlement'], [100, 'Village'], [250, 'Town'],
@@ -32,13 +33,19 @@ function addIsland(world, island) {
   return { ...world, islands: [...world.islands, { ...island, id: 'island-' + (world.islands.length + 1), xp: 0 }] };
 }
 
-export function createIsland(world, { title, experience, minutes, objective, category }) {
+export function createIsland(world, { title, experience, minutes, objective, category, topic, localRoadmap }) {
   const name = title.trim();
   if (!name) return world;
   const skill = Object.hasOwn(SKILLS, category) ? category : 'guitar';
+  const customTopic = skill === 'custom' ? String(topic ?? '').trim() : undefined;
+  if (skill === 'custom' && !customTopic) return world;
   const sessionMinutes = Math.min(120, Math.max(1, Math.round(Number(minutes)) || 15));
-  const target = String(objective ?? '').trim();
-  const { focus, checkpoint, next, steps } = buildRoadmap({ category: skill, objective: target, experience });
+  const target = String(objective ?? '').trim() || customTopic || '';
+  const authored = skill === 'custom'
+    ? buildCustomRoadmap({ topic: customTopic, objective: target, experience })
+    : buildRoadmap({ category: skill, objective: target, experience });
+  const { focus, theme, checkpoint, next, steps } = skill === 'custom' && localRoadmap
+    ? { ...authored, ...localRoadmap } : authored;
   const goals = steps.map(([title, description, finish], index) => ({
     id: 'goal-' + (index + 1),
     title,
@@ -50,7 +57,8 @@ export function createIsland(world, { title, experience, minutes, objective, cat
     completed: false,
   }));
   return addIsland(world, {
-    title: name, category: skill, objective: target, sessionMinutes, roadmap: { focus, checkpoint, next }, goals,
+    title: name, category: skill, topic: customTopic, theme, experience, objective: target,
+    sessionMinutes, roadmap: { focus, checkpoint, next, onDevice: skill === 'custom' && Boolean(localRoadmap) }, goals,
   });
 }
 
@@ -60,7 +68,8 @@ export function getActiveGoal(island) {
   if (next || completedIds.size < island.goals.length) return next;
 
   const practiceIndex = island.goals.filter(goal => goal.continuation).length;
-  const { title, description, finish } = nextPractice(island, practiceIndex);
+  const { title, description, finish } = island.category === 'custom'
+    ? nextCustomPractice(island, practiceIndex) : nextPractice(island, practiceIndex);
   return {
     id: 'goal-' + (island.goals.length + 1), title, description, finish,
     minutes: island.sessionMinutes ?? (Math.max(0, ...island.goals.map(goal => goal.minutes || 0)) || 15),
@@ -87,6 +96,9 @@ export function adoptIsland(world, source) {
   return addIsland(world, {
     title: source.title,
     category: source.category,
+    topic: source.topic,
+    theme: source.theme,
+    experience: source.experience,
     objective: source.objective,
     sessionMinutes: source.sessionMinutes,
     roadmap: source.roadmap ? { ...source.roadmap } : undefined,

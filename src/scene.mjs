@@ -134,7 +134,43 @@ function photographyTerrain(stage) {
   </g>`;
 }
 
+const CUSTOM_ICONS = {
+  people: '<circle cx="-16" cy="-13" r="8"/><circle cx="16" cy="-13" r="8"/><path d="M-30 15q2-21 14-21T-2 15zm32 0Q4-6 16-6t14 21z"/><path d="m-6-22 6-7 6 7" fill="none"/>',
+  board: '<path d="m-30-9 29-16 31 16L0 9z"/><path d="M-30-9v9L0 18 30 0v-9M-15-17l30 17M0-25l30 16M-15 0l30-17M0 9l30-18" fill="none"/>',
+  language: '<path d="M-29-20h39q8 0 8 8v13q0 8-8 8H-6l-13 9 2-9h-12q-8 0-8-8v-13q0-8 8-8Z"/><path d="M13-7h16q8 0 8 8v12q0 8-8 8h-7l2 7-11-7h-7q-8 0-8-8v-2" fill="none"/><path d="M-25-9H6m-31 8h22" stroke="#265355"/>',
+  compass: '<circle r="25"/><path d="m11-17-4 21-18 13 4-21Z" fill="#e5aa69" stroke="#1d5558"/><circle r="3" fill="#244e52"/>',
+};
+
+function customTerrain(island, stage) {
+  let seed = 2166136261;
+  for (const character of (island.topic + ' ' + island.objective).toLowerCase()) {
+    seed = Math.imul(seed ^ character.codePointAt(0), 16777619);
+  }
+  const hue = (seed >>> 0) % 360;
+  const alternate = (seed & 1) === 1;
+  const coast = alternate
+    ? 'm280 341 62-43 48-44 105 4 71 26 50-9 55 44 22 38-65 29-80 35-111-5-61-26-58 3Z'
+    : 'm277 348 57-24 55-57 82-28 92 21 44 42 65 15 29 33-46 35-55 10-80 37-97-16-49-34-52-3Z';
+  const inset = 'm322 345 62-33 36-33 56-19 78 14 41 36 58 20-24 30-76 33-87 7-81-26-49-7Z';
+  const icon = Object.hasOwn(CUSTOM_ICONS, island.theme) ? CUSTOM_ICONS[island.theme] : CUSTOM_ICONS.compass;
+  return `<g class="wh-island custom-terrain">
+    <ellipse cx="484" cy="410" rx="210" ry="36" fill="#142f39" opacity=".4"/>
+    <path d="${coast}" fill="hsl(${hue} 30% 36%)" transform="translate(0 12)"/>
+    <path d="${coast}" fill="hsl(${hue} 46% 69%)" stroke="hsl(${hue} 46% 81%)" stroke-width="2"/>
+    <path d="${inset}" fill="hsl(${hue} 32% 51%)"/>
+    <path d="M349 353q83 44 153 29t119-46M378 319q66-45 127-38t79 31" fill="none" stroke="hsl(${hue} 40% 74%)" stroke-width="3" opacity=".67"/>
+    <ellipse cx="484" cy="341" rx="67" ry="24" fill="hsl(${hue} 37% 31%)" opacity=".5"/>
+    <ellipse cx="484" cy="332" rx="61" ry="22" fill="hsl(${hue} 43% 70%)" stroke="#ffdeb0" stroke-width="2"/>
+    <g transform="translate(484 311)" fill="#fff0cc" stroke="#31595a" stroke-width="3" stroke-linejoin="round">${icon}</g>
+    ${stage >= 2 ? lodge(408,359,.75,'#cf9670') : ''}
+    ${stage >= 3 ? lodge(573,355,.8,'#79a6a2') : ''}
+    ${stage >= 4 ? lodge(549,293,.72,'#dbad78') : ''}
+    ${stage >= 5 ? tower(620,331,.82) : ''}
+  </g>`;
+}
+
 function islandTerrain(island, stage) {
+  if (island.category === 'custom') return customTerrain(island, stage);
   if (island.category === 'songwriting') return songwritingTerrain(stage);
   if (island.category === 'photography') return photographyTerrain(stage);
   return guitarTerrain(stage);

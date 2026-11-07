@@ -1,6 +1,7 @@
 import { createWorld, createIsland, completeGoal, getActiveGoal, getStage, adoptIsland } from './world.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
+import { generateCustomRoadmap } from './local-planner.mjs';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#onboarding');
@@ -12,6 +13,12 @@ const storageKey = 'worldhopper-world-v1';
 const skillField = form.elements.category;
 const titleField = form.elements.title;
 const objectiveField = form.elements.objective;
+const topicField = form.elements.topic;
+const customTopic = document.querySelector('#custom-topic');
+const objectiveLabel = document.querySelector('#objective-label');
+const createLabel = document.querySelector('#create-island-label');
+const createButton = form.querySelector('button[type="submit"]');
+let pendingCreation;
 
 function loadWorld() {
   try {
@@ -82,11 +89,11 @@ function archipelagoMap(islands, selection, explore = false) {
       ${islands.map(island => {
         const selected = island.id === selection;
         const { level } = getStage(island.xp);
-        const skill = Object.hasOwn(SKILLS, island.category) ? SKILLS[island.category].label : 'Skill';
+        const skill = island.topic || (Object.hasOwn(SKILLS, island.category) ? SKILLS[island.category].label : 'Skill');
         return `<button type="button" class="map-island${selected && animateIsland ? ' animate-island' : ''}"
           data-action="${explore ? 'demo' : 'select'}" data-id="${escapeHtml(island.id)}" aria-pressed="${selected}">
           <span class="island-art">${renderIsland(island, level)}</span>
-          <span class="island-pin"><strong>${escapeHtml(island.title)}</strong><small>${skill} · Lv ${level}</small></span>
+          <span class="island-pin"><strong>${escapeHtml(island.title)}</strong><small>${escapeHtml(skill === island.title ? 'Custom island' : skill)} · Lv ${level}</small></span>
         </button>`;
       }).join('')}
     </div>
@@ -99,6 +106,7 @@ function roadmapSummary(island) {
   return `<details class="roadmap-summary"><summary>Long-term plan</summary>
     ${island.objective ? `<p><strong>Your ambition</strong><span>${escapeHtml(island.objective)}</span></p>` : ''}
     <p><strong>Focus</strong><span>${escapeHtml(island.roadmap.focus)}</span></p>
+    ${island.roadmap.onDevice ? '<p class="caption">Initial plan generated on this device.</p>' : ''}
     <p><strong>Roadmap checkpoint</strong><span>${escapeHtml(island.roadmap.checkpoint)}</span></p>
     ${island.roadmap.next ? `<p><strong>Beyond this roadmap</strong><span>${escapeHtml(island.roadmap.next)}</span></p>` : ''}
   </details>`;
@@ -212,22 +220,56 @@ app.addEventListener('click', event => {
 
 function updateSkillHints() {
   const skill = SKILLS[skillField.value];
-  titleField.placeholder = 'e.g. ' + skill.label + ' Island';
+  const isCustom = skillField.value === 'custom';
+  customTopic.hidden = !isCustom;
+  topicField.disabled = !isCustom;
+  topicField.required = isCustom;
+  objectiveField.required = !isCustom;
+  objectiveLabel.textContent = isCustom ? 'More specific outcome (optional)' : 'Your objective';
+  titleField.placeholder = isCustom ? 'Defaults to your skill or goal' : 'e.g. ' + skill.label + ' Island';
   objectiveField.placeholder = skill.objective;
 }
 
 skillField.addEventListener('change', updateSkillHints);
 
-form.addEventListener('submit', event => {
+function setCreating(creating) {
+  createButton.disabled = creating;
+  createLabel.textContent = creating ? 'Building your practice plan…' : 'Create my island';
+}
+
+dialog.addEventListener('close', () => {
+  if (dialog.open || !pendingCreation) return;
+  pendingCreation.abort();
+  pendingCreation = undefined;
+  setCreating(false);
+});
+
+form.addEventListener('submit', async event => {
   event.preventDefault();
+  if (pendingCreation) return;
   const input = Object.fromEntries(new FormData(form));
-  if (!input.objective.trim()) {
-    objectiveField.value = '';
-    objectiveField.reportValidity();
+  const isCustom = input.category === 'custom';
+  const topic = input.topic?.trim();
+  const objective = input.objective.trim() || (isCustom ? topic : '');
+  const missing = isCustom && !topic ? topicField : !objective ? objectiveField : null;
+  if (missing) {
+    missing.value = '';
+    missing.reportValidity();
     return;
   }
-  const title = input.title.trim() || SKILLS[input.category].label + ' Island';
-  persist(createIsland(world, { ...input, title, minutes: Number(input.minutes) }));
+  const title = input.title.trim() || (isCustom ? topic : SKILLS[input.category].label + ' Island');
+  const planInput = { ...input, title, topic, objective, minutes: Number(input.minutes) };
+  if (isCustom && globalThis.LanguageModel) {
+    const controller = new AbortController();
+    pendingCreation = controller;
+    setCreating(true);
+    planInput.localRoadmap = await generateCustomRoadmap(planInput, { signal: controller.signal });
+    if (pendingCreation !== controller) return;
+    pendingCreation = undefined;
+    setCreating(false);
+    if (!dialog.open) return;
+  }
+  persist(createIsland(world, planInput));
   selectedId = world.islands.at(-1).id;
   dialog.close();
   form.reset();

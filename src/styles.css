@@ -141,3 +141,5 @@ form label:has(small) input { display: block; margin-top: 4px; }
 .active-goal .primary { width: 100%; margin-top: 4px; }
 .roadmap-summary summary { color: var(--text); cursor: pointer; font-size: 13px; }
 .roadmap-summary[open] summary { margin-bottom: 9px; }
+
+form .primary:disabled { cursor: wait; opacity: .75; }

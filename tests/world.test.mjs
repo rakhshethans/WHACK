@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { adoptIsland, completeGoal, createIsland, createWorld, getActiveGoal, getStage } from '../src/world.mjs';
+import { generateCustomRoadmap } from '../src/local-planner.mjs';
+import { renderIsland } from '../src/scene.mjs';
 
 const guitar = { title: 'Learn guitar', category: 'guitar', experience: 'intermediate', minutes: 8, objective: 'play at an open mic' };
 
@@ -130,4 +132,74 @@ test('a legacy island with all goals complete receives a continuation', () => {
   const progressed = completeGoal({ islands: [island] }, island.id, goal.id);
   assert.equal(progressed.islands[0].xp, 1050);
   assert.notEqual(getActiveGoal(progressed.islands[0]).id, goal.id);
+});
+
+test('meeting new people creates a custom social progression without a second objective', () => {
+  const input = { title: 'Meeting new people', topic: 'Meeting new people', category: 'custom', experience: 'beginner', minutes: 10 };
+  let world = createIsland(createWorld(), input);
+  const [island] = world.islands;
+  assert.equal(island.category, 'custom');
+  assert.equal(island.objective, input.topic);
+  assert.equal(island.theme, 'people');
+  assert.equal(getActiveGoal(island).title, 'Find a low-pressure place to meet people');
+  assert.ok(island.goals.some(goal => goal.title === 'Say hello to one new person'));
+  const campus = createIsland(createWorld(), { ...input, objective: 'Make friends on campus' }).islands[0];
+  assert.match(getActiveGoal(campus).description, /on campus/);
+  for (const goal of island.goals) world = completeGoal(world, island.id, goal.id);
+  const [progressed] = world.islands;
+  assert.equal(progressed.xp, 900);
+  assert.match(getActiveGoal(progressed).title, /conversation in a new setting/);
+  assert.equal(getActiveGoal(progressed).minutes, 10);
+});
+
+test('custom islands keep their own skill, outcome and appearance', () => {
+  const input = { title: 'Paper Harbour', topic: 'Origami', category: 'custom', objective: 'Fold a paper crane', experience: 'beginner', minutes: 20 };
+  const [origami, chess] = createIsland(createIsland(createWorld(), input), {
+    ...input, title: 'Chess Island', topic: 'Chess', objective: 'Beat my friends at chess',
+  }).islands;
+  assert.match(getActiveGoal(origami).title, /Origami/);
+  assert.ok(origami.goals.some(goal => goal.description.includes('Fold a paper crane')));
+  assert.equal(chess.theme, 'board');
+  assert.notEqual(renderIsland(origami, 1), renderIsland(chess, 1));
+  const [copy] = adoptIsland(createWorld(), origami).islands;
+  assert.equal(copy.topic, 'Origami');
+  assert.equal(copy.theme, origami.theme);
+  assert.equal(copy.xp, 0);
+  assert.equal(renderIsland(JSON.parse(JSON.stringify(origami)), 1), renderIsland(origami, 1));
+  assert.equal(createIsland(createWorld(), { ...input, topic: '   ' }).islands.length, 0);
+});
+
+test('the local planner accepts structured goals and falls back on unavailable or duplicate output', async () => {
+  const input = { topic: 'Pottery', objective: 'Make a cup', experience: 'beginner', minutes: 10 };
+  let created = 0;
+  let destroyed = 0;
+  const goals = Array.from({ length: 8 }, (_, index) => ({
+    title: 'Shape practice piece ' + (index + 1),
+    practice: 'Use a small piece of clay and practise a single shaping motion.',
+    finish: 'Compare the rim against an earlier attempt.',
+  }));
+  const model = {
+    availability: async () => 'available',
+    create: async () => {
+      created += 1;
+      return {
+        prompt: async (prompt, options) => {
+          assert.match(prompt, /"topic":"Pottery"/);
+          assert.equal(options.responseConstraint.properties.goals.minItems, 8);
+          return JSON.stringify({ checkpoint: 'Finish a small practice cup.', goals });
+        },
+        destroy: () => { destroyed += 1; },
+      };
+    },
+  };
+  assert.equal(await generateCustomRoadmap(input, { model: { ...model, availability: async () => 'downloadable' } }), null);
+  assert.equal(created, 0);
+  const generated = await generateCustomRoadmap(input, { model });
+  assert.equal(generated.steps.length, 8);
+  const [island] = createIsland(createWorld(), { ...input, title: 'Pottery', category: 'custom', localRoadmap: generated }).islands;
+  assert.equal(island.roadmap.onDevice, true);
+  assert.equal(getActiveGoal(island).title, goals[0].title);
+  goals[1].title = goals[0].title;
+  assert.equal(await generateCustomRoadmap(input, { model }), null);
+  assert.equal(destroyed, 2);
 });

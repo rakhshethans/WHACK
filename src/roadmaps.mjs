@@ -1,4 +1,5 @@
 export const SKILLS = {
+  custom: { label: 'Custom island', objective: 'e.g. Make friends through a weekly activity' },
   guitar: { label: 'Guitar', objective: 'e.g. Play an acoustic set at an open mic' },
   songwriting: { label: 'Songwriting', objective: 'e.g. Write and record my first original song' },
   photography: { label: 'Photography', objective: 'e.g. Make a street photography series' },
