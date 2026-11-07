@@ -17,6 +17,8 @@ WorldHopper is an interactive archipelago for learning skills and pursuing perso
 
 Use Node.js 20 or newer. Run `node --test` from the repository root. For a browser preview, serve the repository over HTTP with `python -m http.server 8000` and open `http://localhost:8000`.
 
+To reset a test world, open the app with `?testing=1`, choose **Reset islands** in the My world footer, and confirm. This clears the current browser’s islands and their progress. Explore’s sample islands remain available.
+
 ## Working in parallel
 
 Start both workstreams from `worldhopper/first-island`, the branch behind the shared preview. Use a separate checkout per agent and target PRs back to this branch.

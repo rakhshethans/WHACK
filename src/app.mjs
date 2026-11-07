@@ -14,6 +14,7 @@ const worldTab = document.querySelector('#world-tab');
 const exploreTab = document.querySelector('#explore-tab');
 const announcement = document.querySelector('#announcement');
 const storageKey = 'worldhopper-world-v1';
+const testingMode = new URLSearchParams(location.search).get('testing') === '1';
 const objectiveField = form.elements.objective;
 const topicField = form.elements.topic;
 const createLabel = document.querySelector('#create-island-label');
@@ -258,9 +259,11 @@ function render() {
   mapResize.disconnect();
   worldTab.setAttribute('aria-pressed', String(activeView === 'world'));
   exploreTab.setAttribute('aria-pressed', String(activeView === 'explore'));
+  const resetControl = testingMode && activeView === 'world' && world.islands.length
+    ? '<button type="button" class="testing-reset" data-action="reset-islands">Reset islands</button>' : '';
   app.innerHTML = (activeView === 'world' ? currentWorld() : discoverWorlds()) +
     (storageUnavailable ? '<p class="storage-note">This browser blocked storage. Progress is available until you close or reload the page.</p>' : '') +
-    '<footer><span>WORLDHOPPER</span><span>WARWICKHACK 2026 / NEW WORLDS</span></footer>';
+    `<footer><span>WORLDHOPPER</span>${resetControl}<span>WARWICKHACK 2026 / NEW WORLDS</span></footer>`;
   const map = app.querySelector('.island-water');
   if (map) {
     positionIslands(map);
@@ -311,6 +314,29 @@ function discardDraft(islandId) {
   return draft;
 }
 
+function resetIslandsForTesting() {
+  if (!testingMode || activeView !== 'world' || !world.islands.length) return;
+  if (!window.confirm('Remove all your islands and progress from this browser? This cannot be undone.')) return;
+
+  for (const id of adaptationDrafts.keys()) discardDraft(id);
+  for (const task of pendingPractice.values()) task.controller.abort();
+  pendingPractice.clear();
+  practiceErrors.clear();
+  pendingCreation?.abort();
+  pendingCreation = undefined;
+  starterWarmup?.cancel();
+  starterWarmup = undefined;
+  selectedId = undefined;
+  revisingId = undefined;
+  logOpen = false;
+  animateIsland = false;
+  cameras.world.overview = true;
+  persist(createWorld());
+  render();
+  app.querySelector('[data-action="new"]').focus({ preventScroll: true });
+  announce('All local islands and progress cleared.');
+}
+
 function draftNextGoal(island, goalId) {
   discardDraft(island.id);
   if (!globalThis.LanguageModel) return;
@@ -330,6 +356,10 @@ app.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
   const { action, id, rating } = button.dataset;
+  if (action === 'reset-islands') {
+    resetIslandsForTesting();
+    return;
+  }
   if (action === 'close-log') {
     closeLog();
     return;
