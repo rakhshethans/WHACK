@@ -19,7 +19,7 @@ const goals = [
 const response = { decision: 'ready', checkpoint: 'Print a Python summary of expenses by category for one month.', goals };
 const mockModel = (data, inspect = () => {}) => ({
   availability: async () => 'available',
-  create: async () => ({ prompt: async prompt => { inspect(prompt); return JSON.stringify(data); }, destroy() {} }),
+  create: async () => ({ prompt: async (prompt, options) => { inspect(prompt, options); return JSON.stringify(data); }, destroy() {} }),
 });
 
 test('new islands require a generated plan, even for recognised skills', async () => {
@@ -122,17 +122,21 @@ test('a valid first exercise is accepted when Nano omits or leaves the checkpoin
   }
 });
 
-test('new islands use skill landmarks and accept only listed artwork from the goal response', async () => {
+test('the first goal contains no icon request and familiar skills keep their landmarks', async () => {
   const unusual = { ...input, topic: 'Learn bookbinding', objective: 'Bind a notebook' };
   let requests = 0;
   const model = mockModel({ decision: 'ready', landmark: 'brush', goals: [{
     title: 'Mark three stitch holes', practice: 'Mark three evenly spaced holes along the notebook fold with a ruler.',
     finish: 'The middle mark lines up with the centre of the fold.',
-  }] }, prompt => { requests++; assert.match(prompt, /Optionally pick a landmark/); });
+  }] }, (prompt, options) => {
+    requests++;
+    assert.doesNotMatch(prompt, /landmark|pictogram/);
+    assert.equal(options.responseConstraint.properties.landmark, undefined);
+  });
   const { plan } = await generateStarterRoadmap(unusual, { model });
   assert.equal(requests, 1);
-  const [carving] = createGeneratedIsland(createWorld(), { ...unusual, localRoadmap: plan }).islands;
-  assert.match(renderIsland(carving, 1), /data-landmark="brush"/);
+  const [bookbinding] = createGeneratedIsland(createWorld(), { ...unusual, localRoadmap: plan }).islands;
+  assert.match(renderIsland(bookbinding, 1), /class="topic-seal"/);
 
   const [photo] = createGeneratedIsland(createWorld(), { ...input, topic: 'Photography', localRoadmap: plan }).islands;
   assert.match(renderIsland(photo, 1), /data-landform="(?:alpine|mesa)" data-landmark="camera"/);
