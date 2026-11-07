@@ -6,6 +6,7 @@ import { applyIslandInactivity, getStage, levelChallenge, practiceDeadline, prac
 import { knownLandmark, validLandmark } from './island-art.mjs';
 
 export { getStage } from './progression.mjs';
+export const GOAL_FEEDBACK_LIMIT = 500;
 
 const XP_AWARDS = [40, 60, 65, 85, 110, 140, 175, 225];
 const POST_CHECKPOINT_XP = [150, 175, 175];
@@ -70,9 +71,9 @@ export function reviseIslandRoadmap(world, islandId, input) {
   if (!island || !needsRoadmapRevision(island)) return world;
   const [replacement] = createGeneratedIsland(createWorld(), input).islands;
   if (!replacement) return world;
-  const { id, xp, attribution, nextXpLossAt } = island;
+  const { id, xp, attribution, nextXpLossAt, practicePreference } = island;
   if (replacement.goals.length === 1) {
-    const revised = { ...replacement, id, xp, attribution, nextXpLossAt, difficulty: island.difficulty,
+    const revised = { ...replacement, id, xp, attribution, nextXpLossAt, practicePreference, difficulty: island.difficulty,
       goals: island.goals.filter(goal => goal.completed) };
     revised.goals.push({ ...generatedPracticeGoal(revised, replacement.goals[0]), practiceLevel: getStage(xp).level });
     return replaceIsland(world, revised);
@@ -83,7 +84,7 @@ export function reviseIslandRoadmap(world, islandId, input) {
     return previous?.completed ? previous : previous ? { ...goal, id: previous.id, xp: previous.xp, prerequisites: previous.prerequisites } : goal;
   });
   goals.push(...island.goals.filter(goal => goal.continuation && goal.completed));
-  return replaceIsland(world, { ...replacement, id, xp, attribution, nextXpLossAt, goals });
+  return replaceIsland(world, { ...replacement, id, xp, attribution, nextXpLossAt, practicePreference, goals });
 }
 
 export function needsGeneratedPractice(island) {
@@ -188,6 +189,22 @@ export function getActiveGoal(island) {
   return { ...coached, practiceLevel, levelPractice: levelChallenge(practiceLevel) };
 }
 
+export function reviseActiveGoal(world, islandId, goalId, note, replacement) {
+  const island = world.islands.find(item => item.id === islandId);
+  const goal = island?.roadmap?.onDevice && availableGoal(island);
+  const practicePreference = note.trim();
+  if (!goal || goal.id !== goalId || !practicePreference || practicePreference.length > GOAL_FEEDBACK_LIMIT ||
+    !replacement || isBoilerplateGoal(replacement)) return world;
+  const { title, description, finish } = replacement;
+  const revised = { ...goal, title, description, finish, practiceLevel: getStage(island.xp).level };
+  return replaceIsland(world, {
+    ...island,
+    practicePreference,
+    nextGoalAdjustment: undefined,
+    goals: island.goals.filter(item => item.completed || item === goal).map(item => item === goal ? revised : item),
+  });
+}
+
 export function setDifficulty(world, islandId, goalId, rating) {
   if (!DIFFICULTIES.some(option => option.value === rating)) return world;
   const island = world.islands.find(({ id }) => id === islandId);
@@ -218,6 +235,7 @@ function adaptationRequest(island, completed, plannedGoal) {
     experience: island.experience,
     theme: island.theme,
     feedback,
+    practicePreference: island.practicePreference,
     skillLevel: getStage(practiceXp(island.xp, completed.xp)).level,
     completed: goalVersion(island, completed),
     plannedGoal,

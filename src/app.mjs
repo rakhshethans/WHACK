@@ -1,8 +1,8 @@
-import { createWorld, createIsland, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice, applyInactivity, plannedPracticeLevel } from './world.mjs';
+import { createWorld, createIsland, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice, applyInactivity, plannedPracticeLevel, reviseActiveGoal, GOAL_FEEDBACK_LIMIT } from './world.mjs';
 import { DAY_MS, PRACTICE_GRACE_DAYS, maintenanceStatus, practiceXp } from './progression.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
-import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation, generateIslandIcon, warmStarterModel } from './local-planner.mjs';
+import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation, generateIslandIcon, generateGoalRevision, warmStarterModel } from './local-planner.mjs';
 import { knownLandmark } from './island-art.mjs';
 import { iconCandidates, iconForTopic, iconTopicKey, storeGeneratedIcon } from './generated-icons.mjs';
 import { DIFFICULTIES } from './difficulty.mjs';
@@ -25,6 +25,7 @@ const createButton = form.querySelector('button[type="submit"]');
 const planMessage = document.querySelector('#plan-message');
 const onboardingTitle = document.querySelector('#onboarding-title');
 let pendingCreation;
+let goalRevision;
 let starterWarmup;
 let revisingId;
 const adaptationDrafts = new Map();
@@ -118,7 +119,10 @@ function announce(message) {
 }
 
 function changeView(view) {
-  if (activeView !== view) logOpen = false;
+  if (activeView !== view) {
+    logOpen = false;
+    discardGoalRevision();
+  }
   activeView = view;
   render();
 }
@@ -174,8 +178,27 @@ function roadmapSummary(island) {
   </details>`;
 }
 
-function goalMarkup(goal, number, difficulty, ambition, xp) {
+function writtenFeedbackMarkup(island, goal, editor) {
+  if (!island.roadmap?.onDevice) return '';
+  const pending = Boolean(editor?.controller);
+  return `<details class="written-feedback" ${editor ? 'open' : ''}>
+    <summary>Give feedback</summary>
+    <form data-goal-revision data-island-id="${escapeHtml(island.id)}" data-goal-id="${escapeHtml(goal.id)}">
+      <label for="goal-note">What should this goal focus on?</label>
+      <textarea id="goal-note" name="note" rows="3" maxlength="${GOAL_FEEDBACK_LIMIT}" required ${pending ? 'readonly' : ''}
+        placeholder="Example: Practise ordering at a café.">${escapeHtml(editor?.note ?? island.practicePreference)}</textarea>
+      <p>This revises the current goal and guides future practice on this island.</p>
+      ${pending ? '<p role="status">Rewriting your goal…</p><button type="button" class="small-action" data-action="cancel-goal-revision">Cancel rewrite</button>' :
+        '<button class="small-action" type="submit">Revise goal</button>'}
+      ${editor?.error ? `<p role="alert">${escapeHtml(editor.error)}</p>` : ''}
+    </form>
+  </details>`;
+}
+
+function goalMarkup(island, goal, number, difficulty, xp) {
   if (!goal) return '<p>Complete the prerequisite for the next practice goal.</p>';
+  const editor = goalRevision?.islandId === island.id && goalRevision.goalId === goal.id ? goalRevision : undefined;
+  const disabled = editor?.controller ? 'disabled' : '';
   return `<section class="active-goal" aria-labelledby="active-goal-title">
     <div class="goal-card-top"><p class="eyebrow">CURRENT GOAL / ${number}</p><span class="goal-reward">${xp ? '+' + xp + ' XP' : 'Maintain mastery'}</span></div>
     <h3 id="active-goal-title" tabindex="-1">${escapeHtml(goal.title)}</h3>
@@ -185,13 +208,14 @@ function goalMarkup(goal, number, difficulty, ambition, xp) {
     ${goal.practiceAdjustment ? `<p class="practice-adjustment"><strong>${difficulty === 'support' ? 'Start here' : 'Stretch practice'}</strong> ${escapeHtml(goal.practiceAdjustment)}</p>` : ''}
     ${goal.levelPractice && goal.practiceLevel <= 3 ? `<p class="goal-finish"><strong>Done when</strong> You can repeat the part you practised once with control.</p>` : ''}
     ${goal.finish ? `<p class="goal-finish"><strong>${goal.levelPractice && goal.practiceLevel <= 3 ? 'Full exercise target' : 'Done when'}</strong> ${escapeHtml(goal.finish)}</p>` : ''}
-    ${ambition ? `<p class="goal-ambition"><strong>Working toward</strong> ${escapeHtml(ambition)}</p>` : ''}
+    ${island.objective ? `<p class="goal-ambition"><strong>Working toward</strong> ${escapeHtml(island.objective)}</p>` : ''}
     <p class="goal-meta">${escapeHtml(goal.minutes)} MIN${goal.finish ? ' / SESSION' : ''}</p>
-    <button class="primary" data-action="complete" data-id="${escapeHtml(goal.id)}">Complete goal <span aria-hidden="true">✓</span></button>
+    <button class="primary" data-action="complete" data-id="${escapeHtml(goal.id)}" ${disabled}>Complete goal <span aria-hidden="true">✓</span></button>
+    ${writtenFeedbackMarkup(island, goal, editor)}
     <div class="goal-feedback" role="group" aria-label="Practice difficulty">
       <p class="caption">Adjust your practice</p>
       <div class="difficulty-options">${DIFFICULTIES.map(option => `<button type="button" data-action="difficulty" data-id="${escapeHtml(goal.id)}"
-        data-rating="${option.value}" aria-pressed="${option.value === difficulty}">${option.label}</button>`).join('')}</div>
+        data-rating="${option.value}" aria-pressed="${option.value === difficulty}" ${disabled}>${option.label}</button>`).join('')}</div>
     </div>
   </section>`;
 }
@@ -218,7 +242,7 @@ function currentPracticeMarkup(island, goal, number) {
     <button class="primary" data-action="generate-practice" data-id="${escapeHtml(island.id)}" ${pendingPractice.has(island.id) ? 'disabled' : ''}>${pendingPractice.has(island.id) ? 'Preparing your next goal…' : 'Generate next goal'}</button>
     ${practiceErrors.has(island.id) ? `<p role="status">${escapeHtml(practiceErrors.get(island.id))}</p>` : ''}</section>`;
   const reward = goal ? practiceXp(island.xp, goal.xp) - island.xp : 0;
-  return goalMarkup(goal, number, island.category === 'custom' ? island.goalFeedback?.rating : island.difficulty ?? 'standard', island.objective, reward);
+  return goalMarkup(island, goal, number, island.category === 'custom' ? island.goalFeedback?.rating : island.difficulty ?? 'standard', reward);
 }
 
 function maintenanceMessage(island, now = Date.now()) {
@@ -328,6 +352,7 @@ function focusLog() {
 }
 
 function closeLog() {
+  discardGoalRevision();
   logOpen = false;
   render();
   app.querySelector('[data-action="show-log"]').focus({ preventScroll: true });
@@ -336,6 +361,12 @@ function closeLog() {
 app.addEventListener('keydown', event => {
   if (event.key === 'Escape' && logOpen && !dialog.open) closeLog();
 });
+
+app.addEventListener('toggle', event => {
+  if (event.target.matches('.written-feedback[open]')) {
+    event.target.scrollIntoView({ block: 'nearest' });
+  }
+}, true);
 
 worldTab.addEventListener('click', () => changeView('world'));
 exploreTab.addEventListener('click', () => changeView('explore'));
@@ -348,6 +379,12 @@ function discardDraft(islandId) {
   return draft;
 }
 
+function discardGoalRevision() {
+  const task = goalRevision;
+  goalRevision = undefined;
+  task?.controller?.abort();
+}
+
 function cancelIslandIcon() {
   clearTimeout(iconTimer);
   const job = iconJob;
@@ -357,7 +394,7 @@ function cancelIslandIcon() {
 
 function canGenerateIcon() {
   return globalThis.LanguageModel && !document.hidden && !iconJob && !dialog.open &&
-    !pendingCreation && !pendingPractice.size && ![...adaptationDrafts.values()].some(draft => draft.pending);
+    !pendingCreation && !goalRevision?.controller && !pendingPractice.size && ![...adaptationDrafts.values()].some(draft => draft.pending);
 }
 
 function scheduleIslandIcon() {
@@ -398,6 +435,7 @@ function syncProgress(now = Date.now()) {
     const previous = world.islands[index];
     if (island.xp === previous.xp) return;
     const { id } = island;
+    if (goalRevision?.islandId === id && getStage(island.xp).level !== getStage(previous.xp).level) discardGoalRevision();
     discardDraft(id);
     pendingPractice.get(id)?.controller.abort();
     pendingPractice.delete(id);
@@ -437,6 +475,7 @@ function resetIslandsForTesting() {
   if (!window.confirm('Remove all your islands and progress from this browser? This cannot be undone.')) return;
 
   cancelIslandIcon();
+  discardGoalRevision();
   attemptedIcons.clear();
   for (const id of adaptationDrafts.keys()) discardDraft(id);
   for (const task of pendingPractice.values()) task.controller.abort();
@@ -519,6 +558,14 @@ app.addEventListener('click', event => {
     void preparePractice(id);
     return;
   }
+  if (action === 'cancel-goal-revision') {
+    const editor = goalRevision;
+    discardGoalRevision();
+    if (editor) goalRevision = { ...editor, controller: undefined };
+    render();
+    app.querySelector('#goal-note')?.focus({ preventScroll: true });
+    return;
+  }
   if (action === 'start-connection') {
     const island = world.islands.find(item => item.id === selectedId);
     const recommendation = island && relatedSkill(island, world.islands);
@@ -537,7 +584,10 @@ app.addEventListener('click', event => {
     announce('Practice difficulty updated for this island.');
     return;
   }
-  if (action === 'select') selectedId = id;
+  if (action === 'select') {
+    if (id !== selectedId) discardGoalRevision();
+    selectedId = id;
+  }
   if (action === 'demo') activeDemo = Number(id);
   if (action === 'select' || action === 'demo') logOpen = true;
   if (action === 'complete') {
@@ -545,6 +595,7 @@ app.addEventListener('click', event => {
     if (!island) return;
     const goal = getActiveGoal(island);
     if (goal?.id !== id) return;
+    discardGoalRevision();
     const draft = discardDraft(island.id);
     const next = completeGoal(world, island.id, id, draft?.goalId === id ? draft.candidate : null, now);
     if (next === world) return;
@@ -575,9 +626,62 @@ app.addEventListener('click', event => {
   if (action === 'complete' || action === 'select') void preparePractice(selectedId, true);
 });
 
+app.addEventListener('submit', async event => {
+  const editor = event.target.closest('[data-goal-revision]');
+  if (!editor) return;
+  event.preventDefault();
+  if (goalRevision?.controller) return;
+  const { islandId, goalId } = editor.dataset;
+  const note = editor.elements.note.value.trim();
+  if (!note || note.length > GOAL_FEEDBACK_LIMIT) {
+    goalRevision = { islandId, goalId, note, error: `Describe what should change in 1–${GOAL_FEEDBACK_LIMIT} characters.` };
+    render();
+    app.querySelector('#goal-note')?.focus();
+    return;
+  }
+  refreshMaintenance();
+  const island = world.islands.find(item => item.id === islandId);
+  const goal = island?.roadmap?.onDevice && getActiveGoal(island);
+  if (islandId !== selectedId || goal?.id !== goalId) return;
+
+  cancelIslandIcon();
+  discardDraft(islandId);
+  const prefetch = pendingPractice.get(islandId);
+  pendingPractice.delete(islandId);
+  prefetch?.controller.abort();
+  const controller = new AbortController();
+  const task = { islandId, goalId, note, controller };
+  goalRevision = task;
+  render();
+  app.querySelector('[data-action="cancel-goal-revision"]')?.focus({ preventScroll: true });
+  const result = await generateGoalRevision(island, goal, note, {
+    skillLevel: getStage(island.xp).level, signal: controller.signal, allowDownload: true,
+  }).catch(() => ({ status: 'retry' }));
+  if (goalRevision !== task) return;
+  refreshMaintenance();
+  if (goalRevision !== task) return;
+  const revised = result.status === 'ready' ? reviseActiveGoal(world, islandId, goalId, note, result.goal) : world;
+  if (revised === world) {
+    const error = result.status === 'clarify' ? 'Describe one specific change you’d like in this exercise.' :
+      result.status === 'unsuitable' ? 'Try a safe practice change that fits this island’s skill.' :
+      result.status === 'retry' ? 'Couldn’t write a different exercise. Try rephrasing your feedback.' :
+      PLAN_ERRORS[result.status] ?? 'Couldn’t revise this goal. Try again.';
+    goalRevision = { islandId, goalId, note, error };
+    render();
+    app.querySelector('#goal-note')?.focus();
+    return;
+  }
+  goalRevision = undefined;
+  persist(revised);
+  render();
+  app.querySelector('#active-goal-title')?.focus();
+  announce('Goal revised. Your practice preference was saved.');
+  void preparePractice(islandId, true);
+});
+
 async function preparePractice(id, ahead = false) {
   const island = world.islands.find(item => item.id === id);
-  if (!island || pendingPractice.has(id) || dialog.open) return;
+  if (!island || pendingPractice.has(id) || dialog.open || goalRevision?.controller) return;
   const waiting = needsGeneratedPractice(island);
   if (ahead ? !canQueueGeneratedPractice(island) || pendingPractice.size : !waiting) return;
   cancelIslandIcon();
@@ -623,7 +727,8 @@ function setPlanMessage(message = '', error = false) {
 
 function openOnboarding(topic = '', objective = '', island) {
   cancelIslandIcon();
-  let refreshWaitingGoal = false;
+  let refreshWaitingGoal = Boolean(goalRevision);
+  discardGoalRevision();
   for (const [id, task] of pendingPractice) {
     if (!task.ahead) continue;
     pendingPractice.delete(id);

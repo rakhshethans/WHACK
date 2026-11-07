@@ -339,6 +339,23 @@ progress::-moz-progress-bar { background: var(--focus); }
 }
 .difficulty-options button:hover { border-color: var(--signal); }
 .difficulty-options button[aria-pressed="true"] { border-color: var(--signal); background: var(--signal); color: var(--ink); }
+.written-feedback { margin-top: 12px; padding-top: 11px; border-top: 1px solid #73929a; }
+.written-feedback summary { color: var(--chart); font-size: 14px; font-weight: 650; cursor: pointer; }
+.written-feedback form { margin-top: 10px; }
+.written-feedback label { display: block; margin-bottom: 6px; color: var(--chart); font-size: 13px; }
+.written-feedback textarea {
+  display: block;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #73929a;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  resize: vertical;
+}
+.written-feedback .small-action { margin-top: 3px; }
 .roadmap-summary, .skill-connection { margin-top: 12px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; }
 .roadmap-summary p { display: grid; gap: 2px; margin: 0 0 8px; font-size: 12px; overflow-wrap: anywhere; }
 .roadmap-summary p:last-child { margin-bottom: 0; }

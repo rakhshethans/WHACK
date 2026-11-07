@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { generateContinuation, generateCustomRoadmap, generateStarterRoadmap, warmStarterModel } from '../src/local-planner.mjs';
+import { generateContinuation, generateCustomRoadmap, generateStarterRoadmap, generateGoalRevision, warmStarterModel } from '../src/local-planner.mjs';
 import { renderIsland } from '../src/scene.mjs';
 import { appendGeneratedPractice, completeGoal, createGeneratedIsland, createWorld, getActiveGoal,
-  canQueueGeneratedPractice, needsGeneratedPractice, needsRoadmapRevision, reviseIslandRoadmap, setDifficulty } from '../src/world.mjs';
+  canQueueGeneratedPractice, needsGeneratedPractice, needsRoadmapRevision, reviseActiveGoal, reviseIslandRoadmap, setDifficulty } from '../src/world.mjs';
 
 const input = { topic: 'Learn Python', objective: 'Summarise monthly expenses from CSV', experience: 'beginner', minutes: 10 };
 const goals = [
@@ -20,6 +20,56 @@ const response = { decision: 'ready', checkpoint: 'Print a Python summary of exp
 const mockModel = (data, inspect = () => {}) => ({
   availability: async () => 'available',
   create: async () => ({ prompt: async (prompt, options) => { inspect(prompt, options); return JSON.stringify(data); }, destroy() {} }),
+});
+
+test('written feedback rewrites only the active exercise and refreshes the queued plan without awarding XP', async () => {
+  let world = createGeneratedIsland(createWorld(), { ...input,
+    localRoadmap: { steps: goals.map(({ title, practice, finish }) => [title, practice, finish]) },
+  });
+  const id = world.islands[0].id;
+  world = completeGoal(world, id, 'goal-1');
+  const before = world.islands[0];
+  const active = getActiveGoal(before);
+  const note = 'Use CSV files in each exercise where possible.';
+  const replacement = {
+    title: 'Read categories from a two-row CSV',
+    description: 'Open a two-row expenses CSV with csv.DictReader and print the category from each row.',
+    finish: 'Both printed categories match the two source rows.',
+  };
+  assert.equal(reviseActiveGoal(world, id, 'goal-1', note, replacement), world);
+  const revised = reviseActiveGoal(world, id, active.id, '  ' + note, replacement);
+  const island = JSON.parse(JSON.stringify(revised.islands[0]));
+  assert.deepEqual(island.goals[0], before.goals[0]);
+  assert.equal(island.goals.length, 2);
+  assert.equal(island.xp, before.xp);
+  assert.equal(island.nextXpLossAt, before.nextXpLossAt);
+  assert.equal(island.practicePreference, note);
+  assert.deepEqual(getActiveGoal(island), { ...active, ...replacement });
+  const completed = completeGoal(revised, id, active.id);
+  assert.equal(completed.islands[0].xp, island.xp + active.xp);
+  assert.equal(completeGoal(completed, id, active.id), completed);
+  const next = await generateContinuation(island, { model: mockModel(goals[4], prompt => {
+    assert.equal(JSON.parse(prompt.split('\n').at(-1)).practicePreference, note);
+  }) });
+  assert.equal(next.status, 'ready');
+});
+
+test('the revision request includes the exact note and rejects a renamed copy of the current exercise', async () => {
+  const island = { ...input, goals: [] };
+  const current = { title: goals[0].title, description: goals[0].practice, finish: goals[0].finish, minutes: 10 };
+  const note = 'Use an actual expense CSV.';
+  const unchanged = await generateGoalRevision(island, current, note, { skillLevel: 1,
+    model: mockModel({ decision: 'ready', goal: { ...goals[0], title: 'Sum three expenses' } }, prompt => {
+      const data = JSON.parse(prompt.split('\n').at(-1));
+      assert.equal(data.note, note);
+      assert.equal(data.current.title, current.title);
+      assert.equal(data.minutes, current.minutes);
+    }),
+  });
+  assert.deepEqual(unchanged, { status: 'retry' });
+  assert.equal((await generateGoalRevision(island, current, note, { skillLevel: 1,
+    model: mockModel({ decision: 'ready', goal: goals[2] }),
+  })).goal.title, goals[2].title);
 });
 
 test('new islands require a generated plan, even for recognised skills', async () => {
