@@ -9,6 +9,7 @@ import { DIFFICULTIES } from './difficulty.mjs';
 import { relatedSkill } from './skill-connections.mjs';
 import { layoutIslands } from './map-layout.mjs';
 import { connectMap } from './map-camera.mjs';
+import { mountSocialExplore, createFixtureSocialClient } from './social/index.mjs';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#onboarding');
@@ -34,6 +35,8 @@ const practiceErrors = new Map();
 const attemptedIcons = new Set();
 let iconTimer;
 let iconJob;
+const socialClient = createFixtureSocialClient();
+let socialController;
 
 const PLAN_ERRORS = {
   clarify: 'Name one specific skill or outcome. Try “Bake a sourdough loaf” or “Learn Spanish for a train trip”. Make sure the optional outcome fits that skill.',
@@ -84,19 +87,9 @@ const cameras = {
   explore: { overview: true },
 };
 let disconnectMap;
-let activeDemo = 0;
 let storageUnavailable = false;
 let animateIsland = false;
 let maintenanceTimer;
-
-const demoIslands = [
-  { title: 'The Chord Coast', category: 'guitar', objective: 'Play a song from start to finish', creator: 'Maya Chen', xp: 250, experience: 'beginner', minutes: 20 },
-  { title: 'Verse Dunes', category: 'songwriting', objective: 'Write and record an original song', creator: 'Noah Silva', xp: 500, experience: 'intermediate', minutes: 30 },
-  { title: 'Silver Lens', category: 'photography', objective: 'Make a portfolio of mountain landscapes', creator: 'Ari Patel', xp: 250, experience: 'beginner', minutes: 20 },
-].map((demo, index) => ({
-  ...demo,
-  source: { ...createIsland(createWorld(), demo).islands[0], id: String(index), attribution: demo.creator, xp: demo.xp },
-}));
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, character => ({
@@ -289,29 +282,21 @@ function currentWorld() {
 }
 
 function discoverWorlds() {
-  const demo = demoIslands[activeDemo];
-  const stage = getStage(demo.xp);
-  return `<div class="intro"><div><p class="eyebrow">THE PERSONAL ATLAS / EXPLORE</p><h1>Beyond your shore<span>.</span></h1>
-    <p class="lede">Explore sample worlds and bring a roadmap back to your own.</p></div></div>
-    <div class="workspace">${archipelagoMap(demoIslands.map(item => item.source), demo.source.id, true)}
-      ${logPanel(`<p class="eyebrow">PUBLIC ATLAS / SAMPLE PROFILE</p><h2>${escapeHtml(demo.title)}</h2>
-      <p class="stage-name">${escapeHtml(demo.creator)} · Level ${stage.level}</p>
-      <p>${escapeHtml(demo.objective)}.</p>
-      <p><strong>First goal</strong><br>${escapeHtml(getActiveGoal(demo.source)?.title)}</p>
-      <button class="primary" data-action="adopt">Adopt roadmap <span aria-hidden="true">↗</span></button>
-      <p class="caption">Your island starts at Level 1. The original roadmap keeps its attribution.</p>`)}</div>`;
+  return '<div id="explore-mount" class="explore-mount"></div>';
 }
 
 function render() {
+  socialController?.destroy();
+  socialController = undefined;
   disconnectMap?.();
   const previous = app.querySelector('.map-viewport');
   const previousLog = app.querySelector('.map-log');
   const sameView = renderedView === activeView;
   const opening = logOpen && (!previousLog || previousLog.hidden || !sameView);
   const logScroll = sameView && !opening ? previousLog?.scrollTop : 0;
-  if (previous) {
-    cameras[renderedView].left = previous.scrollLeft;
-    cameras[renderedView].top = previous.scrollTop;
+  if (previous && renderedView === 'world') {
+    cameras.world.left = previous.scrollLeft;
+    cameras.world.top = previous.scrollTop;
   }
   mapResize.disconnect();
   worldTab.setAttribute('aria-pressed', String(activeView === 'world'));
@@ -321,13 +306,39 @@ function render() {
   app.innerHTML = (activeView === 'world' ? currentWorld() : discoverWorlds()) +
     (storageUnavailable ? '<p class="storage-note">This browser blocked storage. Progress is available until you close or reload the page.</p>' : '') +
     `<footer><span>WORLDHOPPER</span>${resetControl}<span>WARWICKHACK 2026 / NEW WORLDS</span></footer>`;
+
+  if (activeView === 'explore') {
+    const exploreMount = app.querySelector('#explore-mount');
+    if (exploreMount) {
+      socialController = mountSocialExplore(exploreMount, {
+        client: socialClient,
+        viewerWorld: world,
+        onAnnounce: announce,
+        onAdopt(template) {
+          persist(adoptIsland(world, template));
+          selectedId = world.islands.at(-1).id;
+          activeView = 'world';
+          logOpen = true;
+          animateIsland = true;
+          announce(template.title + ' added to your world.');
+          render();
+          focusLog();
+        },
+      });
+    }
+    renderedView = activeView;
+    animateIsland = false;
+    scheduleIslandIcon();
+    return;
+  }
+
   const map = app.querySelector('.island-water');
   if (map) {
     positionIslands(map);
     mapResize.observe(map);
   }
   const viewport = app.querySelector('.map-viewport');
-  disconnectMap = connectMap(viewport, cameras[activeView]);
+  disconnectMap = connectMap(viewport, cameras.world);
   const log = app.querySelector('.map-log');
   if (opening) log.classList.add('log-enter');
   if (logScroll) log.scrollTop = logScroll;
@@ -587,9 +598,8 @@ app.addEventListener('click', event => {
   if (action === 'select') {
     if (id !== selectedId) discardGoalRevision();
     selectedId = id;
+    logOpen = true;
   }
-  if (action === 'demo') activeDemo = Number(id);
-  if (action === 'select' || action === 'demo') logOpen = true;
   if (action === 'complete') {
     const island = world.islands.find(item => item.id === selectedId);
     if (!island) return;
@@ -608,15 +618,7 @@ app.addEventListener('click', event => {
     announce(reward + (animateIsland ? 'Island advanced to Level ' + newLevel + '. ' : '')
       + (nextGoal?.adapted ? 'Next goal adapted to your feedback.' : nextGoal ? 'Next goal ready.' : 'Generate your next goal when you’re ready.'));
   }
-  if (action === 'adopt') {
-    const demo = demoIslands[activeDemo];
-    persist(adoptIsland(world, demo.source));
-    selectedId = world.islands.at(-1).id;
-    activeView = 'world';
-    logOpen = true;
-    animateIsland = true;
-    announce(demo.title + ' added to your world.');
-  }
+
   render();
   const nextFocus = app.querySelector(action === 'complete' ? '#active-goal-title' : '.field-notes h2');
   if (nextFocus) {
@@ -793,7 +795,7 @@ form.addEventListener('submit', async event => {
   setCreating(true);
   setPlanMessage('Preparing your tailored plan on this device…');
   const result = await generateStarterRoadmap(planInput, {
-    signal: controller.signal, allowDownload: true, warmup: starterWarmup,
+    signal: controller.signal, allowDownload: false, warmup: starterWarmup,
     onStatus(status, progress) {
       if (status === 'downloading') setPlanMessage('Downloading this browser’s AI model' + (progress === undefined ? '…' : ' (' + progress + '%)…'));
       else if (status === 'starting') setPlanMessage('Starting Gemini Nano in Chrome…');
@@ -806,9 +808,24 @@ form.addEventListener('submit', async event => {
   if (!dialog.open) return;
   if (result.status === 'cancelled') return;
   if (result.status !== 'ready') {
-    setPlanMessage(PLAN_ERRORS[result.status], true);
-    if (result.status === 'clarify') topicField.focus();
-    else createButton.focus();
+    const canFallback = !revisingId && !['clarify', 'unsuitable'].includes(result.status);
+    const fallbackWorld = canFallback ? createIsland(world, { ...planInput, category: 'custom' }) : world;
+    if (fallbackWorld === world) {
+      setPlanMessage(PLAN_ERRORS[result.status], true);
+      if (result.status === 'clarify') topicField.focus();
+      else createButton.focus();
+      return;
+    }
+    persist(fallbackWorld);
+    selectedId = world.islands.at(-1).id;
+    dialog.close();
+    form.reset();
+    animateIsland = true;
+    activeView = 'world';
+    logOpen = true;
+    render();
+    focusLog();
+    announce('Your island is ready. Built with a guided practice plan on this browser.');
     return;
   }
   refreshMaintenance();

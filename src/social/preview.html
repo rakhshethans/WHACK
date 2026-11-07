@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eef0e9">
+  <link rel="icon" href="data:,">
+  <title>WorldHopper | Social Explore Preview</title>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="./social.css">
+  <style>
+    .harness-toolbar {
+      margin: 6px auto 0;
+      width: var(--frame);
+      padding: 6px 14px;
+      background: var(--surface);
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .harness-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .harness-controls .small-action {
+      min-height: 30px;
+      padding: 4px 9px;
+      font-size: 11px;
+    }
+    .harness-adopted-toast {
+      margin: 6px auto 0;
+      width: var(--frame);
+      padding: 8px 14px;
+      border: 1px solid var(--focus);
+      border-radius: 12px;
+      background: #edf4e9;
+      color: var(--ink);
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="./preview.html"><span aria-hidden="true">◈</span> WORLDHOPPER</a>
+    <nav aria-label="Preview navigation">
+      <button id="preview-explore-tab" type="button" aria-pressed="true">Explore (Isolated Preview)</button>
+    </nav>
+    <div class="edition">SOCIAL MODULE <span> / </span> SANDBOX</div>
+  </header>
+
+  <section class="harness-toolbar" aria-label="Isolated test controls">
+    <span class="eyebrow" style="margin:0">ISOLATED QA HARNESS</span>
+    <div class="harness-controls">
+      <button type="button" class="small-action" style="margin:0" id="sim-ready">Fixture Ready</button>
+      <button type="button" class="small-action" style="margin:0" id="sim-rls-bob">2-Account RLS (View as Bob)</button>
+      <button type="button" class="small-action" style="margin:0" id="sim-loading">Loading State</button>
+      <button type="button" class="small-action" style="margin:0" id="sim-empty">Empty State</button>
+      <button type="button" class="small-action" style="margin:0" id="sim-error">Error State</button>
+    </div>
+  </section>
+
+  <div id="adopted-banner" class="harness-adopted-toast" hidden role="status"></div>
+  <main id="social-root"></main>
+  <p class="sr-only" id="announcement" role="status"></p>
+
+  <script type="module">
+    import { adoptIsland, createIsland, createWorld, getStage } from '../world.mjs';
+    import {
+      mountSocialExplore,
+      createFixtureSocialClient,
+      createSupabaseSocialClient,
+      createRlsSimulatedFetch,
+    } from './index.mjs';
+
+    const root = document.querySelector('#social-root');
+    const announcement = document.querySelector('#announcement');
+    const adoptedBanner = document.querySelector('#adopted-banner');
+
+    let viewerWorld = createIsland(createWorld(), {
+      title: 'My Starter Guitar Island',
+      category: 'guitar',
+      experience: 'beginner',
+      minutes: 20,
+      objective: 'Play acoustic songs with friends',
+    });
+
+    let activeController = null;
+
+    function mountWithClient(client) {
+      if (activeController) activeController.destroy();
+      activeController = mountSocialExplore(root, {
+        client,
+        viewerWorld,
+        onAnnounce(msg) {
+          announcement.textContent = msg;
+        },
+        onAdopt(template) {
+          viewerWorld = adoptIsland(viewerWorld, template);
+          const adopted = viewerWorld.islands.at(-1);
+          const stage = getStage(adopted.xp);
+          adoptedBanner.hidden = false;
+          adoptedBanner.textContent =
+            `Adopted "${adopted.title}" by ${adopted.attribution} into local world → Level ${stage.level} (${adopted.xp} XP, ${adopted.goals.length} incomplete starter goals).`;
+        },
+      });
+    }
+
+    document.querySelector('#sim-ready').addEventListener('click', () => {
+      mountWithClient(createFixtureSocialClient());
+    });
+
+    document.querySelector('#sim-loading').addEventListener('click', () => {
+      mountWithClient(createFixtureSocialClient({ latencyMs: 60000 }));
+    });
+
+    document.querySelector('#sim-empty').addEventListener('click', () => {
+      mountWithClient(createFixtureSocialClient({ initialProfiles: [] }));
+    });
+
+    document.querySelector('#sim-error').addEventListener('click', () => {
+      mountWithClient(createFixtureSocialClient({ failWithError: 'Simulated network outage while reaching Supabase.' }));
+    });
+
+    document.querySelector('#sim-rls-bob').addEventListener('click', () => {
+      const fetchImpl = createRlsSimulatedFetch({
+        profiles: [
+          {
+            id: '11111111-1111-4111-8111-111111111111',
+            handle: 'alice-harbour',
+            display_name: 'Alice Harbour',
+            bio: 'Verified account A — sharing only her Guitar island publicly.',
+            interests: ['guitar'],
+            is_public: true,
+            is_sample: false,
+          },
+        ],
+        islands: [
+          {
+            id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+            owner_id: '11111111-1111-4111-8111-111111111111',
+            title: 'Alice’s Public Chord Coast',
+            category: 'guitar',
+            experience: 'intermediate',
+            session_minutes: 20,
+            xp: 250,
+            is_public: true,
+            public_summary: 'Acoustic fingerstyle roadmap shared opt-in',
+            roadmap: { focus: 'Fingerstyle arrangement', checkpoint: 'Record a full take.' },
+            starter_goals: [
+              {
+                id: 'goal-1',
+                title: 'Balance bass and melody',
+                description: 'Choose four bars with an alternating bass and melody.',
+                practice: 'Choose four bars with an alternating bass and melody.',
+                finish: 'Keep the bass even while the melody stays audible.',
+                minutes: 15,
+                prerequisites: [],
+              },
+            ],
+          },
+          {
+            id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+            owner_id: '11111111-1111-4111-8111-111111111111',
+            title: 'Alice’s Private Unshared Island',
+            category: 'custom',
+            topic: 'Private Journal',
+            experience: 'beginner',
+            session_minutes: 15,
+            xp: 100,
+            is_public: false,
+            public_summary: 'Hidden by RLS',
+            roadmap: { focus: 'Hidden', checkpoint: 'Hidden' },
+            starter_goals: [],
+          },
+        ],
+        follows: [],
+        tokens: { 'token-bob': '22222222-2222-4222-8222-222222222222' },
+      });
+      mountWithClient(
+        createSupabaseSocialClient({
+          supabaseUrl: 'https://worldhopper-local.supabase.co',
+          supabaseAnonKey: 'anon-key',
+          getAccessToken: () => 'token-bob',
+          viewerId: '22222222-2222-4222-8222-222222222222',
+          fetchImpl,
+        }),
+      );
+    });
+
+    mountWithClient(createFixtureSocialClient());
+  </script>
+</body>
+</html>

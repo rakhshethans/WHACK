@@ -145,6 +145,76 @@ const PROFILES = [
   },
 ];
 
+function fallbackProfile(topic = 'this skill', objective = topic, experience = 'beginner') {
+  const cleanTopic = String(topic || 'this skill').trim();
+  const cleanObjective = String(objective || cleanTopic).trim();
+  const startStep = experience === 'advanced'
+    ? [
+      `Benchmark a full run of ${cleanTopic}`,
+      `Complete one timed session working toward “${cleanObjective}” and note the exact moment where precision drops.`,
+      'Finish one complete run and write down the single transition or technique that needs sharpening.',
+    ]
+    : experience === 'intermediate'
+      ? [
+        `Check your core technique in ${cleanTopic}`,
+        `Run through a familiar exercise for “${cleanObjective}” at a steady pace and mark the first step that feels uneven.`,
+        'Complete two clean repetitions and note the detail you adjusted between them.',
+      ]
+      : [
+        `Set up your first ${cleanTopic} workspace`,
+        `Prepare the essential tools or reference example for “${cleanObjective}” and complete one short introductory drill.`,
+        'Finish two unhurried repetitions and check that your setup stays comfortable.',
+      ];
+
+  return {
+    theme: 'compass',
+    checkpoint: `Complete a self-checked milestone in ${cleanTopic} toward “${cleanObjective}”.`,
+    steps: [
+      startStep,
+      [
+        `Drill a single technique for ${cleanTopic}`,
+        `Focus on one specific movement, phrase, or operation needed for “${cleanObjective}” at a slow, deliberate pace.`,
+        'Complete three controlled repetitions in a row without rushing the transition.',
+      ],
+      [
+        `Combine two steps in ${cleanTopic}`,
+        `Link your opening drill with the next step required for “${cleanObjective}” in a short sequence.`,
+        'Run the two-step sequence twice from start to finish without pausing in the middle.',
+      ],
+      [
+        `Compare your ${cleanTopic} attempt against a reference`,
+        `Place your work or recording next to a clear reference example for “${cleanObjective}” and spot one specific difference.`,
+        'Name one concrete adjustment to test in your next session.',
+      ],
+      [
+        `Apply that adjustment in ${cleanTopic}`,
+        `Repeat the sequence for “${cleanObjective}” while focusing on the single improvement you identified.`,
+        'Complete two takes where the corrected detail is clearly visible or audible.',
+      ],
+      [
+        `Practise ${cleanTopic} under a time or material constraint`,
+        `Run a short session toward “${cleanObjective}” with one realistic constraint, such as a steady timer or limited retries.`,
+        'Finish the exercise within the constraint while keeping your core technique steady.',
+      ],
+      [
+        `Build a complete draft for ${cleanObjective}`,
+        `Put all the steps you have practised in ${cleanTopic} together into one end-to-end rehearsal of “${cleanObjective}”.`,
+        'Complete the full rehearsal from beginning to end without restarting.',
+      ],
+      [
+        `Polish and verify your ${cleanTopic} milestone`,
+        `Repeat your end-to-end run of “${cleanObjective}” and compare it with your first session’s work.`,
+        'Finish a clean final take and note the next technique you want to explore.',
+      ],
+    ],
+    practice: [
+      `Extend ${cleanTopic} to a new variation`,
+      `Choose a fresh scenario connected to “${cleanObjective}” and apply your core sequence with one new detail.`,
+      'Complete the variation cleanly and note what adapted well.',
+    ],
+  };
+}
+
 const TRACKS = [...PROFILES, ...AUTHORED_TRACKS];
 
 function firstMatch(text) {
@@ -174,8 +244,7 @@ export function customArtworkTheme(input) {
 
 export function buildCustomRoadmap(input) {
   const { topic, objective, experience, minutes } = input;
-  const profile = customProfile(input);
-  if (!profile) return null;
+  const profile = customProfile(input) ?? fallbackProfile(topic, objective, experience);
   const { theme } = profile;
   if (profile.authored) {
     const { focus, checkpoint, next, steps } = buildRoadmap({ category: theme, objective: topic + ' ' + objective, experience });
@@ -224,8 +293,7 @@ export function nextCustomPractice(island, index) {
   if (island.roadmap?.practiceFocus) {
     return nextPractice({ category: island.theme, roadmap: { focus: island.roadmap.practiceFocus } }, index);
   }
-  const profile = customProfile(island);
-  if (!profile) return null;
+  const profile = customProfile(island) ?? fallbackProfile(island.topic || island.title, island.objective, island.experience);
   const { practice, authored } = profile;
   if (authored) {
     const { theme, practiceFocus } = buildCustomRoadmap(island);
