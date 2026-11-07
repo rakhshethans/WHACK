@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { adoptIsland, completeGoal, createIsland, createWorld, getActiveGoal, getStage, setDifficulty } from '../src/world.mjs';
-import { generateCustomRoadmap } from '../src/local-planner.mjs';
+import { adoptIsland, completeGoal, createIsland, createWorld, getActiveGoal, getStage, setDifficulty, getAdaptationRequest } from '../src/world.mjs';
+import { generateCustomRoadmap, generateAdaptiveGoal } from '../src/local-planner.mjs';
 import { renderIsland } from '../src/scene.mjs';
 import { relatedSkill } from '../src/skill-connections.mjs';
 
@@ -24,15 +24,15 @@ test('only unlocked goals earn XP, and each goal can earn it once', () => {
   const updated = completeGoal(world, island.id, first.id);
   assert.equal(updated.islands[0].xp, 40);
   assert.equal(getStage(updated.islands[0].xp).level, 1);
-  assert.equal(getStage(updated.islands[0].xp).nextThreshold, 100);
+  assert.equal(getStage(updated.islands[0].xp).nextThreshold, 350);
   assert.equal(getActiveGoal(updated.islands[0]).id, second.id);
-  const levelTwo = completeGoal(updated, island.id, second.id);
-  assert.equal(levelTwo.islands[0].xp, 100);
-  assert.equal(getStage(levelTwo.islands[0].xp).level, 2);
+  const secondCompletion = completeGoal(updated, island.id, second.id);
+  assert.equal(secondCompletion.islands[0].xp, 100);
+  assert.equal(getStage(secondCompletion.islands[0].xp).level, 1);
   assert.equal(world.islands[0].xp, 0);
   assert.equal(completeGoal(updated, island.id, first.id), updated);
   const completed = island.goals.slice(1).reduce((state, goal) => completeGoal(state, island.id, goal.id), updated);
-  assert.deepEqual(getStage(completed.islands[0].xp), { level: 5, name: 'Metropolis', threshold: 900, nextThreshold: 1400 });
+  assert.deepEqual(getStage(completed.islands[0].xp), { level: 2, name: 'Hamlet', threshold: 350, nextThreshold: 950 });
 });
 
 test('adoption starts a separate island at level one and preserves credit', () => {
@@ -102,11 +102,11 @@ test('one goal remains available across many practice rounds and higher levels',
     if (index === starterCount) {
       assert.equal(island.xp, 900);
       assert.match(goal.title, /Expand your live set/);
-      assert.equal(getStage(island.xp).level, 5);
+      assert.equal(getStage(island.xp).level, 2);
     }
     if (index === starterCount + 3) {
       assert.equal(island.xp, 1400);
-      assert.equal(getStage(island.xp).level, 6);
+      assert.equal(getStage(island.xp).level, 3);
     }
     seen.add(goal.id);
     world = completeGoal(world, island.id, goal.id);
@@ -170,14 +170,54 @@ test('custom islands keep their own skill, outcome and appearance', () => {
   assert.equal(createIsland(createWorld(), { ...input, topic: '   ' }).islands.length, 0);
 });
 
-test('the local planner accepts structured goals and falls back on unavailable or duplicate output', async () => {
+test('island scenery varies deterministically while retaining each skill landmark', () => {
+  const base = { category: 'custom', theme: 'compass', topic: 'Urban gardening', objective: 'Grow tomatoes', xp: 0 };
+  const variants = ['river-delta', 'pine-cove', 'sunstone-bay', 'twin-lagoon'].map(id =>
+    renderIsland({ ...base, id }, 1),
+  );
+  assert.equal(new Set(variants).size, variants.length, 'different island identities get distinct scenery');
+  assert.equal(renderIsland({ ...base, id: 'river-delta' }, 1), variants[0], 'the scenery is stable after reload');
+  assert.match(variants[0], /data-biome="[a-z-]+"/);
+  assert.match(variants[0], /data-coast="\d+"/);
+
+  const [photo] = createIsland(createWorld(), { ...guitar, category: 'photography', id: 'photo-test' }).islands;
+  const photoArt = renderIsland(photo, 2);
+  assert.match(photoArt, /photography-terrain/);
+  assert.match(photoArt, /biome-shoreline/);
+  assert.notEqual(photoArt, renderIsland(photo, 1), 'island development continues to update the art');
+});
+
+test('terrain colours vary independently of shape and stay put across refresh and level changes', () => {
+  const photo = { category: 'custom', landmark: 'camera', topic: 'Photography' };
+  const islands = Array.from({ length: 12 }, (_, index) => ({ ...photo, id: 'island-' + (index + 1) }));
+  const appearance = art => art.match(/data-(?:palette|landform|landmark)="[^"]+"/g);
+  const variants = islands.map(island => appearance(renderIsland(island, 1)));
+  assert.ok(new Set(variants.map(([palette]) => palette)).size >= 5);
+  assert.equal(new Set(variants.map(([, shape]) => shape)).size, 2);
+  assert.ok(new Set(variants.filter(([, shape]) => shape === variants[0][1]).map(([palette]) => palette)).size > 1);
+  assert.deepEqual(islands.map(island => appearance(renderIsland(JSON.parse(JSON.stringify(island)), 10))), variants);
+});
+
+test('related skills get different landmarks and unlisted topics get safe personal seals', () => {
+  const topics = ['Photography', 'Filmmaking', 'Piano', 'Drums', 'Violin', 'Learn to breakdance', 'Ballet', 'Pottery', 'Whittling'];
+  const art = topic => renderIsland({ id: 'island-1', category: 'custom', landmark: 'compass', topic }, 1);
+  const landmarks = topics.map(topic => art(topic).match(/data-landmark="([^"]+)"/)[1]);
+  assert.deepEqual(landmarks, ['camera', 'film', 'piano', 'drums', 'violin', 'breakdance', 'dance', 'pottery', 'woodwork']);
+  const seals = ['Learn bookbinding', 'Learn birdwatching', '<img src=x onerror=alert(1)>'].map(topic =>
+    art(topic).match(/<g class="topic-seal">[\s\S]*?<\/text>/)[0],
+  );
+  assert.equal(new Set(seals).size, 3);
+  assert.doesNotMatch(seals[2], /<img|onerror=/);
+});
+
+test('the local planner accepts structured goals and rejects unavailable or duplicate output', async () => {
   const input = { topic: 'Pottery', objective: 'Make a cup', experience: 'beginner', minutes: 10 };
   let created = 0;
   let destroyed = 0;
   const goals = Array.from({ length: 8 }, (_, index) => ({
     title: 'Shape practice piece ' + (index + 1),
-    practice: 'Use a small piece of clay and practise a single shaping motion.',
-    finish: 'Compare the rim against an earlier attempt.',
+    practice: 'Shape the clay using motion ' + (index + 1) + ' from your cup reference.',
+    finish: 'Compare the rim on attempt ' + (index + 1) + ' with the reference.',
   }));
   const model = {
     availability: async () => 'available',
@@ -186,22 +226,22 @@ test('the local planner accepts structured goals and falls back on unavailable o
       return {
         prompt: async (prompt, options) => {
           assert.match(prompt, /"topic":"Pottery"/);
-          assert.equal(options.responseConstraint.properties.goals.minItems, 8);
-          return JSON.stringify({ checkpoint: 'Finish a small practice cup.', goals });
+          assert.equal(options.responseConstraint.properties.goals.maxItems, 8);
+          return JSON.stringify({ decision: 'ready', checkpoint: 'Finish a small practice cup.', goals });
         },
         destroy: () => { destroyed += 1; },
       };
     },
   };
-  assert.equal(await generateCustomRoadmap(input, { model: { ...model, availability: async () => 'downloadable' } }), null);
+  assert.deepEqual(await generateCustomRoadmap(input, { model: { ...model, availability: async () => 'downloadable' } }), { status: 'unavailable' });
   assert.equal(created, 0);
-  const generated = await generateCustomRoadmap(input, { model });
+  const { plan: generated } = await generateCustomRoadmap(input, { model });
   assert.equal(generated.steps.length, 8);
   const [island] = createIsland(createWorld(), { ...input, title: 'Pottery', category: 'custom', localRoadmap: generated }).islands;
   assert.equal(island.roadmap.onDevice, true);
   assert.equal(getActiveGoal(island).title, goals[0].title);
-  goals[1].title = goals[0].title;
-  assert.equal(await generateCustomRoadmap(input, { model }), null);
+  goals[1].practice = goals[0].practice;
+  assert.deepEqual(await generateCustomRoadmap(input, { model }), { status: 'retry' });
   assert.equal(destroyed, 2);
 });
 
@@ -255,7 +295,117 @@ test('related custom skills start with relevant practice goals', () => {
   ]) {
     const suggestion = relatedSkill({ ...source, id: 'island-1', xp: 100 }, []);
     assert.equal(suggestion.name, title);
-    const [island] = createIsland(createWorld(), { ...guitar, ...suggestion, title }).islands;
+    const [island] = createIsland(createWorld(), { ...guitar, ...suggestion, title, experience: 'beginner' }).islands;
     assert.equal(getActiveGoal(island).title, first);
   }
+});
+
+const socialInput = {
+  title: 'Meeting new people', topic: 'Meeting new people', category: 'custom',
+  objective: 'Make friends through a campus society', experience: 'beginner', minutes: 10,
+};
+
+function completeActive(world, rating) {
+  const [island] = world.islands;
+  const goal = getActiveGoal(island);
+  const updated = rating ? setDifficulty(world, island.id, goal.id, rating) : world;
+  return completeGoal(updated, island.id, goal.id);
+}
+
+test('social feedback changes the next activity while preserving the goal sequence', () => {
+  const first = createIsland(createWorld(), socialInput);
+  const atGreeting = completeActive(completeActive(first));
+  const original = atGreeting.islands[0];
+  assert.equal(getActiveGoal(original).title, 'Say hello to one new person');
+  const supported = completeActive(atGreeting, 'support');
+  const stretched = completeActive(atGreeting, 'stretch');
+  const standard = completeActive(atGreeting, 'standard');
+  const easierGoal = getActiveGoal(supported.islands[0]);
+  const harderGoal = getActiveGoal(stretched.islands[0]);
+  const planned = getActiveGoal(standard.islands[0]);
+
+  assert.equal(planned.title, 'Ask a follow-up question');
+  assert.equal(easierGoal.title, 'Have one brief exchange in a familiar setting');
+  assert.equal(harderGoal.title, 'Ask a follow-up that fits the conversation');
+  assert.match(easierGoal.description, /greet one person/);
+  assert.match(harderGoal.finish, /second question builds on what they said/);
+  for (const next of [easierGoal, harderGoal]) {
+    assert.equal(next.id, planned.id);
+    assert.equal(next.xp, planned.xp);
+    assert.equal(next.minutes, planned.minutes);
+    assert.deepEqual(next.prerequisites, planned.prerequisites);
+  }
+  assert.equal(supported.islands[0].xp, standard.islands[0].xp);
+  assert.equal(completeGoal(supported, original.id, 'goal-3'), supported);
+  assert.deepEqual(getActiveGoal(JSON.parse(JSON.stringify(supported.islands[0]))), easierGoal);
+  assert.equal(adoptIsland(createWorld(), supported.islands[0]).islands[0].nextGoalAdjustment, undefined);
+});
+
+test('guided adaptations work across 24 topic, time-budget and difficulty combinations', () => {
+  const topics = [
+    ['Meeting new people', 'Make friends on campus', 'one opener'],
+    ['Spanish', 'Order a meal in Spanish', 'exchange'],
+    ['Chess', 'Beat a friend at chess', 'position'],
+    ['Public speaking', 'Give a two-minute talk', 'talk'],
+    ['Visual storytelling', 'Make a photo essay', 'frames'],
+    ['Origami', 'Fold a paper crane', 'Origami'],
+  ];
+  for (const [topic, objective, expected] of topics) {
+    for (const [minutes, experience] of [[10, 'beginner'], [30, 'intermediate']]) {
+      for (const rating of ['support', 'stretch']) {
+        const world = createIsland(createWorld(), { ...socialInput, topic, objective, minutes, experience });
+        const updated = completeActive(world, rating);
+        const goal = getActiveGoal(updated.islands[0]);
+        assert.equal(goal.adapted, rating);
+        assert.equal(goal.id, 'goal-2');
+        assert.ok(goal.minutes > 0 && goal.minutes <= minutes);
+        assert.equal(goal.xp, 60);
+        assert.equal(updated.islands[0].xp, 40);
+        assert.notEqual(goal.title, world.islands[0].goals[1].title);
+        assert.ok(goal.finish.length > 10);
+        if (rating === 'support') assert.ok((goal.title + ' ' + goal.description).includes(expected));
+      }
+    }
+  }
+});
+
+test('repeated feedback can adapt a new goal and continue beyond the starter roadmap', () => {
+  let world = createIsland(createWorld(), socialInput);
+  for (let step = 0; step < 9; step += 1) world = completeActive(world, 'support');
+  const [island] = world.islands;
+  const goal = getActiveGoal(island);
+  assert.equal(goal.id, 'goal-10');
+  assert.equal(goal.adapted, 'support');
+  assert.equal(island.xp, 1050);
+  world = completeActive(world);
+  assert.equal(getActiveGoal(world.islands[0]).adapted, undefined);
+});
+
+test('local next-goal drafting accepts a distinct response and rejects copies and unavailable models', async () => {
+  const atGreeting = completeActive(completeActive(createIsland(createWorld(), socialInput)));
+  const [island] = setDifficulty(atGreeting, 'island-1', 'goal-3', 'support').islands;
+  const request = getAdaptationRequest(island, 'goal-3');
+  assert.equal(request.feedback, 'support');
+  assert.equal(request.plannedGoal.title, 'Ask a follow-up question');
+  let response = { title: 'Greet someone at your regular group', practice: 'Say hello and ask one question about the activity.', finish: 'Have a short exchange and write down one follow-up idea.' };
+  const model = {
+    availability: async () => 'available',
+    create: async () => ({
+      prompt: async (prompt, { responseConstraint }) => {
+        assert.match(prompt, /campus society/);
+        assert.match(prompt, /too hard/);
+        assert.match(prompt, /"minutes":10/);
+        assert.deepEqual(responseConstraint.required, ['title', 'practice', 'finish']);
+        return JSON.stringify(response);
+      },
+      destroy() {},
+    }),
+  };
+  const replacement = await generateAdaptiveGoal(request, { model });
+  const next = completeGoal({ islands: [island] }, island.id, 'goal-3', replacement);
+  assert.equal(getActiveGoal(next.islands[0]).title, response.title);
+  assert.equal(getActiveGoal(next.islands[0]).xp, request.plannedGoal.xp);
+  response = { ...response, title: request.plannedGoal.title };
+  assert.equal(await generateAdaptiveGoal(request, { model }), null);
+  assert.equal(await generateAdaptiveGoal(request, { model: { ...model, availability: async () => 'unavailable' } }), null);
 });

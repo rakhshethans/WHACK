@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101f23">
+  <meta name="theme-color" content="#eef0e9">
   <title>WorldHopper | Your archipelago</title>
   <link rel="stylesheet" href="./src/styles.css">
+  <link rel="stylesheet" href="./src/social/social.css">
   <script type="module" src="./src/app.mjs"></script>
 </head>
 <body>
@@ -23,15 +24,19 @@
     <form id="island-form">
       <div class="dialog-top"><span class="eyebrow">EXPEDITION LOG / 01</span><button type="button" class="icon" id="close-dialog" aria-label="Close">×</button></div>
       <h2 id="onboarding-title">Chart a new island</h2>
-      <p>Choose the skill you want to practise and describe what you hope to achieve.</p>
-      <label>Skill<select name="category"><option value="guitar">Guitar</option><option value="songwriting">Songwriting</option><option value="photography">Photography</option><option value="custom">Custom skill or goal</option></select></label>
-      <div id="custom-topic" hidden><label>Your skill or goal<input name="topic" maxlength="70" placeholder="e.g. Meeting new people" disabled></label></div>
-      <label>Island name <small>(optional)</small><input name="title" maxlength="40" placeholder="e.g. Guitar Island"></label>
-      <label><span id="objective-label">Your objective</span><input name="objective" required maxlength="110" placeholder="e.g. Play a song for friends"></label>
+      <label class="topic-label">What do you want to learn or achieve?
+        <input name="topic" required autofocus maxlength="70" aria-describedby="plan-message" placeholder="e.g. Learn Spanish for travel">
+      </label>
       <div class="form-row">
         <label>Experience<select name="experience"><option value="beginner">New to it</option><option value="intermediate">Some experience</option><option value="advanced">Confident</option></select></label>
         <label>Time per session<select name="minutes"><option value="10">10 minutes</option><option value="20" selected>20 minutes</option><option value="30">30 minutes</option></select></label>
       </div>
+      <label>Long-term outcome <small>(optional)</small><input name="objective" maxlength="110" placeholder="e.g. Order a meal in Spanish"></label>
+      <details class="name-option">
+        <summary>Choose my own island name</summary>
+        <label>Island name<input name="title" maxlength="40" placeholder="Defaults to your skill or goal"></label>
+      </details>
+      <p id="plan-message" class="plan-message" role="status"></p>
       <button class="primary" type="submit"><span id="create-island-label">Create my island</span> <span aria-hidden="true">↗</span></button>
     </form>
   </dialog>
