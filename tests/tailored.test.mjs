@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { generateContinuation, generateCustomRoadmap, generateStarterRoadmap, warmStarterModel } from '../src/local-planner.mjs';
+import { renderIsland } from '../src/scene.mjs';
 import { appendGeneratedPractice, completeGoal, createGeneratedIsland, createWorld, getActiveGoal,
   canQueueGeneratedPractice, needsGeneratedPractice, needsRoadmapRevision, reviseIslandRoadmap, setDifficulty } from '../src/world.mjs';
 
@@ -119,6 +120,28 @@ test('a valid first exercise is accepted when Nano omits or leaves the checkpoin
     assert.equal(result.plan.checkpoint, undefined);
     assert.equal(result.plan.steps[0][0], goals[0].title);
   }
+});
+
+test('new islands use skill landmarks and accept only listed artwork from the goal response', async () => {
+  const unusual = { ...input, topic: 'Learn whittling', objective: 'Carve a spoon' };
+  let requests = 0;
+  const model = mockModel({ decision: 'ready', landmark: 'brush', goals: [{
+    title: 'Mark the spoon outline', practice: 'Trace a spoon shape onto a softwood blank with a pencil.',
+    finish: 'The handle and bowl outline fit inside the blank.',
+  }] }, prompt => { requests++; assert.match(prompt, /Optionally pick a landmark/); });
+  const { plan } = await generateStarterRoadmap(unusual, { model });
+  assert.equal(requests, 1);
+  const [carving] = createGeneratedIsland(createWorld(), { ...unusual, localRoadmap: plan }).islands;
+  assert.match(renderIsland(carving, 1), /data-landmark="brush"/);
+
+  const [photo] = createGeneratedIsland(createWorld(), { ...input, topic: 'Photography', localRoadmap: plan }).islands;
+  assert.match(renderIsland(photo, 1), /data-landform="(?:alpine|mesa)" data-landmark="camera"/);
+  assert.equal(renderIsland(photo, 1), renderIsland(JSON.parse(JSON.stringify(photo)), 1));
+  assert.notEqual(renderIsland(photo, 1), renderIsland(photo, 3));
+
+  const [unsafe] = createGeneratedIsland(createWorld(), { ...unusual, localRoadmap: { ...plan, landmark: '<script>' } }).islands;
+  assert.match(renderIsland(unsafe, 1), /data-landmark="compass"/);
+  assert.doesNotMatch(renderIsland(unsafe, 1), /<script>/);
 });
 
 test('starter warmup reuses the session and skips models that need a download', async () => {

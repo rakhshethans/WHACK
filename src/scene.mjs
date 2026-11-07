@@ -143,6 +143,84 @@ const CUSTOM_ICONS = {
   compass: '<circle r="25"/><path d="m11-17-4 21-18 13 4-21Z" fill="#e5aa69" stroke="#1d5558"/><circle r="3" fill="#244e52"/>',
 };
 
+const LANDMARK_ART = {
+  ...CUSTOM_ICONS,
+  speech: CUSTOM_ICONS.speaking,
+  camera: '<path d="M-39-19h21l7-10h23l7 10h20v47h-78Z" fill="#213c55" stroke="#d7edf4"/><path d="M-37-16h74v11h-74Z" fill="#a5c5d5"/><circle cy="5" r="17" fill="#112d42" stroke="#c7e5ea"/><circle cy="5" r="9" fill="#57b3ce"/><path d="m-4 2 6-4" stroke="#effaf2"/>',
+  guitar: '<path d="M-6-5 7-31l7 4-12 25c8 6 10 18 0 24-9 5-23-1-25-10-2-9 7-17 17-17Z" fill="#df9e59"/><circle cx="-7" cy="8" r="5" fill="#75472f"/><path d="m-8 16 19-44" fill="none" stroke="#fff0cc"/>',
+  music: '<path d="M-13 13v-34l36-8v34m-36-14 36-8" fill="none" stroke="#fff0cc" stroke-width="5"/><ellipse cx="-21" cy="15" rx="11" ry="7"/><ellipse cx="15" cy="7" rx="11" ry="7"/>',
+  dance: '<circle cx="6" cy="-26" r="8"/><path d="M4-16-5 2l18 8 8 18m-26-26-12 15-14 3m27-31-15-4-11-10m26 15 18 5 13-9" fill="none" stroke="#fff0cc" stroke-width="7" stroke-linecap="round"/>',
+  code: '<path d="M-35-23h70v46h-70Z" fill="#263a58" stroke="#c9e9e6"/><path d="m-12-9-12 9 12 9m24-18 12 9-12 9m-8-20-8 22" fill="none" stroke="#f6e7af" stroke-width="4" stroke-linecap="round"/>',
+  cooking: '<path d="M-27-5h54v23l-7 7h-40l-7-7ZM-27 1h-9m63 0h9m-64-9h56M-8-11v-7h16v7" fill="#edbd82"/><path d="M-12-25q-5-6 0-11m17 11q-5-6 0-11" fill="none" stroke="#fff0cc"/>',
+  plant: '<path d="M0 22V-13M0 5Q-28 6-29-19-4-20 0 5Zm0-7Q5-28 28-25 24-4 0-2Z" fill="#a5d584"/><path d="M-17 14h34l-6 14h-22Z" fill="#e1ab78"/>',
+  brush: '<path d="M-28 18c10 1 8-13 17-14l9 8c-4 13-16 15-26 6Zm17-14L20-30q8-7 12 1L-2 12Z" fill="#e8b677"/><path d="m-11 4 9 8" stroke="#f9e8b5"/>',
+  fitness: '<path d="M-25 0h50m-30-13v26m10-13v26m-10-26v26m40-26v26" fill="none" stroke="#fff0cc" stroke-width="6" stroke-linecap="round"/>',
+  book: '<path d="M0-14q-19-12-35-6v43q17-5 35 5 18-10 35-5v-43q-16-6-35 6Zm0 0v42" fill="#f4d9a4"/><path d="m-26-9 16 2m-16 8 16 3m20-11 16-2m-16 13 16-3" fill="none"/>',
+};
+
+const LANDFORMS = {
+  alpine: {
+    coast: 'M251 355 299 298 384 274 433 245 524 244 615 278 684 310 722 354 685 397 602 427 494 442 385 431 306 401Z',
+    colors: ['#dae9da', '#7e9d9c', '#587486'],
+    feature: '<path d="M315 328 385 212 424 270 482 181 550 280 591 226 663 329 556 349 429 340Z" fill="#718fa6"/><path d="m385 212 39 58-34-13-16 15-20-6Zm97-31 48 70-36-12-17 15-31-19Zm109 45 37 54-33-12-15 9-15-9Z" fill="#eaf3e9"/>',
+  },
+  cove: {
+    coast: 'M250 349Q256 292 351 264T560 254Q670 263 711 311L652 304Q598 313 613 348T713 377Q679 425 556 439T334 416Q254 394 250 349Z',
+    colors: ['#f4d394', '#74ae91', '#697d61'],
+    feature: '<path d="M636 325q45-14 69 5m-71 29q38 18 75 4" fill="none" stroke="#8bddd0" stroke-width="4" stroke-linecap="round"/><path d="M289 362q50 26 84 22m-46-88q34-19 70-23" fill="none" stroke="#e0e9b8" stroke-width="6"/>',
+  },
+  forest: {
+    coast: 'M262 353Q278 304 342 299 352 264 409 248 453 231 499 258 576 231 639 275 692 295 712 342 727 376 666 399 634 436 550 424 474 448 407 429 316 424 262 353Z',
+    colors: ['#b9d48d', '#6c9a69', '#52705c'],
+    feature: [[333,326,1.15],[375,292,.9],[417,274,1.05],[560,283,1.15],[606,310,.95],[654,346,1.25],[346,369,.7]].map(args => tree(...args)).join(''),
+  },
+  mesa: {
+    coast: 'M262 340 287 305 373 270 460 264 513 237 616 257 696 303 720 341 693 390 619 414 568 412 492 435 395 417 326 395Z',
+    colors: ['#efbf94', '#bf886a', '#825d5e'],
+    feature: '<path d="m319 322 74-33 62 5 58-30 84 12 56 33-54 21-85-5-63 18-78-10Z" fill="#d7a57e" stroke="#efc9a0" stroke-width="4"/><path d="m313 371 81 31 94 14 73-21 61-3 72-28m-350-43 75-20m151-11 68 26" fill="none" stroke="#f4cfa4" stroke-width="5" opacity=".72"/>',
+  },
+  archipelago: {
+    coast: 'M316 336 356 294 433 260 510 255 580 273 649 310 663 353 618 396 551 425 465 432 384 405 331 375Z',
+    colors: ['#c9ddd7', '#73a6a2', '#536982'],
+    feature: '<path d="M243 334 268 316 309 317 330 338 302 362 265 358ZM645 384l28-20 39 3 22 20-35 23-32-2ZM591 246l27-19 36 4 17 16-27 17-32 1Z" fill="#aacdc3" stroke="#d2e8d7" stroke-width="4"/><path d="M272 338l15-9 18 7m357 51 20-10 29 8m-100-139 21-9 19 8" fill="none" stroke="#6d9d93" stroke-width="6"/>',
+  },
+  dunes: {
+    coast: 'M242 356Q285 310 354 305 418 298 436 254 510 225 589 263 625 281 629 313 695 320 730 357 680 414 607 418 565 418 529 436 460 450 403 417 297 423 242 356Z',
+    colors: ['#f4cf86', '#dba96c', '#996754'],
+    feature: '<path d="M300 354q83-23 137-67t139-3m-215 85q82-3 139-50t128 12m-157 70q88-6 131-34t80-6" fill="none" stroke="#f5dba1" stroke-width="7" stroke-linecap="round"/>',
+  },
+};
+
+const THEMED_LANDFORMS = {
+  camera: ['alpine', 'mesa'], guitar: ['forest', 'cove'], music: ['mesa', 'dunes'],
+  dance: ['dunes', 'cove'], code: ['archipelago', 'mesa'], cooking: ['cove', 'forest'],
+  plant: ['forest', 'cove'], brush: ['dunes', 'mesa'], fitness: ['alpine', 'forest'],
+  origami: ['archipelago', 'cove'], board: ['mesa', 'archipelago'], speech: ['mesa', 'cove'],
+  language: ['archipelago', 'cove'], people: ['cove', 'forest'], book: ['forest', 'alpine'],
+};
+
+function themedTerrain(island, stage) {
+  const { landmark } = island;
+  const choices = Object.hasOwn(THEMED_LANDFORMS, landmark) ? THEMED_LANDFORMS[landmark] : Object.keys(LANDFORMS);
+  const seed = stableHash(`${island.id}|${island.topic ?? island.title}`);
+  const landform = choices[seed % choices.length];
+  const { coast, colors: [sand, ground, cliff], feature } = LANDFORMS[landform];
+  return `<g class="wh-island themed-terrain" data-landform="${landform}" data-landmark="${landmark}">
+    <path d="${coast}" transform="translate(0 15)" fill="#163c4b" opacity=".55"/>
+    <path d="${coast}" transform="translate(0 9)" fill="${cliff}"/>
+    <path d="${coast}" fill="${sand}" stroke="#e6ecc6" stroke-width="3"/>
+    <path d="${coast}" transform="translate(484 342) scale(.9 .8) translate(-484 -342)" fill="${ground}"/>
+    ${feature}
+    ${stage >= 2 ? lodge(388,357,.68) : ''}
+    ${stage >= 3 ? lodge(560,363,.7,'#8ab3ac') : ''}
+    ${stage >= 4 ? lodge(415,395,.6,'#d4aa68') : ''}
+    ${stage >= 5 ? tower(579,304,.72) : ''}
+    <ellipse cx="485" cy="337" rx="61" ry="19" fill="${cliff}" opacity=".72"/>
+    <ellipse cx="485" cy="329" rx="60" ry="19" fill="${sand}" stroke="#fff0cc" stroke-width="2.5"/>
+    <g transform="translate(485 291) scale(1.25)" fill="#fff0cc" stroke="#31595a" stroke-width="3" stroke-linejoin="round">${LANDMARK_ART[landmark]}</g>
+  </g>`;
+}
+
 const COASTLINES = [
   'M248 339 268 300 309 279 336 251 385 246 421 259 456 236 504 246 534 233 568 255 615 251 638 277 690 285 727 318 713 348 733 376 703 402 673 407 649 435 604 431 575 452 530 439 492 451 451 432 407 441 379 421 337 426 310 397 276 385Z',
   'M256 342 268 314 302 302 318 270 351 246 389 250 419 235 458 251 485 233 520 253 566 246 597 262 642 265 664 293 703 300 727 329 715 352 727 371 701 399 667 408 641 433 606 428 576 449 536 435 503 451 467 431 426 442 394 423 360 430 334 410 300 406 279 382Z',
@@ -237,6 +315,9 @@ function islandTerrain(island, stage) {
 }
 
 export function renderIsland(island, stage) {
+  if (typeof island.landmark === 'string' && Object.hasOwn(LANDMARK_ART, island.landmark)) {
+    return `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false">${themedTerrain(island, stage)}</svg>`;
+  }
   const seed = stableHash(`${island.id || ''}|${island.category || ''}|${island.topic || island.title || ''}`);
   const biome = BIOMES[(seed >>> 8) % BIOMES.length];
   const coast = seed % COASTLINES.length;

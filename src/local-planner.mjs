@@ -1,3 +1,5 @@
+import { LANDMARKS, knownLandmark, validLandmark } from './island-art.mjs';
+
 const textField = { type: 'string' };
 const englishText = [{ type: 'text', languages: ['en'] }];
 const modelOptions = { expectedInputs: englishText, expectedOutputs: englishText };
@@ -6,12 +8,13 @@ const goalSchema = {
   required: ['title', 'practice', 'finish'],
   properties: { title: textField, practice: textField, finish: textField },
 };
-const planSchema = maxItems => ({
+const planSchema = (maxItems, chooseLandmark) => ({
   type: 'object',
   required: maxItems === 1 ? ['decision', 'goals'] : ['decision', 'checkpoint', 'goals'],
   properties: {
     decision: { type: 'string', enum: ['ready', 'clarify', 'unsuitable'] },
     checkpoint: textField,
+    ...(chooseLandmark ? { landmark: { type: 'string', enum: LANDMARKS } } : {}),
     goals: {
       type: 'array', maxItems,
       items: goalSchema,
@@ -160,14 +163,20 @@ async function promptLocally(prompt, schema, {
 async function requestRoadmap(input, count, instructions, options) {
   if (unclearTopic(input.topic)) return { status: 'clarify' };
   const { topic, objective, experience, minutes, recent } = input;
-  const prompt = instructions.concat(JSON.stringify({ topic, objective, experience, minutes: Number(minutes), recent })).join('\n');
-  const { status, data } = await promptLocally(prompt, planSchema(count), options);
+  const chooseLandmark = count === 1 && !knownLandmark(input);
+  const prompt = [...instructions,
+    ...(chooseLandmark ? [`Optionally pick a landmark for the overall skill from: ${LANDMARKS.join(', ')}. Use compass if none fit.`] : []),
+    JSON.stringify({ topic, objective, experience, minutes: Number(minutes), recent }),
+  ].join('\n');
+  const { status, data } = await promptLocally(prompt, planSchema(count, chooseLandmark), options);
   if (status !== 'response') return { status };
   if (data?.decision === 'clarify' || data?.decision === 'unsuitable') return { status: data.decision };
   const plan = data?.decision === 'ready' && validPlan(data, count);
   if (plan && recent?.some(goal => plan.steps.some(([title, description]) =>
     comparable(goal.title) === comparable(title) || comparable(goal.description) === comparable(description)))) return { status: 'retry' };
-  return plan ? { status: 'ready', plan } : { status: 'retry' };
+  if (!plan) return { status: 'retry' };
+  if (chooseLandmark && validLandmark(data.landmark)) plan.landmark = data.landmark;
+  return { status: 'ready', plan };
 }
 
 export function generateStarterRoadmap(input, options) {

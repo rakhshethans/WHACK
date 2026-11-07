@@ -53,10 +53,12 @@ export function createIsland(world, { title = '', experience = 'beginner', minut
     : skill === 'custom' ? buildCustomRoadmap(input) : buildRoadmap({ category: skill, objective: target, experience });
   if (!plan) return world;
   const { focus, theme, checkpoint, next, practiceFocus, steps } = plan;
+  const landmark = onDevice && (knownLandmark(input) ?? (validLandmark(plan.landmark) ? plan.landmark : 'compass'));
   const goals = steps.map((step, index) => starterGoal(step, index,
     skill === 'custom' ? sessionMinutes : Math.min(sessionMinutes, 10 + index * 5), index ? 'goal-' + index : undefined));
   return addIsland(world, {
     title: name, category: skill, topic: customTopic, theme, experience, objective: target,
+    ...(landmark ? { landmark } : {}),
     sessionMinutes, roadmap: { focus, checkpoint, next, practiceFocus, onDevice }, goals,
   });
 }
@@ -222,6 +224,7 @@ export function adoptIsland(world, source) {
     category: source.category,
     topic: source.topic,
     theme: source.theme,
+    ...(validLandmark(source.landmark) ? { landmark: source.landmark } : {}),
     experience: source.experience,
     objective: source.objective,
     sessionMinutes: source.sessionMinutes,
@@ -230,3 +233,4 @@ export function adoptIsland(world, source) {
     goals: source.goals.filter(goal => !goal.continuation).map(goal => ({ ...goal, prerequisites: [...goal.prerequisites], completed: false })),
   });
 }
+import { knownLandmark, validLandmark } from './island-art.mjs';
