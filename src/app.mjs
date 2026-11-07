@@ -30,7 +30,13 @@ const PLAN_ERRORS = {
   clarify: 'Name one specific skill or outcome. Try “Bake a sourdough loaf” or “Learn Spanish for a train trip”. Make sure the optional outcome fits that skill.',
   unsuitable: 'WorldHopper couldn’t turn that request into a safe practice plan. Try a different skill or outcome.',
   unavailable: 'This device can’t generate a tailored plan. Try WorldHopper in a compatible desktop browser with built-in AI.',
-  retry: 'A specific plan couldn’t be generated this time. Try again or add a more concrete outcome.',
+  retry: 'Gemini Nano returned an incomplete or generic exercise. Try again or add a more concrete outcome.',
+  activation: 'Chrome needs another click to finish setting up Gemini Nano. Press the button again.',
+  'setup-error': 'Chrome couldn’t start Gemini Nano. Restart desktop Chrome and try again.',
+  'setup-timeout': 'Gemini Nano took too long to start. Give Chrome a moment, then try again.',
+  'download-timeout': 'Chrome is still preparing Gemini Nano. Keep Chrome open and try again once the download finishes.',
+  'generation-timeout': 'Gemini Nano took too long to write this exercise. Try again. The first request can take longer.',
+  'model-error': 'Chrome interrupted Gemini Nano while it was writing. Restart Chrome or try again.',
 };
 
 function positionIslands(map) {
@@ -429,7 +435,7 @@ async function preparePractice(id, ahead = false) {
       if (!needsGoal && current?.goalFeedback) draftNextGoal(updated.islands.find(item => item.id === id), current.goalFeedback.id);
     }
   } else if (needsGoal) {
-    practiceErrors.set(id, result.status === 'unavailable' ? PLAN_ERRORS.unavailable : 'Couldn’t generate a specific next goal. Try again when you’re ready.');
+    practiceErrors.set(id, PLAN_ERRORS[result.status] ?? 'Couldn’t generate a specific next goal. Try again when you’re ready.');
   }
   if (needsGoal && activeView === 'world' && selectedId === id && logOpen && !dialog.open) {
     render();
@@ -507,6 +513,7 @@ form.addEventListener('submit', async event => {
     signal: controller.signal, allowDownload: true,
     onStatus(status, progress) {
       if (status === 'downloading') setPlanMessage('Downloading this browser’s AI model' + (progress === undefined ? '…' : ' (' + progress + '%)…'));
+      else if (status === 'starting') setPlanMessage('Starting Gemini Nano in Chrome…');
       else setPlanMessage('Writing your first tailored exercise…');
     },
   });
@@ -514,6 +521,7 @@ form.addEventListener('submit', async event => {
   pendingCreation = undefined;
   setCreating(false);
   if (!dialog.open) return;
+  if (result.status === 'cancelled') return;
   if (result.status !== 'ready') {
     setPlanMessage(PLAN_ERRORS[result.status], true);
     if (result.status === 'clarify') topicField.focus();

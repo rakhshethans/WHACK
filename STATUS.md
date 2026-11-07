@@ -11,8 +11,8 @@
 
 ## Verified current state
 
-All 31 Node tests pass. Desktop and mobile Chrome checks with a simulated model showed the first exercise in under 1.2 seconds and verified queued goals, XP and reload. The local Chrome profile reported the on-device model as unavailable, so real generation timing remains unverified.
+All 33 Node tests pass. Desktop and mobile Chrome checks with a simulated model verified the structured output compatibility path, queued goals, XP and reload. The regular Chrome profile reached model generation, but an isolated Chrome profile reported Nano as unavailable. Successful real model output remains unverified.
 
 ## Next workstream
 
-Verify real model output and extend tailored generation to unsupported browsers and devices. Then review Antigravity’s Explore integration (`worldhopper/social`, `64d8907`) against the updated learning branch. Verify the fixture experience before enabling opt-in public data. See [README](README.md) and [AGENTS](AGENTS.md) for file ownership.
+Verify real model output and extend tailored generation to unsupported browsers and devices. Then review Antigravity’s shared ocean Explore integration (`worldhopper/social`, `e52fb84`) against the updated learning branch. Verify the fixture experience before enabling opt-in public data.

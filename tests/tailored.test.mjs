@@ -97,6 +97,42 @@ test('one exercise starts the island, and a queued exercise unlocks only after c
   assert.equal(world.islands[0].xp, 900);
 });
 
+test('Chrome can generate validated JSON when native response constraints are unavailable', async () => {
+  let calls = 0;
+  const model = { availability: async () => 'available', create: async () => ({
+    async prompt(prompt, options) {
+      calls++;
+      if (options.responseConstraint) throw new DOMException('responseConstraint is not supported', 'NotSupportedError');
+      assert.match(prompt, /Return only JSON/);
+      return '```json\n' + JSON.stringify({ ...response, goals: goals.slice(0, 1) }) + '\n```';
+    }, destroy() {},
+  }) };
+  const result = await generateStarterRoadmap(input, { model });
+  assert.equal(result.status, 'ready');
+  assert.equal(calls, 2);
+});
+
+test('model setup and prompt timeouts are reported separately', async () => {
+  const expire = async signal => {
+    if (!signal.aborted) await new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }));
+    throw new DOMException('Timed out', 'TimeoutError');
+  };
+  const availability = async () => 'available';
+  assert.deepEqual(await generateStarterRoadmap(input, { setupTimeout: 5, model: {
+    availability, create: ({ signal }) => expire(signal),
+  } }), { status: 'setup-timeout' });
+  const model = { availability, create: async ({ signal: setup }) => ({
+    async prompt(_, { signal }) {
+      assert.notEqual(signal, setup);
+      return expire(signal);
+    }, destroy() {},
+  }) };
+  const keepAlive = setInterval(() => {}, 100);
+  try {
+    assert.deepEqual(await generateStarterRoadmap(input, { model, timeout: 5 }), { status: 'generation-timeout' });
+  } finally { clearInterval(keepAlive); }
+});
+
 test('rebuilding a saved generic plan keeps completed goals and earned XP', async () => {
   const { plan } = await generateCustomRoadmap(input, { model: mockModel(response) });
   const world = createGeneratedIsland(createWorld(), { ...input, localRoadmap: plan });
