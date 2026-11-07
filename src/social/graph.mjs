@@ -1,4 +1,5 @@
 import { SKILLS } from '../roadmaps.mjs';
+import { getStage } from '../world.mjs';
 
 /**
  * Curated complementary skill relationships (1-hop related skill bridges).
@@ -280,9 +281,31 @@ export function computePersonalizedPageRank(graph, {
 }
 
 /**
- * Ranks public explorer profiles around the viewer using a deterministic skill & social graph.
- * Returns up to `limit` (default 8) surrounding neighbours with evidence-based labels
- * (no uncalibrated percentages) and stable tie-breaking by `profile.id`.
+ * Level complementarity between two explorers on the same skill, in [0, 1).
+ * Scale-independent: Lv 1 vs Lv 50 -> 0.98 (mentor-style), Lv 37 vs Lv 50 -> 0.26, equal levels -> 0.
+ */
+export function levelComplementarity(levelA, levelB) {
+  const a = Math.max(1, Number(levelA) || 1);
+  const b = Math.max(1, Number(levelB) || 1);
+  return Math.abs(a - b) / Math.max(a, b);
+}
+
+function islandLevel(island) {
+  if (Number.isFinite(island?.level)) return island.level;
+  return getStage(island?.xp ?? 0).level;
+}
+
+/**
+ * Ranks public explorer profiles around the viewer.
+ *
+ * Eligibility: an explorer is only recommended when they share at least one exact skill/interest with
+ * the viewer (via a public island or a declared interest). There is no quota, so 0-`limit` neighbours
+ * are returned (default limit 8).
+ *
+ * Scoring prioritises mentor-style matches: each shared skill contributes
+ * `rarity * (0.35 + 1.65 * levelComplementarity)`, so a large level gap on the same skill outranks
+ * near-equal levels. Related-skill bridges, follow ties and Personalized PageRank only add small
+ * secondary boosts among already-eligible explorers. Ties break on `profile.id`.
  */
 export function rankNeighborsByGraph(
   viewerWorld,
@@ -305,45 +328,37 @@ export function rankNeighborsByGraph(
     profile.publicIslands.length > 0
   ));
 
-  if (candidates.length === 0) return [];
-
-  // Extract viewer skills and themes from local islands
   const viewerIslands = Array.isArray(viewerWorld?.islands) ? viewerWorld.islands : [];
   const viewerSkills = new Map();
-  const viewerThemes = new Map();
-
   for (const island of viewerIslands) {
     const norm = normalizeIslandSkill(island);
-    const level = island.level ?? Math.max(1, Math.floor((island.xp ?? 0) / 100) + 1);
+    const level = islandLevel(island);
     const existing = viewerSkills.get(norm.skillKey);
     if (!existing || level > existing.level) {
       viewerSkills.set(norm.skillKey, { ...norm, level, islandTitle: island.title });
     }
-    if (norm.themeKey && !viewerThemes.has(norm.themeKey)) {
-      viewerThemes.set(norm.themeKey, {
-        themeKey: norm.themeKey,
-        themeLabel: norm.themeLabel,
-        sourceSkillLabel: norm.skillLabel,
-      });
-    }
   }
 
-  // Count distinct eligible explorers per exact skill for Adamic-Adar inverse-frequency weighting
+  // No shared interests are possible without viewer skills, so nobody is recommended.
+  if (candidates.length === 0 || viewerSkills.size === 0) return [];
+
+  // Collect each candidate's exact skills (islands carry a level; declared interests do not)
   const skillExplorerCounts = new Map();
   const candidateSkillsMap = new Map();
-
   for (const profile of candidates) {
     const skills = new Map();
     for (const island of profile.publicIslands) {
       const norm = normalizeIslandSkill(island);
-      if (!skills.has(norm.skillKey)) {
-        skills.set(norm.skillKey, { ...norm, island });
+      const level = islandLevel(island);
+      const existing = skills.get(norm.skillKey);
+      if (!existing || (existing.level ?? 0) < level) {
+        skills.set(norm.skillKey, { ...norm, island, level });
       }
     }
     for (const token of profile.interests ?? []) {
       const norm = normalizeInterestToken(token);
       if (norm?.skillKey && !skills.has(norm.skillKey)) {
-        skills.set(norm.skillKey, { ...norm, island: profile.publicIslands[0] });
+        skills.set(norm.skillKey, { ...norm, island: null, level: null });
       }
     }
     candidateSkillsMap.set(profile.id, skills);
@@ -354,137 +369,90 @@ export function rankNeighborsByGraph(
 
   const graph = buildInterestGraph(viewerWorld, candidates);
   const pprMap = computePersonalizedPageRank(graph, { startNode: 'user:viewer' });
-
   let maxRawPpr = 0;
   for (const profile of candidates) {
-    const val = pprMap.get(`user:${profile.id}`) ?? 0;
-    if (val > maxRawPpr) maxRawPpr = val;
+    maxRawPpr = Math.max(maxRawPpr, pprMap.get(`user:${profile.id}`) ?? 0);
   }
 
-  const evaluated = candidates.map(profile => {
+  const evaluated = [];
+  for (const profile of candidates) {
     const cSkills = candidateSkillsMap.get(profile.id) ?? new Map();
     const sharedSkills = [];
-    const relatedBridges = [];
-    const themeBridges = [];
+    let relatedBridgeCount = 0;
 
-    for (const [cSkillKey, cSkillInfo] of cSkills.entries()) {
-      if (viewerSkills.has(cSkillKey)) {
-        const df = skillExplorerCounts.get(cSkillKey) ?? 1;
-        const rarityWeight = 18 / Math.log(1.7 + df);
+    for (const [skillKey, info] of cSkills.entries()) {
+      const viewerSkill = viewerSkills.get(skillKey);
+      if (viewerSkill) {
+        const df = skillExplorerCounts.get(skillKey) ?? 1;
+        const rarity = 18 / Math.log(1.7 + df);
+        // Interest-only matches have no level to compare, so they score as a modest neutral gap.
+        const complementarity = info.level == null ? 0.3 : levelComplementarity(viewerSkill.level, info.level);
         sharedSkills.push({
-          skillKey: cSkillKey,
-          skillLabel: cSkillInfo.skillLabel,
-          rarityWeight,
-          island: cSkillInfo.island,
+          skillKey,
+          skillLabel: info.skillLabel,
+          viewerLevel: viewerSkill.level,
+          theirLevel: info.level,
+          complementarity,
+          score: rarity * (0.35 + 1.65 * complementarity),
+          island: info.island,
         });
-        continue;
-      }
-
-      // Check 1-hop related skill bridge from any viewer skill
-      let matchedBridge = false;
-      for (const [vSkillKey, vSkillInfo] of viewerSkills.entries()) {
-        const related = RELATED_SKILLS[vSkillKey] ?? [];
-        if (related.includes(cSkillKey)) {
-          relatedBridges.push({
-            fromLabel: vSkillInfo.skillLabel,
-            toLabel: cSkillInfo.skillLabel,
-            island: cSkillInfo.island,
-          });
-          matchedBridge = true;
-          break;
-        }
-      }
-
-      // Check broad non-compass theme bridge (e.g. Japanese -> Spanish via Language)
-      if (!matchedBridge && cSkillInfo.themeKey && viewerThemes.has(cSkillInfo.themeKey)) {
-        const vTheme = viewerThemes.get(cSkillInfo.themeKey);
-        if (vTheme.sourceSkillLabel !== cSkillInfo.skillLabel) {
-          themeBridges.push({
-            themeLabel: vTheme.themeLabel,
-            fromLabel: vTheme.sourceSkillLabel,
-            toLabel: cSkillInfo.skillLabel,
-            island: cSkillInfo.island,
-          });
-        }
+      } else if ([...viewerSkills.keys()].some(v => (RELATED_SKILLS[v] ?? []).includes(skillKey))) {
+        relatedBridgeCount += 1;
       }
     }
 
-    sharedSkills.sort((a, b) => b.rarityWeight - a.rarityWeight);
+    if (sharedSkills.length === 0) continue; // Only recommend explorers who share an interest
 
-    const sharedScore = sharedSkills.reduce((sum, item) => sum + item.rarityWeight, 0);
-    const bridgeScore = relatedBridges.length * 10;
-    const themeScore = themeBridges.length * 5.5;
-    const socialScore = (profile.isFollowing ? 6 : 0) + (profile.followsViewer ? 3 : 0);
-    const maxIslandLevel = Math.max(...profile.publicIslands.map(i => i.level ?? 1));
-    const discoveryBaseline = viewerSkills.size === 0 ? maxIslandLevel * 2 + profile.publicIslands.length : 0;
+    sharedSkills.sort((a, b) => b.score - a.score || a.skillKey.localeCompare(b.skillKey));
 
-    const baselineScore = sharedScore + bridgeScore + themeScore + socialScore + discoveryBaseline;
+    const sharedScore = sharedSkills.reduce((sum, item) => sum + item.score, 0);
+    const bridgeScore = relatedBridgeCount * 2;
+    const socialScore = (profile.isFollowing ? 2 : 0) + (profile.followsViewer ? 1 : 0);
     const rawPpr = pprMap.get(`user:${profile.id}`) ?? 0;
-    const pprNormalized = maxRawPpr > 0 ? (rawPpr / maxRawPpr) * 20 : 0;
-    const score = Number((baselineScore + pprNormalized).toFixed(4));
+    const pprScore = maxRawPpr > 0 ? (rawPpr / maxRawPpr) * 3 : 0;
+    const baselineScore = sharedScore + bridgeScore + socialScore;
+    const score = Number((baselineScore + pprScore).toFixed(4));
 
-    let reasonLabel = '';
-    let reasonDetail = '';
-    let matchType = 'discovery';
-    let hopCount = 3;
-
-    if (sharedSkills.length >= 2) {
-      matchType = 'shared';
-      hopCount = 1;
-      const topTwo = `${sharedSkills[0].skillLabel} & ${sharedSkills[1].skillLabel}`;
-      reasonLabel = `Shared skills · ${topTwo}`;
-      reasonDetail = `Both of your archipelagos chart ${topTwo}.`;
-    } else if (sharedSkills.length === 1) {
-      matchType = 'shared';
-      hopCount = 1;
-      const only = sharedSkills[0];
-      reasonLabel = `Both learning ${only.skillLabel}`;
-      reasonDetail = `${profile.displayName} is charting "${only.island.title}" in ${only.skillLabel}.`;
-    } else if (relatedBridges.length > 0) {
-      matchType = 'bridge';
-      hopCount = 2;
-      const bridge = relatedBridges[0];
-      reasonLabel = `Related skill · ${bridge.fromLabel} → ${bridge.toLabel}`;
-      reasonDetail = `Connected to your ${bridge.fromLabel} island through ${bridge.toLabel} ("${bridge.island.title}").`;
-    } else if (themeBridges.length > 0) {
-      matchType = 'theme';
-      hopCount = 2;
-      const tb = themeBridges[0];
-      reasonLabel = `Related ${tb.themeLabel.toLowerCase()} · ${tb.fromLabel} → ${tb.toLabel}`;
-      reasonDetail = `Shares the ${tb.themeLabel.toLowerCase()} track with your ${tb.fromLabel} island.`;
-    } else if (profile.isFollowing) {
-      matchType = 'following';
-      hopCount = 1;
-      const firstSkill = normalizeIslandSkill(profile.publicIslands[0]).skillLabel;
-      reasonLabel = `Following · ${firstSkill}`;
-      reasonDetail = `You follow ${profile.displayName}’s ${firstSkill} archipelago.`;
+    const top = sharedSkills[0];
+    let matchType;
+    let reasonLabel;
+    let reasonDetail;
+    if (top.theirLevel == null) {
+      matchType = 'shared-interest';
+      reasonLabel = `Shared interest · ${top.skillLabel}`;
+      reasonDetail = `${profile.displayName} lists ${top.skillLabel} as an interest.`;
+    } else if (top.theirLevel > top.viewerLevel) {
+      matchType = 'mentor';
+      reasonLabel = `Mentor · ${top.skillLabel} Lv ${top.theirLevel} (you Lv ${top.viewerLevel})`;
+      reasonDetail = `${profile.displayName} is further along in ${top.skillLabel} with "${top.island.title}" and can guide your next steps.`;
+    } else if (top.theirLevel < top.viewerLevel) {
+      matchType = 'mentee';
+      reasonLabel = `You could mentor · ${top.skillLabel} Lv ${top.theirLevel} (you Lv ${top.viewerLevel})`;
+      reasonDetail = `${profile.displayName} is earlier in ${top.skillLabel} with "${top.island.title}", a skill where you are ahead.`;
     } else {
-      matchType = 'discovery';
-      hopCount = 3;
-      const firstIsland = profile.publicIslands[0];
-      const firstSkill = normalizeIslandSkill(firstIsland).skillLabel;
-      reasonLabel = `Discovery · ${firstSkill}`;
-      reasonDetail = `${profile.displayName} charts "${firstIsland.title}" (${firstSkill}, Lv ${firstIsland.level}).`;
+      matchType = 'peer';
+      reasonLabel = `Peer · ${top.skillLabel} Lv ${top.theirLevel}`;
+      reasonDetail = `${profile.displayName} is at the same level in ${top.skillLabel} with "${top.island.title}".`;
+    }
+    if (sharedSkills.length > 1) {
+      reasonDetail += ` Also shares ${sharedSkills.slice(1).map(s => s.skillLabel).join(' & ')}.`;
     }
 
-    return {
+    evaluated.push({
       profile,
       score,
       baselineScore: Number(baselineScore.toFixed(4)),
-      pprScore: Number(pprNormalized.toFixed(4)),
-      hopCount,
+      pprScore: Number(pprScore.toFixed(4)),
+      hopCount: 1,
       matchType,
+      complementarity: Number(top.complementarity.toFixed(4)),
       sharedSkills: sharedSkills.map(s => s.skillLabel),
       reasonLabel,
       reasonDetail,
-    };
-  });
+    });
+  }
 
-  evaluated.sort((a, b) => (
-    b.score - a.score ||
-    a.hopCount - b.hopCount ||
-    a.profile.id.localeCompare(b.profile.id)
-  ));
+  evaluated.sort((a, b) => b.score - a.score || a.profile.id.localeCompare(b.profile.id));
 
   return evaluated.slice(0, maxCount).map((entry, idx) => ({
     ...entry,

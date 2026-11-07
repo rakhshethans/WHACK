@@ -295,7 +295,7 @@ test('normalizeIslandSkill keeps exact skills distinct from broad themes and ran
   });
   const candidates = client.getSnapshotProfiles();
 
-  // Case 1: Viewer learning Japanese & Origami -> Hana Sato (Origami + Japanese) and Sora Takahashi (Japanese + Chess) rank at the top
+  // Case 1: Viewer learning Japanese & Origami -> only explorers who share one of those skills are recommended
   let jpWorld = createIsland(createWorld(), {
     title: 'Tokyo Phrases',
     category: 'custom',
@@ -310,16 +310,15 @@ test('normalizeIslandSkill keeps exact skills distinct from broad themes and ran
   });
 
   const jpRanked = rankNeighborsByGraph(jpWorld, candidates, { limit: 8 });
-  assert.equal(jpRanked.length, 8);
+  assert.deepEqual(jpRanked.map(e => e.profile.id).sort(), ['user-hana', 'user-sora']);
   assert.equal(jpRanked[0].profile.id, 'user-hana', 'Hana shares both Origami and Japanese');
-  assert.match(jpRanked[0].reasonLabel, /Shared skills · Origami & Japanese|Shared skills · Japanese & Origami/);
-  assert.equal(jpRanked[1].profile.id, 'user-sora', 'Sora shares Japanese and links to Origami via Chess');
-  assert.match(jpRanked[1].reasonLabel, /Both learning Japanese/);
-
-  // Mateo (Spanish) should be linked via Language bridge, ranked lower than exact Japanese matches
-  const mateoEntry = jpRanked.find(e => e.profile.id === 'user-mateo');
-  assert.ok(mateoEntry);
-  assert.ok(mateoEntry.score < jpRanked[1].score);
+  assert.equal(jpRanked[0].matchType, 'mentor');
+  assert.match(jpRanked[0].reasonLabel, /^Mentor · Origami Lv 4 \(you Lv 1\)$/);
+  assert.equal(jpRanked.some(e => e.profile.id === 'user-mateo'), false, 'Spanish is not a shared interest with Japanese');
+  for (const entry of jpRanked) {
+    assert.ok(entry.sharedSkills.length > 0, 'every recommendation shares an interest');
+    assert.equal(/%/.test(entry.reasonLabel), false, 'labels are evidence-based, not uncalibrated percentages');
+  }
 
   // Case 2: Viewer learning Guitar & Songwriting -> Maya Chen and Noah Silva rank at the top
   let musicWorld = createIsland(createWorld(), {
@@ -334,16 +333,47 @@ test('normalizeIslandSkill keeps exact skills distinct from broad themes and ran
   });
 
   const musicRanked = rankNeighborsByGraph(musicWorld, candidates, { limit: 8 });
+  assert.ok(musicRanked.length >= 1 && musicRanked.length <= 8);
   const topTwoIds = new Set([musicRanked[0].profile.id, musicRanked[1].profile.id]);
   assert.equal(topTwoIds.has('user-maya'), true);
   assert.equal(topTwoIds.has('user-noah'), true);
+  assert.equal(musicRanked.some(e => e.profile.id === 'user-sora'), false, 'no shared interest -> not recommended');
 
-  // Case 3: Fewer than 5 candidates and empty viewer world are handled cleanly without percentages
-  const smallRanked = rankNeighborsByGraph(createWorld(), candidates.slice(0, 3), { limit: 8 });
-  assert.equal(smallRanked.length, 3);
-  for (const item of smallRanked) {
-    assert.equal(/%/.test(item.reasonLabel), false, 'labels must be evidence-based, not uncalibrated percentages');
-  }
+  // Case 3: An empty viewer world shares no interests, so nobody is recommended (no quota filling)
+  assert.deepEqual(rankNeighborsByGraph(createWorld(), candidates, { limit: 8 }), []);
+});
+
+test('rankNeighborsByGraph prioritises complementary (mentor-style) skill levels over near-equal levels', () => {
+  const guitarIsland = (id, ownerId, level) => ({
+    id, ownerId, title: `Guitar Lv ${level}`, category: 'guitar', level, stageName: 'City',
+    publicSummary: 'Guitar practice', roadmap: { focus: 'Guitar' }, goals: [],
+  });
+  const profile = (id, islands, interests = []) => ({
+    id, handle: id, displayName: id, interests, followerCount: 0, isFollowing: false, followsViewer: false,
+    publicIslands: islands, publicIslandCount: islands.length,
+  });
+  const candidates = [
+    profile('user-close-37', [guitarIsland('g37', 'user-close-37', 37)]),
+    profile('user-beginner-1', [guitarIsland('g1', 'user-beginner-1', 1)]),
+    profile('user-photographer', [{ ...guitarIsland('p5', 'user-photographer', 5), category: 'photography', title: 'Lens' }]),
+  ];
+
+  // A level 50 guitarist is matched with a level 1 guitarist ahead of a level 37 guitarist
+  const viewerAt50 = { islands: [{ id: 'mine', category: 'guitar', title: 'My Guitar', level: 50 }] };
+  const ranked = rankNeighborsByGraph(viewerAt50, candidates, { limit: 8 });
+  assert.deepEqual(ranked.map(e => e.profile.id), ['user-beginner-1', 'user-close-37']);
+  assert.equal(ranked[0].matchType, 'mentee');
+  assert.match(ranked[0].reasonLabel, /You could mentor · Guitar Lv 1 \(you Lv 50\)/);
+  assert.ok(ranked[0].complementarity > ranked[1].complementarity);
+
+  // And a level 1 beginner gets the level 50 expert as a mentor ahead of a level 2 peer
+  const viewerAt1 = { islands: [{ id: 'mine', category: 'guitar', title: 'My Guitar', level: 1 }] };
+  const beginnerRanked = rankNeighborsByGraph(viewerAt1, [
+    profile('user-peer-2', [guitarIsland('g2', 'user-peer-2', 2)]),
+    profile('user-expert-50', [guitarIsland('g50', 'user-expert-50', 50)]),
+  ]);
+  assert.equal(beginnerRanked[0].profile.id, 'user-expert-50');
+  assert.equal(beginnerRanked[0].matchType, 'mentor');
 });
 
 test('all 8 surrounding neighbour sectors and Home Waters are collision-free on the shared ocean canvas', () => {
@@ -494,11 +524,15 @@ test('mountSocialExplore renders graph-ranked neighbour clusters, Following & Fo
   });
   await controller.ready;
 
-  // 1. No top profile-card directory strip; 8 graph-ranked neighbours surround Home Waters
+  // 1. No top profile-card directory strip; only shared-interest neighbours (1-8) surround Home Waters
   assert.equal(container.innerHTML.includes('class="social-directory"'), false);
   assert.match(container.innerHTML, /My Home Guitar Island/);
   assert.match(container.innerHTML, /data-map-mode="neighborhood"/);
-  assert.equal(controller.getState().neighborEntries.length, 8);
+  const initialNeighbours = controller.getState().neighborEntries;
+  assert.ok(initialNeighbours.length >= 1 && initialNeighbours.length <= 8);
+  assert.ok(initialNeighbours.every(e => e.sharedSkills.includes('Guitar')), 'every neighbour shares Guitar');
+  assert.equal(initialNeighbours.some(e => e.profile.id === 'user-sora'), false);
+  assert.equal((container.innerHTML.match(/class="archipelago-cluster neighbor-cluster/g) ?? []).length, initialNeighbours.length);
   assert.equal(controller.getState().logOpen, false);
   assert.equal(controller.getState().activeCluster, 'home');
 
@@ -616,7 +650,10 @@ test('mountSocialExplore escapes untrusted HTML in profile and roadmap strings',
     ],
   });
 
-  const controller = mountSocialExplore(container, { client: maliciousClient });
+  const controller = mountSocialExplore(container, {
+    client: maliciousClient,
+    viewerWorld: { islands: [{ id: 'mine', category: 'guitar', title: 'Mine', xp: 0 }] },
+  });
   await controller.ready;
 
   assert.equal(container.innerHTML.includes('<script>'), false);

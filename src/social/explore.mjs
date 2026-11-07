@@ -178,7 +178,9 @@ function renderNeighborhoodOceanMap({
       <button type="button" data-zoom="reset" aria-label="Overview all archipelagos">All worlds</button>
     </div>
     <div class="map-footer">
-      <span><i></i> ${neighborEntries.length} NEARBY ${neighborEntries.length === 1 ? 'NEIGHBOUR' : 'NEIGHBOURS'} (${totalPublicIslands} ISLANDS)</span>
+      <span><i></i> ${neighborEntries.length > 0
+        ? `${neighborEntries.length} SHARED-INTEREST ${neighborEntries.length === 1 ? 'NEIGHBOUR' : 'NEIGHBOURS'} (${totalPublicIslands} ISLANDS)`
+        : 'NO SHARED-INTEREST NEIGHBOURS YET'}</span>
       <span class="map-pan-hint">Click &amp; drag to nearby island groups</span>
       <button type="button" data-social-action="show-log" aria-controls="social-island-log" aria-expanded="${logOpen}">
         ${activeCluster === 'home' ? 'Connections & matches' : 'Explorer log'}
@@ -631,7 +633,7 @@ export function mountSocialExplore(container, {
       return;
     }
 
-    if (state.mapMode === 'neighborhood' && (state.status === 'empty' || state.neighborEntries.length === 0)) {
+    if (state.mapMode === 'neighborhood' && state.status === 'empty') {
       const emptyReason = state.filter === 'following'
         ? 'You are not following any explorers with public islands yet. Click any nearby island group on the map to follow its creator.'
         : 'No public worlds match this filter yet.';
@@ -666,7 +668,9 @@ export function mountSocialExplore(container, {
     const logDrawerContent = viewingHome ? `
       <p class="eyebrow">HOME ARCHIPELAGO / ${activePersona.isLocalViewer ? 'YOUR NETWORK & ISLANDS' : escapeHtml(activePersona.displayName.toUpperCase()) + '’S NETWORK'}</p>
       <h2>${activePersona.isLocalViewer ? 'Your waters' : escapeHtml(activePersona.displayName) + '’s waters'}</h2>
-      <p>Surrounded by ${state.neighborEntries.length} neighbours chosen by skill-graph similarity (${state.neighborEntries.slice(0, 3).map(e => `${escapeHtml(e.profile.displayName)}: ${escapeHtml(e.reasonLabel)}`).join(' · ')}).</p>
+      ${state.neighborEntries.length > 0
+        ? `<p>Surrounded by ${state.neighborEntries.length} ${state.neighborEntries.length === 1 ? 'explorer who shares' : 'explorers who share'} your interests, ranked to favour mentor-style level gaps (${state.neighborEntries.slice(0, 3).map(e => `${escapeHtml(e.profile.displayName)}: ${escapeHtml(e.reasonLabel)}`).join(' · ')}).</p>`
+        : '<p class="social-no-neighbours">No explorers share your interests yet. Create or adopt an island in My world and matching neighbours will appear around your home waters.</p>'}
       ${renderFollowingFollowersSection({
         network: state.network,
         networkTab: state.networkTab,
@@ -815,10 +819,23 @@ export function mountSocialExplore(container, {
       }
       if (seq !== requestSeq) return;
 
-      if (state.neighborEntries.length === 0) {
+      // Only surface compass recommendations for explorers who share an interest (same set as the map)
+      const neighborIds = new Set(state.neighborEntries.map(e => e.profile.id));
+      state.matches = state.matches.filter(match => neighborIds.has(match.profile.id));
+
+      if (state.profiles.length === 0) {
         state.status = 'empty';
         state.selectedProfileId = null;
         state.selectedIslandId = null;
+      } else if (state.neighborEntries.length === 0) {
+        state.status = 'ready';
+        state.selectedProfileId = null;
+        state.selectedIslandId = null;
+        if (!preserveSelection) {
+          state.activeCluster = 'home';
+          state.logOpen = false;
+          pendingCameraTarget = 'home';
+        }
       } else {
         state.status = 'ready';
         const visibleProfiles = state.neighborEntries.map(e => e.profile);
@@ -1097,7 +1114,7 @@ export function mountSocialExplore(container, {
 
         recomputeNeighborhood();
 
-        if (state.mapMode === 'neighborhood' && state.neighborEntries.length === 0) {
+        if (state.mapMode === 'neighborhood' && state.profiles.length === 0) {
           state.status = 'empty';
         }
 
