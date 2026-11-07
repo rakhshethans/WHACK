@@ -169,7 +169,7 @@ function renderNeighborhoodOceanMap({
       : 'SHARED OCEAN ATLAS';
 
   return `<section class="map-frame archipelago-frame social-ocean-frame" data-map-mode="neighborhood" aria-label="Shared ocean archipelago map">
-    <div class="map-viewport" tabindex="0" role="region" aria-label="Click and drag the ocean map to explore nearby groups of islands">
+    <div class="map-viewport" tabindex="0" role="region" aria-label="Shared ocean. Scroll to zoom. Drag or use the arrow keys to pan.">
       <div class="map-scene social-ocean-scene" style="width:${OCEAN_WIDTH}px;height:${OCEAN_HEIGHT}px;">
         <div class="map-water">${renderOcean(true)}</div>
         <div class="island-water social-cluster-water" style="width:${OCEAN_WIDTH}px;height:${OCEAN_HEIGHT}px;">
@@ -213,7 +213,7 @@ function renderSoloArchipelagoMap({
   const coordLabel = `${escapeHtml(profile.displayName.toUpperCase())} (@${escapeHtml(profile.handle)}) · SOLO ARCHIPELAGO VIEW`;
 
   return `<section class="map-frame archipelago-frame social-ocean-frame" data-map-mode="solo" data-solo-profile-id="${escapeHtml(profile.id)}" aria-label="${escapeHtml(profile.displayName)}’s individual archipelago map">
-    <div class="map-viewport" tabindex="0" role="region" aria-label="${escapeHtml(profile.displayName)}’s archipelago">
+    <div class="map-viewport" tabindex="0" role="region" aria-label="${escapeHtml(profile.displayName)}’s archipelago. Scroll to zoom. Drag or use the arrow keys to pan.">
       <div class="map-scene" style="min-height:${Math.max(540, height + 120)}px">
         <div class="map-water">${renderOcean(safeIslands.length > 0)}</div>
         <div class="island-water" style="width:${soloWidth}px;height:${height}px;margin-inline:auto;">
@@ -566,11 +566,6 @@ export function mountSocialExplore(container, {
     }
 
     disconnectMap = connectMap(viewport, camera);
-    const frame = viewport.closest('.map-frame');
-    const hint = frame?.querySelector('.map-pan-hint');
-    if (hint && !camera.overview) {
-      hint.textContent = 'Click & drag to nearby island groups';
-    }
   }
 
   function renderPersonaSwitcher() {

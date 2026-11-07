@@ -13,6 +13,8 @@ test('map zoom keeps the point under the centre of the viewport and limits magni
   const { zoomAround } = await import('../src/map-camera.mjs');
   assert.deepEqual(zoomAround({ zoom: 1, left: 100, top: 50 }, 1.5, 400, 300),
     { zoom: 1.5, left: 250, top: 150 });
+  assert.deepEqual(zoomAround({ zoom: 1, left: 100, top: 50 }, 1.5, 400, 300, 0.7, { x: 80, y: 20 }),
+    { zoom: 1.5, left: 190, top: 85 });
   assert.equal(zoomAround({ zoom: 1, left: 0, top: 0 }, 5, 400, 300).zoom, 1.8);
   assert.equal(zoomAround({ zoom: 1, left: 0, top: 0 }, 0.1, 400, 300).zoom, 0.7);
 });

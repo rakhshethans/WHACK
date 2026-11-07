@@ -126,7 +126,7 @@ function islandArt(island, level) {
 function archipelagoMap(islands, selection) {
   const populated = islands.length > 0;
   return `<section class="map-frame archipelago-frame" aria-label="Archipelago map">
-    <div class="map-viewport" tabindex="0" role="region" aria-label="Pan the archipelago with arrow keys or drag the map">
+    <div class="map-viewport" tabindex="0" role="region" aria-label="Archipelago. Scroll to zoom. Drag or use the arrow keys to pan.">
     <div class="map-scene">
     <div class="map-water">${renderOcean(true)}</div>
     <div class="island-water">

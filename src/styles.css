@@ -157,8 +157,7 @@ p { color: var(--muted); }
   overflow: auto;
   overscroll-behavior: contain;
   cursor: grab;
-  scrollbar-width: thin;
-  scrollbar-color: #5597cd #12396b;
+  scrollbar-width: none;
   user-select: none;
 }
 .map-viewport.is-overview {
