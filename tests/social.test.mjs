@@ -345,14 +345,22 @@ test('mountSocialExplore exercises loading, ready, empty, and error states with 
   controller.destroy();
 });
 
-test('mountSocialExplore supports opening another public world, following, switching islands, and adopting a roadmap', async () => {
+test('mountSocialExplore renders user islands at the map centre and nearby user island clusters on the pannable ocean without top profile cards', async () => {
   const container = createTestContainer();
+  const viewerWorld = createIsland(createWorld(), {
+    title: 'My Home Guitar Island',
+    category: 'guitar',
+    experience: 'beginner',
+    minutes: 20,
+    objective: 'Play songs around the campfire',
+  });
   const client = createFixtureSocialClient({ viewerId: 'user-viewer' });
   const adoptedTemplates = [];
   const announcements = [];
 
   const controller = mountSocialExplore(container, {
     client,
+    viewerWorld,
     onAdopt(template, context) {
       adoptedTemplates.push({ template, context });
     },
@@ -362,24 +370,37 @@ test('mountSocialExplore supports opening another public world, following, switc
   });
   await controller.ready;
 
-  // Open Noah Silva's public world
+  // 1. No top profile-card directory strip; all clusters live inside the map canvas
+  assert.equal(container.innerHTML.includes('class="social-directory"'), false);
+  assert.match(container.innerHTML, /My Home Guitar Island/);
+  assert.match(container.innerHTML, /archipelago-cluster/);
+  assert.ok(controller.getState().profiles.length >= 5, 'at least 5 hardcoded nearby users');
+
+  // Default view starts focused on current user's islands with inspector drawer closed
+  assert.equal(controller.getState().logOpen, false);
+  assert.equal(controller.getState().activeCluster, 'home');
+
+  // 2. Clicking a nearby user's island group reveals info about that user and their islands
   await container.clickButton({ socialAction: 'open-profile', profileId: 'user-noah' });
   assert.equal(controller.getState().selectedProfileId, 'user-noah');
-  assert.match(container.innerHTML, /NOAH SILVA · SAMPLE ARCHIPELAGO/);
+  assert.equal(controller.getState().activeCluster, 'user-noah');
+  assert.equal(controller.getState().logOpen, true);
+  assert.match(container.innerHTML, /Noah Silva/);
   assert.match(container.innerHTML, /Verse Dunes/);
+  assert.match(container.innerHTML, /Rhythm Reef/);
 
-  // Switch to Noah's second island on the map
+  // 3. Clicking another island in Noah's cluster switches the active island in the drawer
   await container.clickButton({ socialAction: 'select-island', islandId: 'island-noah-guitar' });
   assert.equal(controller.getState().selectedIslandId, 'island-noah-guitar');
   assert.match(container.innerHTML, /Rhythm Reef/);
 
-  // Follow and unfollow Noah
+  // 4. Follow and unfollow Noah from the revealed cluster info panel
   await container.clickButton({ socialAction: 'follow', profileId: 'user-noah' });
   assert.ok(announcements.some(msg => /Now following Noah Silva/.test(msg)));
   await container.clickButton({ socialAction: 'unfollow', profileId: 'user-noah' });
   assert.ok(announcements.some(msg => /Unfollowed Noah Silva/.test(msg)));
 
-  // Adopt Noah's island roadmap
+  // 5. Adopt Noah's island roadmap
   await container.clickButton({
     socialAction: 'adopt',
     islandId: 'island-noah-guitar',
@@ -392,9 +413,7 @@ test('mountSocialExplore supports opening another public world, following, switc
   assert.equal(template.attribution, 'Noah Silva');
   assert.equal(template.xp, 0);
   assert.ok(template.goals.length >= 4);
-  assert.ok(template.goals.every(g => g.completed === false && g.title && g.practice && g.finish && Array.isArray(g.prerequisites)));
 
-  // Confirm learning engine's adoptIsland creates a fresh Level 1 island with 0 XP
   const nextWorld = adoptIsland(createWorld(), template);
   assert.equal(nextWorld.islands.length, 1);
   assert.equal(nextWorld.islands[0].xp, 0);

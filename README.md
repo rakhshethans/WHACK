@@ -31,10 +31,11 @@ Start both workstreams from `worldhopper/first-island`, the branch behind the sh
 
 ## Social Module Status & Codex Sync (`worldhopper/social`)
 
-1. **Aligned with Light Atlas UI & Pannable Map (`ce0265c`)**:
-   - Merged `origin/worldhopper/learning` (`ce0265c`) into `worldhopper/social`.
-   - Updated `src/social/explore.mjs` and `src/social/social.css` to use the Light Atlas palette (`--paper`, `--surface`, `--ink`, `--muted`, `--line`, `--sea`, `--signal`, `--focus`), the pannable/zoomable `.map-viewport` (`layoutIslands` from `src/map-layout.mjs` + `connectMap` from `src/map-camera.mjs`), and the floating `.field-notes.map-log` slide-over drawer (`id="social-island-log"`).
-   - Wired the **Explore** tab on the main page (`index.html` and `src/app.mjs`) to mount `mountSocialExplore` directly inside `#explore-mount`.
+1. **Spatial Ocean Cluster Map (`src/social/explore.mjs`, `src/social/social.css`, `src/social/fixtures.mjs`)**:
+   - **No top profile cards**: Instead of a directory of profile cards, the Explore tab renders a `2400px × 1680px` shared ocean canvas (`.social-ocean-scene`) powered by `connectMap` (`src/map-camera.mjs`).
+   - **Default View — Current User's Archipelago**: The map starts centered on the current user's own islands (`data-cluster-id="home"`) with `logOpen: false` so only the user's islands and surrounding directional wayfinders are visible initially.
+   - **Click & Drag to Nearby Users' Island Groups**: Five hardcoded sample users with nearby island clusters (`Maya Chen` in NW, `Noah Silva` in NE, `Ari Patel` in SE, `Sora Takahashi` in SW, `Elena Rostova` in E) are placed in surrounding ocean sectors (`.archipelago-cluster.neighbor-cluster`).
+   - **Click to Inspect User & Islands**: Clicking any nearby user's island group banner (`data-social-action="open-profile"`) or individual island (`data-social-action="select-island"`) opens the floating `.field-notes.map-log` drawer (`#social-island-log`) with the user's profile, follow toggle, island switcher tabs, starter roadmap, and one-click **Adopt roadmap ↗** action.
 2. **Social Contracts (`src/social/contracts.mjs`)**:
    - `toPublicProfile`, `toPublicIsland` (strict opt-in per island via `isPublic === true`), `toAdoptableRoadmap`, and `validateAdoptableRoadmap`.
    - Strips email, private objectives, per-goal completion progress, continuation goals, and raw browser storage from all public reads.

@@ -1,4 +1,4 @@
-/* WorldHopper Social Explore Styles — Light Atlas Aesthetic */
+/* WorldHopper Social Explore Styles — Shared Ocean Cluster Atlas */
 
 .explore-mount,
 .social-explore {
@@ -44,76 +44,153 @@
   box-shadow: 0 2px 0 var(--ink);
 }
 
-.social-directory {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
-  flex-shrink: 0;
+/* Shared Ocean Scene & Archipelago Clusters */
+.social-ocean-scene {
+  width: 2400px;
+  height: 1680px;
 }
 
-.social-profile-pill {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 11px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: 0 2px 5px #10252609;
+.social-cluster-water {
+  margin-block: 0;
+  width: 2400px;
+  height: 1680px;
 }
 
-.social-profile-pill.is-active {
-  border-color: var(--focus);
-  background: #edf4e9;
-  box-shadow: 0 0 0 1px var(--focus);
+.archipelago-cluster {
+  position: absolute;
+  padding: 14px 16px 18px;
+  border: 1.5px dashed #a7d1d559;
+  border-radius: 28px;
+  background: radial-gradient(ellipse at center, #1d5d9f48 0%, #11386b24 58%, transparent 82%);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
-.social-profile-select {
-  display: grid;
-  gap: 2px;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  color: var(--ink);
-  padding: 0;
-  min-width: 0;
+.archipelago-cluster:hover {
+  border-color: #c8ecf0aa;
 }
 
-.social-profile-name {
+.archipelago-cluster.home-cluster {
+  border-style: solid;
+  border-color: #d9f18b88;
+  background: radial-gradient(ellipse at center, #2570b855 0%, #15447c2b 62%, transparent 85%);
+}
+
+.archipelago-cluster.is-active-cluster {
+  border-style: solid;
+  border-color: var(--signal);
+  box-shadow: 0 0 0 2px #d9f18b45, 0 18px 44px #06172966;
+  background: radial-gradient(ellipse at center, #297fd160 0%, #16488233 65%, transparent 86%);
+}
+
+.cluster-banner {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  width: 100%;
+  padding: 8px 13px;
+  border: 1px solid #a7d1d578;
+  border-radius: 14px;
+  background: #0c2638f2;
+  color: var(--chart);
+  box-shadow: 0 4px 12px #081c2c5c;
+  text-align: left;
+}
+
+.cluster-banner:hover {
+  border-color: var(--signal);
+  background: #113248f7;
+}
+
+.cluster-banner[aria-pressed="true"] {
+  border-color: var(--signal);
+  box-shadow: 0 0 0 1px var(--signal), 0 4px 14px #081c2c70;
+}
+
+.cluster-banner-title {
+  display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  line-height: 1.2;
-}
-
-.social-profile-name strong {
   font-size: 14px;
+  font-weight: 680;
+  color: var(--chart);
 }
 
-.social-profile-name small,
-.social-profile-meta {
-  color: var(--muted);
-  font-size: 11px;
+.cluster-banner-title span {
+  color: var(--signal);
 }
 
-.social-follow-btn {
-  margin-top: 0;
-  min-height: 34px;
-  padding: 5px 10px;
+.cluster-banner-title small {
+  color: var(--mist);
   font-size: 12px;
+  font-weight: 460;
+}
+
+.cluster-banner-meta {
+  font: 600 11px/1.3 var(--mono);
+  letter-spacing: .04em;
+  color: var(--mist);
+}
+
+.cluster-islands {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: end;
+  justify-items: center;
+  margin-top: 12px;
+}
+
+.cluster-islands.single-cluster-island {
+  grid-template-columns: minmax(220px, 320px);
+  justify-content: center;
+}
+
+.map-island.cluster-island-btn {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+}
+
+/* Directional Wayfinder Beacons around Home Waters */
+.ocean-wayfinder {
+  position: absolute;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 11px;
+  border: 1px solid #a7d1d56b;
+  border-radius: 999px;
+  background: #0c2638e6;
+  color: var(--chart);
+  font-size: 12px;
+  box-shadow: 0 4px 12px #07192859;
   white-space: nowrap;
 }
 
+.ocean-wayfinder span {
+  color: var(--signal);
+  font: 700 11px/1 var(--mono);
+}
+
+.ocean-wayfinder:hover,
+.ocean-wayfinder.is-active {
+  border-color: var(--signal);
+  background: #143852f5;
+}
+
+/* Explorer & Island Drawer Controls */
 .social-profile-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin: 8px 0;
+  margin: 8px 0 12px;
 }
 
 .social-profile-actions .small-action {
@@ -134,10 +211,39 @@
   white-space: nowrap;
 }
 
+.social-cluster-island-tabs {
+  margin: 12px 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.social-cluster-island-tabs .eyebrow {
+  margin-bottom: 6px;
+}
+
+.social-cluster-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.social-selected-island-card {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.social-selected-island-card h3 {
+  margin: 4px 0 6px;
+  font-size: 18px;
+}
+
 .social-island-summary {
   color: var(--ink);
-  margin: 8px 0;
-  font-size: 14px;
+  margin: 6px 0;
+  font-size: 13px;
 }
 
 .social-adopt-btn {
@@ -291,16 +397,6 @@
 }
 
 @media (max-width: 640px) {
-  .social-directory {
-    display: flex;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    scrollbar-width: thin;
-  }
-  .social-profile-pill {
-    min-width: 225px;
-    padding: 6px 9px;
-  }
   .social-filter-chip {
     min-height: 32px;
     padding: 4px 9px;
