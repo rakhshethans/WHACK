@@ -170,6 +170,23 @@ test('custom islands keep their own skill, outcome and appearance', () => {
   assert.equal(createIsland(createWorld(), { ...input, topic: '   ' }).islands.length, 0);
 });
 
+test('island scenery varies deterministically while retaining each skill landmark', () => {
+  const base = { category: 'custom', theme: 'compass', topic: 'Urban gardening', objective: 'Grow tomatoes', xp: 0 };
+  const variants = ['river-delta', 'pine-cove', 'sunstone-bay', 'twin-lagoon'].map(id =>
+    renderIsland({ ...base, id }, 1),
+  );
+  assert.equal(new Set(variants).size, variants.length, 'different island identities get distinct scenery');
+  assert.equal(renderIsland({ ...base, id: 'river-delta' }, 1), variants[0], 'the scenery is stable after reload');
+  assert.match(variants[0], /data-biome="[a-z-]+"/);
+  assert.match(variants[0], /data-coast="\d+"/);
+
+  const [photo] = createIsland(createWorld(), { ...guitar, category: 'photography', id: 'photo-test' }).islands;
+  const photoArt = renderIsland(photo, 2);
+  assert.match(photoArt, /photography-terrain/);
+  assert.match(photoArt, /biome-shoreline/);
+  assert.notEqual(photoArt, renderIsland(photo, 1), 'island development continues to update the art');
+});
+
 test('the local planner accepts structured goals and falls back on unavailable or duplicate output', async () => {
   const input = { topic: 'Pottery', objective: 'Make a cup', experience: 'beginner', minutes: 10 };
   let created = 0;

@@ -143,6 +143,61 @@ const CUSTOM_ICONS = {
   compass: '<circle r="25"/><path d="m11-17-4 21-18 13 4-21Z" fill="#e5aa69" stroke="#1d5558"/><circle r="3" fill="#244e52"/>',
 };
 
+const COASTLINES = [
+  'M248 339 268 300 309 279 336 251 385 246 421 259 456 236 504 246 534 233 568 255 615 251 638 277 690 285 727 318 713 348 733 376 703 402 673 407 649 435 604 431 575 452 530 439 492 451 451 432 407 441 379 421 337 426 310 397 276 385Z',
+  'M256 342 268 314 302 302 318 270 351 246 389 250 419 235 458 251 485 233 520 253 566 246 597 262 642 265 664 293 703 300 727 329 715 352 727 371 701 399 667 408 641 433 606 428 576 449 536 435 503 451 467 431 426 442 394 423 360 430 334 410 300 406 279 382Z',
+  'M247 343 262 310 298 294 319 268 361 251 397 258 433 236 468 249 505 237 536 256 573 245 601 269 642 259 670 285 706 292 731 326 713 353 731 379 701 401 669 411 646 437 606 427 574 451 536 435 498 453 462 429 426 441 389 418 355 426 328 405 296 408 277 381Z',
+  'M252 345 265 313 294 285 333 272 355 245 395 256 430 237 465 253 502 239 530 258 572 248 609 267 646 265 668 291 707 299 728 328 714 352 729 376 704 401 671 408 650 434 612 430 578 450 538 437 500 450 464 431 424 442 389 421 350 429 324 406 293 402 272 380Z',
+  'M246 340 264 304 296 292 316 266 352 252 389 258 422 237 461 251 495 235 531 254 570 246 607 263 643 261 670 289 706 296 730 329 714 353 732 381 700 401 670 413 644 437 605 428 574 452 535 436 497 451 461 430 420 441 385 419 348 428 321 405 291 399 273 378Z',
+  'M251 344 268 308 302 288 328 260 365 250 399 257 432 237 468 252 507 237 538 257 576 247 611 267 649 262 671 291 706 301 730 331 715 354 729 380 699 403 669 410 647 435 608 430 577 450 539 436 502 451 465 431 427 440 390 420 355 428 325 406 294 404 275 381Z',
+  'M247 342 264 305 297 288 321 261 358 250 393 259 427 238 464 252 502 236 535 257 575 245 610 265 649 263 673 291 708 300 730 330 715 355 731 379 701 402 670 411 647 438 607 429 575 452 538 436 500 451 463 430 424 442 389 420 353 429 323 405 293 403 274 379Z',
+  'M250 343 264 309 299 291 322 264 359 251 394 258 427 238 466 252 503 237 536 256 575 247 611 265 649 263 672 292 707 300 730 330 714 352 729 379 700 402 670 410 646 436 606 429 575 451 536 436 500 450 463 430 423 441 388 420 353 428 323 405 294 403 274 381Z',
+];
+
+const BIOMES = [
+  { name: 'reef-cove', shore: '#f4d8a0', rock: '#5d8b82', detail: '#b7e5c8', accent: '#62c3bb' },
+  { name: 'pine-highlands', shore: '#ddc99e', rock: '#596a50', detail: '#abc48a', accent: '#809e72' },
+  { name: 'sunstone-bay', shore: '#f4d094', rock: '#94705a', detail: '#eedca4', accent: '#d89162' },
+  { name: 'misty-marsh', shore: '#c7d2a3', rock: '#506e64', detail: '#b6d0ac', accent: '#79b8a6' },
+  { name: 'glacier-coast', shore: '#e0e7dc', rock: '#5e7885', detail: '#d1e9ec', accent: '#9fcdd2' },
+  { name: 'volcanic-cliffs', shore: '#d6a785', rock: '#584f55', detail: '#d59b78', accent: '#e5815b' },
+  { name: 'wildflower-isle', shore: '#f0d8aa', rock: '#777b57', detail: '#d2d69a', accent: '#d88ba4' },
+  { name: 'amber-dunes', shore: '#f0c886', rock: '#8d694a', detail: '#f4dfa8', accent: '#e6aa67' },
+];
+
+function stableHash(value) {
+  let hash = 2166136261;
+  for (const character of value) hash = Math.imul(hash ^ character.codePointAt(0), 16777619);
+  return hash >>> 0;
+}
+
+function islandScenery(island) {
+  const seed = stableHash(`${island.id || ''}|${island.category || ''}|${island.topic || island.title || ''}`);
+  const coastIndex = seed % COASTLINES.length;
+  const biomeIndex = (seed >>> 8) % BIOMES.length;
+  const biome = BIOMES[biomeIndex];
+  const coast = COASTLINES[coastIndex];
+  const reef = seed & 1
+    ? '<path d="m280 387 18-9 14 5-9 7-17 3Zm370-105 12-7 11 5-9 7Z" fill="currentColor" opacity=".65"/>'
+    : '<path d="M270 374q18-10 33-4m362 41q15-12 29-10M318 265q11-9 21-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".68"/>';
+  const biomeMark = [
+    '<path d="M290 356q9-20 19-27m345 25q9-20 19-27" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="311" cy="324" r="3" fill="currentColor"/><circle cx="675" cy="323" r="3" fill="currentColor"/>',
+    '<path d="m296 355 8-19 8 19m337 8 8-19 8 19m-326-88 8-19 8 19" fill="currentColor" stroke="currentColor" stroke-linejoin="round" stroke-width="2"/>',
+    '<path d="M286 374q18-9 36-3m318 30q19-10 37-6M316 276q16-9 29-4" fill="none" stroke="currentColor" stroke-width="2" opacity=".9"/>',
+    '<path d="m290 368 4-16m11 13 1-19m329 32 4-17m12 15 1-20" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>',
+    '<path d="m289 363 11-14 11 14m330 6 11-14 11 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>',
+    '<path d="M287 369q16-10 34-5m316 33q17-12 35-9" fill="none" stroke="currentColor" stroke-width="4" opacity=".8"/>',
+    '<g fill="currentColor"><circle cx="302" cy="354" r="3"/><circle cx="311" cy="361" r="2"/><circle cx="650" cy="387" r="3"/><circle cx="662" cy="378" r="2.5"/></g>',
+    '<path d="M285 377q20-12 40-9m318 33q20-14 40-12m-361-121q13-7 26-4" fill="none" stroke="currentColor" stroke-width="2" opacity=".9"/>',
+  ][biomeIndex];
+  return `<g class="biome-shoreline" data-biome="${biome.name}" data-coast="${coastIndex}" aria-hidden="true">
+    <path d="${coast}" transform="translate(0 9)" fill="#082e3a" opacity=".48"/>
+    <path d="${coast}" fill="${biome.shore}" stroke="${biome.detail}" stroke-width="3"/>
+    <path d="${coast}" transform="translate(0 5)" fill="none" stroke="${biome.rock}" stroke-width="8" opacity=".52"/>
+    <g color="${biome.accent}">${reef}${biomeMark}</g>
+  </g>`;
+}
+
 function customTerrain(island, stage) {
   let seed = 2166136261;
   for (const character of (island.topic + ' ' + island.objective).toLowerCase()) {
@@ -180,7 +235,10 @@ function islandTerrain(island, stage) {
 }
 
 export function renderIsland(island, stage) {
-  return `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false">${islandTerrain(island, stage)}</svg>`;
+  const seed = stableHash(`${island.id || ''}|${island.category || ''}|${island.topic || island.title || ''}`);
+  const biome = BIOMES[(seed >>> 8) % BIOMES.length];
+  const coast = seed % COASTLINES.length;
+  return `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false"><g class="island-biome" data-biome="${biome.name}" data-coast="${coast}">${islandScenery(island)}${islandTerrain(island, stage)}</g></svg>`;
 }
 
 const waves = [[114,167],[198,293],[282,203],[359,121],[537,161],[671,224],[813,173],[771,302],[124,424],[227,465],[330,510],[596,484],[720,438],[836,401],[785,511],[413,466],[195,208],[755,115]];
