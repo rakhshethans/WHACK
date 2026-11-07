@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { adoptIsland, completeGoal, createIsland, createWorld, getActiveGoal, getStage } from '../src/world.mjs';
+import { adoptIsland, completeGoal, createIsland, createWorld, getActiveGoal, getStage, setDifficulty } from '../src/world.mjs';
 import { generateCustomRoadmap } from '../src/local-planner.mjs';
 import { renderIsland } from '../src/scene.mjs';
+import { relatedSkill } from '../src/skill-connections.mjs';
 
 const guitar = { title: 'Learn guitar', category: 'guitar', experience: 'intermediate', minutes: 8, objective: 'play at an open mic' };
 
@@ -202,4 +203,59 @@ test('the local planner accepts structured goals and falls back on unavailable o
   goals[1].title = goals[0].title;
   assert.equal(await generateCustomRoadmap(input, { model }), null);
   assert.equal(destroyed, 2);
+});
+
+test('difficulty feedback adds tailored practice without awarding XP or changing the milestone', () => {
+  const world = createIsland(createWorld(), { ...guitar, experience: 'beginner' });
+  const [original] = world.islands;
+  const first = getActiveGoal(original);
+  const supported = setDifficulty(world, original.id, first.id, 'support');
+  const [island] = supported.islands;
+  const adjusted = getActiveGoal(island);
+  assert.match(adjusted.practiceAdjustment, /G to C/);
+  assert.equal(adjusted.finish, first.finish);
+  assert.equal(adjusted.xp, first.xp);
+  assert.equal(island.xp, 0);
+  assert.equal(setDifficulty(supported, island.id, 'goal-2', 'stretch'), supported);
+  assert.equal(setDifficulty(supported, island.id, first.id, 'invalid'), supported);
+
+  const completed = completeGoal(supported, island.id, first.id);
+  const [progressed] = completed.islands;
+  assert.equal(progressed.xp, 40);
+  assert.equal(progressed.goals[0].practiceAdjustment, undefined);
+  assert.notEqual(getActiveGoal(progressed).practiceAdjustment, adjusted.practiceAdjustment);
+  assert.ok(getActiveGoal(JSON.parse(JSON.stringify(progressed))).practiceAdjustment);
+  const next = getActiveGoal(progressed);
+  const stretched = setDifficulty(completed, island.id, next.id, 'stretch');
+  assert.match(getActiveGoal(stretched.islands[0]).practiceAdjustment, /dynamics/);
+  const standard = setDifficulty(stretched, island.id, next.id, 'standard');
+  assert.equal(getActiveGoal(standard.islands[0]).practiceAdjustment, undefined);
+  assert.equal(adoptIsland(createWorld(), progressed).islands[0].difficulty, undefined);
+});
+
+test('a related skill becomes available at 100 XP and points to an existing island when possible', () => {
+  let world = createIsland(createWorld(), { ...guitar, title: 'Guitar Island' });
+  const [guitarIsland] = world.islands;
+  assert.equal(relatedSkill(guitarIsland, world.islands), null);
+  world = guitarIsland.goals.slice(0, 2).reduce((current, goal) => completeGoal(current, guitarIsland.id, goal.id), world);
+  const [progressed] = world.islands;
+  const suggested = relatedSkill(progressed, world.islands);
+  assert.equal(suggested.category, 'songwriting');
+  assert.match(suggested.reason, /chord changes/);
+  assert.equal(suggested.islandId, undefined);
+  world = createIsland(world, { ...guitar, ...suggested, title: 'Songwriting Island' });
+  assert.equal(relatedSkill(progressed, world.islands).islandId, world.islands[1].id);
+});
+
+test('related custom skills start with relevant practice goals', () => {
+  for (const [source, title, first] of [
+    [{ category: 'custom', theme: 'people' }, 'Public speaking', 'Choose one point to share'],
+    [{ category: 'custom', theme: 'language' }, 'Meeting new people', 'Find a low-pressure place to meet people'],
+    [{ category: 'photography' }, 'Visual storytelling', 'Define the story in one sentence'],
+  ]) {
+    const suggestion = relatedSkill({ ...source, id: 'island-1', xp: 100 }, []);
+    assert.equal(suggestion.name, title);
+    const [island] = createIsland(createWorld(), { ...guitar, ...suggestion, title }).islands;
+    assert.equal(getActiveGoal(island).title, first);
+  }
 });

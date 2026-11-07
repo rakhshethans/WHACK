@@ -1,7 +1,9 @@
-import { createWorld, createIsland, completeGoal, getActiveGoal, getStage, adoptIsland } from './world.mjs';
+import { createWorld, createIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty } from './world.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
 import { generateCustomRoadmap } from './local-planner.mjs';
+import { DIFFICULTIES } from './difficulty.mjs';
+import { relatedSkill } from './skill-connections.mjs';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#onboarding');
@@ -112,15 +114,34 @@ function roadmapSummary(island) {
   </details>`;
 }
 
-function goalMarkup(goal, number) {
+function goalMarkup(goal, number, difficulty) {
   if (!goal) return '<p>Complete the prerequisite for the next practice goal.</p>';
   return `<section class="active-goal" aria-labelledby="active-goal-title">
     <div class="goal-card-top"><p class="eyebrow">CURRENT GOAL / ${number}</p><span class="goal-reward">+${escapeHtml(goal.xp)} XP</span></div>
     <h3 id="active-goal-title">${escapeHtml(goal.title)}</h3>
     <p>${escapeHtml(goal.description)}</p>
+    ${goal.practiceAdjustment ? `<p class="practice-adjustment"><strong>${difficulty === 'support' ? 'Start here' : 'Stretch practice'}</strong> ${escapeHtml(goal.practiceAdjustment)}</p>` : ''}
     ${goal.finish ? `<p class="goal-finish"><strong>Done when</strong> ${escapeHtml(goal.finish)}</p>` : ''}
     <p class="goal-meta">${escapeHtml(goal.minutes)} MIN${goal.finish ? ' / SESSION' : ''}</p>
     <button class="primary" data-action="complete" data-id="${escapeHtml(goal.id)}">Complete goal <span aria-hidden="true">✓</span></button>
+    <div class="goal-feedback" role="group" aria-label="Practice difficulty">
+      <p class="caption">Adjust your practice</p>
+      <div class="difficulty-options">${DIFFICULTIES.map(option => `<button type="button" data-action="difficulty" data-id="${escapeHtml(goal.id)}"
+        data-rating="${option.value}" aria-pressed="${option.value === difficulty}">${option.label}</button>`).join('')}</div>
+    </div>
+  </section>`;
+}
+
+function connectionMarkup(island) {
+  const recommendation = relatedSkill(island, world.islands);
+  if (!recommendation) return '';
+  const { name, reason, islandId } = recommendation;
+  return `<section class="skill-connection" aria-labelledby="connection-title">
+    <p class="eyebrow">RELATED SKILL</p>
+    <h3 id="connection-title">${escapeHtml(name)}</h3>
+    <p>${escapeHtml(reason)}</p>
+    <button type="button" class="small-action" data-action="${islandId ? 'select' : 'start-connection'}"
+      data-id="${escapeHtml(islandId)}">${islandId ? 'Open island' : 'Start ' + escapeHtml(name)} ↗</button>
   </section>`;
 }
 
@@ -141,8 +162,9 @@ function currentWorld() {
           <h2>${escapeHtml(island.title)}</h2>${island.attribution ? `<p class="caption">Roadmap by ${escapeHtml(island.attribution)}</p>` : ''}<p class="stage-name">${escapeHtml(stage.name)} · ${island.xp} XP</p>
           <progress value="${levelXp}" max="${levelTarget}" aria-label="XP toward Level ${stage.level + 1}"></progress>
           <p class="caption">${levelXp} / ${levelTarget} XP toward Level ${stage.level + 1}</p>
-          ${goalMarkup(activeGoal, goalsCompleted + 1)}
-          ${roadmapSummary(island)}` :
+          ${goalMarkup(activeGoal, goalsCompleted + 1, island.difficulty ?? 'standard')}
+          ${roadmapSummary(island)}
+          ${connectionMarkup(island)}` :
           `<p class="eyebrow">ISLAND LOG / 00</p><h2>Open waters</h2>
           <p>Choose a skill, an objective and how much practice time you have.</p>
           <button class="small-action" data-action="new">Chart your first island ↗</button>`}
@@ -179,10 +201,31 @@ document.querySelector('#close-dialog').addEventListener('click', () => dialog.c
 app.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
-  const { action, id } = button.dataset;
+  const { action, id, rating } = button.dataset;
   if (action === 'new') {
     updateSkillHints();
     dialog.showModal();
+    return;
+  }
+  if (action === 'start-connection') {
+    const island = world.islands.find(item => item.id === selectedId);
+    const recommendation = island && relatedSkill(island, world.islands);
+    if (!recommendation) return;
+    form.reset();
+    skillField.value = recommendation.category;
+    updateSkillHints();
+    topicField.value = recommendation.topic ?? '';
+    objectiveField.value = recommendation.objective;
+    dialog.showModal();
+    return;
+  }
+  if (action === 'difficulty') {
+    const updated = setDifficulty(world, selectedId, id, rating);
+    if (updated === world) return;
+    persist(updated);
+    render();
+    app.querySelector('[data-action="difficulty"][aria-pressed="true"]')?.focus({ preventScroll: true });
+    announce('Practice difficulty updated for this island.');
     return;
   }
   if (action === 'select') selectedId = id;

@@ -1,5 +1,6 @@
 import { buildRoadmap, nextPractice, SKILLS } from './roadmaps.mjs';
 import { buildCustomRoadmap, nextCustomPractice } from './custom-roadmap.mjs';
+import { coachGoal, DIFFICULTIES } from './difficulty.mjs';
 
 const STAGES = [
   [0, 'Settlement'], [100, 'Village'], [250, 'Town'],
@@ -62,7 +63,7 @@ export function createIsland(world, { title, experience, minutes, objective, cat
   });
 }
 
-export function getActiveGoal(island) {
+function availableGoal(island) {
   const completedIds = new Set(island.goals.filter(goal => goal.completed).map(goal => goal.id));
   const next = island.goals.find(goal => !goal.completed && goal.prerequisites.every(id => completedIds.has(id)));
   if (next || completedIds.size < island.goals.length) return next;
@@ -79,9 +80,20 @@ export function getActiveGoal(island) {
   };
 }
 
+export function getActiveGoal(island) {
+  return coachGoal(availableGoal(island), island);
+}
+
+export function setDifficulty(world, islandId, goalId, rating) {
+  if (!DIFFICULTIES.some(option => option.value === rating)) return world;
+  const island = world.islands.find(({ id }) => id === islandId);
+  if (!island || availableGoal(island)?.id !== goalId || (island.difficulty ?? 'standard') === rating) return world;
+  return { ...world, islands: world.islands.map(item => item.id === islandId ? { ...item, difficulty: rating } : item) };
+}
+
 export function completeGoal(world, islandId, goalId) {
   const island = world.islands.find(({ id }) => id === islandId);
-  const goal = island && getActiveGoal(island);
+  const goal = island && availableGoal(island);
   if (!goal || goal.id !== goalId) return world;
 
   const completed = { ...goal, completed: true };

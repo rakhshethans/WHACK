@@ -143,3 +143,15 @@ form label:has(small) input { display: block; margin-top: 4px; }
 .roadmap-summary[open] summary { margin-bottom: 9px; }
 
 form .primary:disabled { cursor: wait; opacity: .75; }
+
+.active-goal .practice-adjustment { padding: 8px; border-left: 2px solid var(--accent); background: #243d3e; }
+.practice-adjustment strong { display: block; color: var(--text); }
+.goal-feedback { margin-top: 12px; }
+.goal-feedback .caption { font-size: 12px; }
+.difficulty-options { display: flex; flex-wrap: wrap; gap: 5px; }
+.difficulty-options button { border: 1px solid #557173; border-radius: 4px; background: transparent; color: var(--muted); padding: 6px 8px; min-height: 36px; font-size: 12px; }
+.difficulty-options button:hover, .difficulty-options button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.skill-connection { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
+.skill-connection .eyebrow { margin-bottom: 4px; }
+.skill-connection h3 { margin: 0; font-size: 15px; }
+.skill-connection p:not(.eyebrow) { margin: 4px 0; font-size: 13px; }

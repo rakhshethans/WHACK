@@ -44,6 +44,36 @@ const PROFILES = [
     ],
     practice: ['Handle a new conversation scenario', 'Choose a different scenario relevant to your objective and rehearse a likely misunderstanding and recovery.', 'Complete a short exchange using at least one phrase you had not used before.'],
   },
+  {
+    theme: 'speaking', matches: /\b(public speaking|give a (short )?(talk|speech|presentation)|present to a group)\b/i,
+    checkpoint: 'Deliver a clear two-minute talk with one main point to a listener or in a recording.',
+    steps: [
+      ['Choose one point to share', 'Pick a topic you know and write one sentence you want the listener to remember.', 'Say your main point aloud in one sentence.'],
+      ['Outline a short talk', 'Write an opening, a concrete example and a closing line that returns to your point.', 'Describe the talk using those three prompts without reading a script.'],
+      ['Record a one-minute version', 'Talk through your prompts into a recorder. Listen for the clearest sentence and the fastest section.', 'Keep one complete take and mark a place where a pause would help.'],
+      ['Practise a deliberate pause', 'Repeat your talk and pause immediately before your main point.', 'Record a take where the pause makes the point easier to hear.'],
+      ['Improve your example', 'Replace a vague part of the talk with a concrete detail or short story.', 'Say the revised section aloud and explain what the detail clarifies.'],
+      ['Give a short talk to a listener', 'Ask a willing listener to hear the talk, or make a complete recording for review.', 'Deliver a complete take and check which point the listener or recording makes clearest.'],
+      ['Answer one likely question', 'Write one question a listener might ask. Practise answering it in two or three sentences.', 'Give the answer clearly without repeating the entire talk.'],
+      ['Deliver the revised talk', 'Use the feedback to improve one part and deliver the full talk again.', 'Compare the two versions and identify a concrete improvement.'],
+    ],
+    practice: ['Talk to a different audience', 'Choose a listener who knows less or more about the topic and adapt your example for them.', 'Deliver a short talk that keeps the same main point with a different explanation.'],
+  },
+  {
+    theme: 'visual', matches: /\b(visual storytelling|photo story|photo essay|sequence of photographs)\b/i,
+    checkpoint: 'Build a five-image story whose opening, development and ending are easy to follow.',
+    steps: [
+      ['Define the story in one sentence', 'Choose a small scene, change or action and write what you want a viewer to notice.', 'Save one sentence that describes a visible change or event.'],
+      ['Plan five roles for the images', 'Sketch a list with an opening, two developments, a turning point and a closing image.', 'Explain the job of each planned frame in a few words.'],
+      ['Make an establishing image', 'Choose a frame that shows the setting or subject clearly without showing every detail.', 'Select one image that gives a viewer enough context to begin.'],
+      ['Capture a useful detail', 'Make a close frame that gives the viewer information missing from the opening.', 'Explain what the detail adds in one sentence.'],
+      ['Find the turning-point image', 'Look for the moment where the scene, action or viewer’s understanding changes.', 'Choose one frame that marks the change clearly.'],
+      ['Arrange the five images', 'Put your images in order and try swapping two adjacent frames.', 'Choose the sequence where each image helps explain the next one.'],
+      ['Test the sequence with a viewer', 'Show the images without a caption first. Ask what the viewer thinks happened.', 'Write down one point where their reading differed from yours.'],
+      ['Revise the story', 'Replace, reorder or reshoot one frame to address that gap.', 'Show the five-image sequence and explain what is clearer after the revision.'],
+    ],
+    practice: ['Make another five-image story', 'Pick a subject that changes over time or moves through a place. Sketch the five image roles before shooting.', 'Produce a sequence with a recognisable beginning, change and ending.'],
+  },
 ];
 
 function generalProfile(topic, objective, experience) {
