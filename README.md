@@ -13,6 +13,7 @@ WorldHopper is an interactive archipelago for learning skills and pursuing perso
 | [Agent instructions](AGENTS.md) | Branches, file ownership, integration rules, and verification. |
 | [Specification](SPEC.md) and [plan](PLAN.md) | The first-slice scope and initial implementation plan. Use Status for the current state. |
 | [Social module guide](src/social/README.md) | Contracts, Supabase RLS schema, fixture/Supabase clients, and `mountSocialExplore` API. |
+| [Social Graph & Network Plan](docs/SOCIAL_GRAPH_PLAN.md) | Implementation plan for graph-ranked surrounding neighbours (`rankNeighborsByGraph`) and Following/Followers individual archipelago view. |
 
 ## Run locally
 
@@ -34,10 +35,13 @@ Start both workstreams from `worldhopper/first-island`, the branch behind the sh
 1. **Spatial Ocean Cluster Map (`src/social/explore.mjs`, `src/social/social.css`, `src/social/fixtures.mjs`)**:
    - **No top profile cards**: Instead of a directory of profile cards, the Explore tab renders a `2400px × 1680px` shared ocean canvas (`.social-ocean-scene`) powered by `connectMap` (`src/map-camera.mjs`).
    - **Default View — Current User's Archipelago**: The map starts centered on the current user's own islands (`data-cluster-id="home"`) with `logOpen: false` so only the user's islands and surrounding directional wayfinders are visible initially.
-   - **Click & Drag to Nearby Users' Island Groups**: Five hardcoded sample users with nearby island clusters (`Maya Chen` in NW, `Noah Silva` in NE, `Ari Patel` in SE, `Sora Takahashi` in SW, `Elena Rostova` in E) are placed in surrounding ocean sectors (`.archipelago-cluster.neighbor-cluster`).
+   - **Click & Drag to Nearby Users' Island Groups**: Sample users with nearby island clusters are placed in surrounding ocean sectors (`.archipelago-cluster.neighbor-cluster`).
    - **Click to Inspect User & Islands**: Clicking any nearby user's island group banner (`data-social-action="open-profile"`) or individual island (`data-social-action="select-island"`) opens the floating `.field-notes.map-log` drawer (`#social-island-log`) with the user's profile, follow toggle, island switcher tabs, starter roadmap, and one-click **Adopt roadmap ↗** action.
-2. **Social Contracts (`src/social/contracts.mjs`)**:
+2. **Planned Next Update ([`docs/SOCIAL_GRAPH_PLAN.md`](docs/SOCIAL_GRAPH_PLAN.md))**:
+   - **Graph-Ranked Surrounding Neighbours (5–10 Dynamic Neighbours)**: `rankNeighborsByGraph` (`src/social/graph.mjs`) builds a heterogeneous User–Skill–Follow graph over 12 sample explorers and runs Personalized PageRank (Random Walk with Restart) + Adamic-Adar similarity to select and position the top 5–10 neighbours around the user's Home Waters.
+   - **Following & Followers Section + Individual Archipelago Map View**: Tracks both `isFollowing` and `followsViewer`; clicking any profile in **Following** or **Followers** opens their **Individual Archipelago View** (`mapMode: 'solo'`) on the ocean map using `layoutIslands` (`src/map-layout.mjs`), with a **"← Back to neighbourhood"** button.
+3. **Social Contracts (`src/social/contracts.mjs`)**:
    - `toPublicProfile`, `toPublicIsland` (strict opt-in per island via `isPublic === true`), `toAdoptableRoadmap`, and `validateAdoptableRoadmap`.
    - Strips email, private objectives, per-goal completion progress, continuation goals, and raw browser storage from all public reads.
-3. **Supabase Schema & Row-Level Security (`supabase/migrations/20261107000000_social_schema.sql`, `src/social/supabase-client.mjs`)**:
+4. **Supabase Schema & Row-Level Security (`supabase/migrations/20261107000000_social_schema.sql`, `src/social/supabase-client.mjs`)**:
    - Defines `public.profiles`, `public.islands` (`is_public` defaults to `false`), `public.island_private_state`, and `public.follows` with strict RLS policies verified across two accounts.
