@@ -187,6 +187,29 @@ test('island scenery varies deterministically while retaining each skill landmar
   assert.notEqual(photoArt, renderIsland(photo, 1), 'island development continues to update the art');
 });
 
+test('terrain colours vary independently of shape and stay put across refresh and level changes', () => {
+  const photo = { category: 'custom', landmark: 'camera', topic: 'Photography' };
+  const islands = Array.from({ length: 12 }, (_, index) => ({ ...photo, id: 'island-' + (index + 1) }));
+  const appearance = art => art.match(/data-(?:palette|landform|landmark)="[^"]+"/g);
+  const variants = islands.map(island => appearance(renderIsland(island, 1)));
+  assert.ok(new Set(variants.map(([palette]) => palette)).size >= 5);
+  assert.equal(new Set(variants.map(([, shape]) => shape)).size, 2);
+  assert.ok(new Set(variants.filter(([, shape]) => shape === variants[0][1]).map(([palette]) => palette)).size > 1);
+  assert.deepEqual(islands.map(island => appearance(renderIsland(JSON.parse(JSON.stringify(island)), 10))), variants);
+});
+
+test('related skills get different landmarks and unlisted topics get safe personal seals', () => {
+  const topics = ['Photography', 'Filmmaking', 'Piano', 'Drums', 'Violin', 'Learn to breakdance', 'Ballet', 'Pottery', 'Whittling'];
+  const art = topic => renderIsland({ id: 'island-1', category: 'custom', landmark: 'compass', topic }, 1);
+  const landmarks = topics.map(topic => art(topic).match(/data-landmark="([^"]+)"/)[1]);
+  assert.deepEqual(landmarks, ['camera', 'film', 'piano', 'drums', 'violin', 'breakdance', 'dance', 'pottery', 'woodwork']);
+  const seals = ['Learn bookbinding', 'Learn birdwatching', '<img src=x onerror=alert(1)>'].map(topic =>
+    art(topic).match(/<g class="topic-seal">[\s\S]*?<\/text>/)[0],
+  );
+  assert.equal(new Set(seals).size, 3);
+  assert.doesNotMatch(seals[2], /<img|onerror=/);
+});
+
 test('the local planner accepts structured goals and rejects unavailable or duplicate output', async () => {
   const input = { topic: 'Pottery', objective: 'Make a cup', experience: 'beginner', minutes: 10 };
   let created = 0;

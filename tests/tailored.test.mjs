@@ -123,11 +123,11 @@ test('a valid first exercise is accepted when Nano omits or leaves the checkpoin
 });
 
 test('new islands use skill landmarks and accept only listed artwork from the goal response', async () => {
-  const unusual = { ...input, topic: 'Learn whittling', objective: 'Carve a spoon' };
+  const unusual = { ...input, topic: 'Learn bookbinding', objective: 'Bind a notebook' };
   let requests = 0;
   const model = mockModel({ decision: 'ready', landmark: 'brush', goals: [{
-    title: 'Mark the spoon outline', practice: 'Trace a spoon shape onto a softwood blank with a pencil.',
-    finish: 'The handle and bowl outline fit inside the blank.',
+    title: 'Mark three stitch holes', practice: 'Mark three evenly spaced holes along the notebook fold with a ruler.',
+    finish: 'The middle mark lines up with the centre of the fold.',
   }] }, prompt => { requests++; assert.match(prompt, /Optionally pick a landmark/); });
   const { plan } = await generateStarterRoadmap(unusual, { model });
   assert.equal(requests, 1);
@@ -141,6 +141,7 @@ test('new islands use skill landmarks and accept only listed artwork from the go
 
   const [unsafe] = createGeneratedIsland(createWorld(), { ...unusual, localRoadmap: { ...plan, landmark: '<script>' } }).islands;
   assert.match(renderIsland(unsafe, 1), /data-landmark="compass"/);
+  assert.match(renderIsland(unsafe, 1), /class="topic-seal"/);
   assert.doesNotMatch(renderIsland(unsafe, 1), /<script>/);
 });
 

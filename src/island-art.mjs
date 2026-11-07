@@ -1,15 +1,26 @@
 const SUBJECTS = [
-  ['camera', /\b(?:photograph\w*|photos?|camera|cinematograph\w*|filmmak\w*)\b/i],
+  ['film', /\b(?:cinematograph\w*|filmmak\w*|video edit\w*)\b/i],
+  ['camera', /\b(?:photograph\w*|photos?|camera)\b/i],
   ['guitar', /\b(?:guitar|ukulele)\b/i],
-  ['music', /\b(?:music|piano|drums?|singing|songwrit\w*|violin|compos(?:e|ing))\b/i],
-  ['dance', /\b(?:danc\w*|break[ -]?danc\w*|toprock|ballet|salsa|choreograph\w*)\b/i],
+  ['piano', /\b(?:piano|keyboard playing)\b/i],
+  ['drums', /\b(?:drums?|drumming|percussion)\b/i],
+  ['violin', /\b(?:violin|fiddle|viola)\b/i],
+  ['music', /\b(?:music|singing|songwrit\w*|compos(?:e|ing))\b/i],
+  ['breakdance', /\b(?:break[ -]?danc\w*|toprock|b[ -]?boying|b[ -]?girling)\b/i],
+  ['dance', /\b(?:danc\w*|ballet|salsa|choreograph\w*)\b/i],
   ['code', /\b(?:cod(?:e|ing)|programming|python|javascript|web development|software|spreadsheets?|excel)\b/i],
   ['cooking', /\b(?:cook\w*|bak(?:e|ing)|sourdough|chef|culinary|barista)\b/i],
   ['plant', /\b(?:garden\w*|plants?|grow(?:ing)? vegetables|horticulture|bonsai)\b/i],
   ['brush', /\b(?:paint\w*|draw(?:ing)?|illustrat\w*|sketch\w*|watercolou?r)\b/i],
-  ['fitness', /\b(?:fitness|running|marathon|strength|weightlift\w*|gymnast\w*|yoga|swim\w*)\b/i],
+  ['pottery', /\b(?:potter\w*|ceramic\w*|clay sculpt\w*)\b/i],
+  ['woodwork', /\b(?:woodwork\w*|whittl\w*|carpentr\w*|wood carv\w*)\b/i],
+  ['textiles', /\b(?:knit\w*|crochet\w*|sew\w*|embroider\w*)\b/i],
+  ['running', /\b(?:running|marathon|jogging|sprinting)\b/i],
+  ['swimming', /\b(?:swim\w*|freestyle stroke)\b/i],
+  ['fitness', /\b(?:fitness|strength|weightlift\w*|gymnast\w*|yoga)\b/i],
   ['origami', /\b(?:origami|paper folding|paper cranes?)\b/i],
-  ['board', /\b(?:chess|go game|checkers|board games?)\b/i],
+  ['chess', /\bchess\b/i],
+  ['board', /\b(?:go game|checkers|board games?)\b/i],
   ['speech', /\b(?:public speak\w*|speaking in public|speech|presentations?|debate)\b/i],
   ['language', /\b(?:languages?|spanish|french|german|japanese|korean|mandarin|italian|arabic|portuguese|dutch)\b/i],
   ['people', /\b(?:mak(?:e|ing) friends|meet(?:ing)? (?:new )?people|socialis\w*|socializ\w*|networking)\b/i],
@@ -20,7 +31,7 @@ export const LANDMARKS = [...SUBJECTS.map(([key]) => key), 'compass'];
 
 export function knownLandmark({ topic, objective }) {
   for (const text of [topic, objective]) {
-    if (!text) continue;
+    if (typeof text !== 'string') continue;
     let bestIndex = Infinity;
     let landmark;
     for (const [key, pattern] of SUBJECTS) {
