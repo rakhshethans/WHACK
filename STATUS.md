@@ -8,14 +8,15 @@
 - New personal islands open as soon as the browser model returns the first tailored exercise. The app starts loading an installed Nano model when the island form opens and releases unused warmup after 45 seconds. A checkpoint is optional. The next exercise is prepared while the current one is open. Saved generic plans can be rebuilt while keeping earned XP.
 - Per-island difficulty feedback that persists and adjusts later practice. Related-skill suggestions explain the connection and can open or create the suggested island.
 - Generated exercises have a written feedback form. A successful rewrite replaces the current exercise, preserves its XP reward, and uses the latest note to guide future exercises on that island.
-- Browser-local saves, sample-world exploration, and adoption with creator attribution and fresh progress.
+- Browser-local saves and attributed roadmap adoption with fresh XP. Explore combines a shared ocean, exact-interest mentor matching, demo personas, Social Compass, Following and Followers, and solo archipelagos. The three original sample roadmaps have a direct browse entry.
+- Explore demonstrates opt-in roadmap sharing across sample personas in this browser. Public projections exclude private notes, completion history, and inactivity deadlines. The Supabase client and schema are available for a configured authenticated deployment.
 
 ## Verified current state
 
-All 49 Node tests pass. Desktop and mobile Chrome checks with a simulated model verified written feedback, cancellation, retries, retained preferences after reload, and XP on completion. Earlier checks covered background icon generation and reuse.
+All 63 Node tests pass. Desktop and mobile Chrome checks with a simulated model covered sample and custom adoption, creation, written feedback, XP and decay, generated icon display, mentor matching, Compass, follow and unfollow, zero-island followers, solo views, persona switching, and demo sharing across reload.
 
-Vercel Authentication has blocked direct access from the isolated test browser, so interactive verification uses the local build.
+The full browser flow was verified locally. The social access-control tests use a simulated Supabase backend. Real account sign-in and publishing need an authenticated test project before activation.
 
 ## Next workstream
 
-Benchmark a hosted text model against the five-second target and extend tailored generation to unsupported browsers and devices. Review Antigravity’s shared ocean and mentor-style neighbour ranking (`worldhopper/social`, `d771a71`) before wiring them into Explore.
+Review the integration preview before merging into the shared branch. Verify real Supabase authentication and row-level security before enabling live social data. Benchmark native goal generation and improve recovery for browsers without built-in AI.

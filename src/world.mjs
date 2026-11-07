@@ -273,17 +273,24 @@ export function completeGoal(world, islandId, goalId, generated, now = Date.now(
 }
 
 export function adoptIsland(world, source) {
+  const onDevice = source.roadmap?.onDevice || source.category === 'custom' && Boolean(source.creator);
+  const landmark = validLandmark(source.landmark) ? source.landmark
+    : onDevice ? knownLandmark(source) ?? 'compass' : undefined;
+  const starterGoals = source.goals.filter(goal => !goal.continuation);
+  const goalIds = new Map(starterGoals.map((goal, index) => [goal.id, source.creator ? 'goal-' + (index + 1) : goal.id]));
   return addIsland(world, {
     title: source.title,
     category: source.category,
     topic: source.topic,
     theme: source.theme,
-    ...(validLandmark(source.landmark) ? { landmark: source.landmark } : {}),
+    ...(landmark ? { landmark } : {}),
     experience: source.experience,
     objective: source.objective,
     sessionMinutes: source.sessionMinutes,
-    roadmap: source.roadmap ? { ...source.roadmap } : undefined,
+    roadmap: source.roadmap ? { ...source.roadmap, ...(onDevice ? { onDevice: true } : {}) } : undefined,
     attribution: source.attribution ?? source.owner ?? source.title,
-    goals: source.goals.filter(goal => !goal.continuation).map(goal => ({ ...goal, prerequisites: [...goal.prerequisites], completed: false })),
+    goals: starterGoals.map(goal => ({
+      ...goal, id: goalIds.get(goal.id), prerequisites: goal.prerequisites.map(id => goalIds.get(id) ?? id), completed: false,
+    })),
   });
 }

@@ -10,6 +10,10 @@ const STAGES = [
 
 export const MAX_XP = STAGES.at(-1)[0];
 
+export function xpForLevel(level) {
+  return STAGES[level - 1][0];
+}
+
 export function getStage(xp) {
   const index = Math.max(0, STAGES.findLastIndex(([threshold]) => xp >= threshold));
   const [threshold, name] = STAGES[index];
