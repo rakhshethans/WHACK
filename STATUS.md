@@ -3,14 +3,15 @@
 ## Available in the preview
 
 - One map for all personal islands, with distinct themed art for Guitar, Songwriting, Photography, and custom goals.
+- Island scenery adds eight stable coastline shapes and eight biome palettes/details, chosen from the island ID and skill. Skill landmarks and XP-stage development remain intact.
 - Personalised practice paths, one active goal at a time, XP thresholds, and continuing goals beyond the first roadmap.
 - Custom skills and ambitions such as meeting new people. The initial path uses an on-device browser model when ready and a guided fallback otherwise.
 - Per-island difficulty feedback that persists and adjusts later practice. Related-skill suggestions explain the connection and can open or create the suggested island.
 - Browser-local saves, sample-world exploration, and adoption with creator attribution and fresh progress.
 
-## Verified baseline
+## Verified current state
 
-Commit `b19410c` passed 14 Node tests. The deployed preview was checked on desktop and mobile for difficulty feedback, reload persistence, and the Guitar-to-Songwriting connection. The model integration is covered by a simulated model in tests, and the guided fallback was verified in the live preview.
+Commit `568c4d5` passed all 27 Node tests. The deployed branch preview was checked at desktop and mobile widths: seven islands remain visible on the map, island scenery varies, and the page has no horizontal overflow.
 
 ## Next workstream
 
