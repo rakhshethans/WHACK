@@ -138,6 +138,8 @@ const CUSTOM_ICONS = {
   people: '<circle cx="-16" cy="-13" r="8"/><circle cx="16" cy="-13" r="8"/><path d="M-30 15q2-21 14-21T-2 15zm32 0Q4-6 16-6t14 21z"/><path d="m-6-22 6-7 6 7" fill="none"/>',
   board: '<path d="m-30-9 29-16 31 16L0 9z"/><path d="M-30-9v9L0 18 30 0v-9M-15-17l30 17M0-25l30 16M-15 0l30-17M0 9l30-18" fill="none"/>',
   language: '<path d="M-29-20h39q8 0 8 8v13q0 8-8 8H-6l-13 9 2-9h-12q-8 0-8-8v-13q0-8 8-8Z"/><path d="M13-7h16q8 0 8 8v12q0 8-8 8h-7l2 7-11-7h-7q-8 0-8-8v-2" fill="none"/><path d="M-25-9H6m-31 8h22" stroke="#265355"/>',
+  origami: '<path d="m-34-10 20 6 14-20 14 20 20-6-11 20-23 9-23-9Z"/><path d="M-14-4 0 19 14-4M-23 10 0-6l23 16" fill="none"/>',
+  speaking: '<path d="M-24-12h48v9h-48zM-17-3h34l-5 24h-24z"/><path d="M5-12v-10l12-8" fill="none"/><circle cx="18" cy="-30" r="4"/>',
   compass: '<circle r="25"/><path d="m11-17-4 21-18 13 4-21Z" fill="#e5aa69" stroke="#1d5558"/><circle r="3" fill="#244e52"/>',
 };
 
@@ -170,9 +172,10 @@ function customTerrain(island, stage) {
 }
 
 function islandTerrain(island, stage) {
-  if (island.category === 'custom') return customTerrain(island, stage);
-  if (island.category === 'songwriting') return songwritingTerrain(stage);
-  if (island.category === 'photography') return photographyTerrain(stage);
+  const track = island.category === 'custom' ? island.theme : island.category;
+  if (track === 'songwriting') return songwritingTerrain(stage);
+  if (track === 'photography') return photographyTerrain(stage);
+  if (island.category === 'custom' && track !== 'guitar') return customTerrain(island, stage);
   return guitarTerrain(stage);
 }
 

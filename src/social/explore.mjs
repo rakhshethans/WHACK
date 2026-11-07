@@ -1,5 +1,7 @@
 import { renderOcean, renderIsland } from '../scene.mjs';
 import { SKILLS } from '../roadmaps.mjs';
+import { layoutIslands } from '../map-layout.mjs';
+import { connectMap } from '../map-camera.mjs';
 import { toAdoptableRoadmap, validateAdoptableRoadmap } from './contracts.mjs';
 import { createFixtureSocialClient } from './fixtures.mjs';
 import { recommendExplorers } from './recommendations.mjs';
@@ -14,33 +16,41 @@ export function escapeHtml(value) {
   })[character]);
 }
 
-function renderArchipelagoMap(profile, islands, selectedIslandId) {
-  if (!islands || islands.length === 0) {
-    return `<section class="map-frame" aria-label="Public archipelago map">
-      <div class="map-coordinates"><span>✦</span> NO PUBLIC ISLANDS CHARTED</div>
-      <div class="map-art">${renderOcean()}</div>
-      <div class="map-footer"><span><i></i> 0 ISLANDS SHARED</span><span class="map-scale">OPT-IN ONLY</span></div>
-    </section>`;
-  }
-
+function renderArchipelagoMap(profile, islands, selectedIslandId, logOpen) {
+  const populated = Array.isArray(islands) && islands.length > 0;
   const badge = profile?.isSample ? 'SAMPLE ARCHIPELAGO' : 'PUBLIC ARCHIPELAGO';
-  const ownerTitle = profile ? `${escapeHtml(profile.displayName.toUpperCase())} · ${badge}` : badge;
+  const ownerTitle = populated && profile
+    ? `${escapeHtml(profile.displayName.toUpperCase())} · ${badge}`
+    : 'NO PUBLIC ISLANDS CHARTED';
 
   return `<section class="map-frame archipelago-frame" aria-label="${escapeHtml(profile?.displayName ?? 'Public')} archipelago map">
-    <div class="map-water">${renderOcean(true)}</div>
-    <div class="map-coordinates"><span>✦</span> ${ownerTitle}</div>
-    <div class="archipelago-grid${islands.length === 1 ? ' single-island' : ''}">
-      ${islands.map(island => {
-        const selected = island.id === selectedIslandId;
-        const level = island.level ?? 1;
-        const skill = island.topic || (Object.hasOwn(SKILLS, island.category) ? SKILLS[island.category].label : 'Skill');
-        return `<button type="button" class="map-island" data-social-action="select-island" data-island-id="${escapeHtml(island.id)}" aria-pressed="${selected}">
-          <span class="island-art">${renderIsland(island, level)}</span>
-          <span class="island-pin"><strong>${escapeHtml(island.title)}</strong><small>${escapeHtml(skill === island.title ? 'Custom island' : skill)} · Lv ${level}</small></span>
-        </button>`;
-      }).join('')}
+    <div class="map-viewport" tabindex="0" role="region" aria-label="Pan the archipelago with arrow keys or drag the map">
+      <div class="map-scene">
+        <div class="map-water">${renderOcean(true)}</div>
+        <div class="island-water">
+          ${(islands ?? []).map(island => {
+            const selected = island.id === selectedIslandId;
+            const level = island.level ?? 1;
+            const skill = island.topic || (Object.hasOwn(SKILLS, island.category) ? SKILLS[island.category].label : 'Skill');
+            return `<button type="button" class="map-island" data-social-action="select-island" data-id="${escapeHtml(island.id)}" data-island-id="${escapeHtml(island.id)}" aria-pressed="${selected}">
+              <span class="island-art">${renderIsland(island, level)}</span>
+              <span class="island-pin" title="${escapeHtml(island.title)}"><strong>${escapeHtml(island.title)}</strong><small>${skill === island.title ? '' : escapeHtml(skill) + ' · '}Lv ${level}</small></span>
+            </button>`;
+          }).join('')}
+        </div>
+      </div>
     </div>
-    <div class="map-footer"><span><i></i> ${islands.length} PUBLIC ${islands.length === 1 ? 'ISLAND' : 'ISLANDS'}</span><span class="map-scale">SELECT AN ISLAND TO INSPECT</span></div>
+    <div class="map-coordinates"><span>✦</span> ${ownerTitle}</div>
+    <div class="map-tools" role="group" aria-label="Map controls">
+      <button type="button" data-zoom="out" aria-label="Zoom out">−</button>
+      <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+      <button type="button" data-zoom="reset" aria-label="Reset map view">Reset</button>
+    </div>
+    <div class="map-footer">
+      <span><i></i> ${populated ? `${islands.length} PUBLIC ${islands.length === 1 ? 'ISLAND' : 'ISLANDS'}` : '0 ISLANDS SHARED'}</span>
+      <span class="map-pan-hint">Zoom in to explore</span>
+      <button type="button" data-social-action="show-log" aria-controls="social-island-log" aria-expanded="${logOpen}">Island log</button>
+    </div>
   </section>`;
 }
 
@@ -65,11 +75,8 @@ function renderGoalRoadmapList(goals = []) {
 
 function renderRecommendationsSection(matches = [], selectedProfileId) {
   if (!matches.length) return '';
-  return `<section class="social-recommendations" aria-labelledby="social-matches-heading">
-    <div class="social-section-head">
-      <p class="eyebrow">SOCIAL COMPASS / EXPLAINABLE MATCHES</p>
-      <h2 id="social-matches-heading">Explorers to connect with</h2>
-    </div>
+  return `<details class="roadmap-summary social-compass-details" open>
+    <summary>Social compass (${matches.slice(0, 3).length} explainable matches)</summary>
     <div class="social-match-grid">
       ${matches.slice(0, 3).map(match => {
         const { profile, category, reason, featuredIsland } = match;
@@ -90,18 +97,15 @@ function renderRecommendationsSection(matches = [], selectedProfileId) {
         </article>`;
       }).join('')}
     </div>
-  </section>`;
+  </details>`;
 }
 
-function renderViewerSharingBar(viewerWorld, publishedMap, onTogglePublish) {
+function renderViewerSharingSection(viewerWorld, publishedMap, onTogglePublish) {
   const islands = Array.isArray(viewerWorld?.islands) ? viewerWorld.islands : [];
   if (!islands.length && !onTogglePublish) return '';
-  return `<section class="social-sharing-bar" aria-labelledby="sharing-controls-title">
-    <div>
-      <p class="eyebrow">PRIVACY &amp; OPT-IN PUBLISHING</p>
-      <h2 id="sharing-controls-title" class="social-sharing-title">Your island visibility</h2>
-      <p class="caption">Islands are private by default. Publishing shares only the island title, stage, public summary, and starter roadmap template—never your email, private objectives, or completion log.</p>
-    </div>
+  return `<details class="roadmap-summary social-sharing-details">
+    <summary>Your island visibility (opt-in)</summary>
+    <p class="caption">Islands are private by default. Publishing shares only the island title, stage, public summary, and starter roadmap—never your email, private objectives, or completion log.</p>
     ${islands.length ? `<div class="social-sharing-list">
       ${islands.map(island => {
         const isPublic = Boolean(publishedMap.get(island.id) ?? island.isPublic);
@@ -113,19 +117,11 @@ function renderViewerSharingBar(viewerWorld, publishedMap, onTogglePublish) {
         </div>`;
       }).join('')}
     </div>` : '<p class="caption">Create an island in My world to publish its roadmap whenever you are ready.</p>'}
-  </section>`;
+  </details>`;
 }
 
 /**
  * Mounts the WorldHopper Social Explore experience inside `container`.
- *
- * @param {HTMLElement} container
- * @param {object} options
- * @param {object} [options.client] - SocialClient implementation (defaults to fixture client)
- * @param {Function} [options.onAdopt] - Callback invoked with `(adoptableRoadmapTemplate, { island, profile })`
- * @param {object} [options.viewerWorld] - Current user's local world for tailored recommendations & opt-in publishing
- * @param {Function} [options.onAnnounce] - Screen-reader announcement callback
- * @param {Function} [options.onTogglePublish] - Optional callback when viewer toggles local island visibility
  */
 export function mountSocialExplore(container, {
   client = createFixtureSocialClient(),
@@ -139,6 +135,14 @@ export function mountSocialExplore(container, {
   }
 
   let currentViewerWorld = viewerWorld;
+  let disconnectMap;
+  const camera = { overview: true };
+  const mapResize = typeof ResizeObserver !== 'undefined'
+    ? new ResizeObserver(entries => {
+        for (const { target } of entries) positionIslands(target);
+      })
+    : null;
+
   const state = {
     status: 'loading', // 'loading' | 'ready' | 'empty' | 'error'
     errorMessage: '',
@@ -147,12 +151,27 @@ export function mountSocialExplore(container, {
     matches: [],
     selectedProfileId: null,
     selectedIslandId: null,
+    logOpen: typeof window !== 'undefined' && typeof window.innerWidth === 'number' ? window.innerWidth > 790 : true,
     statusBanner: '',
     publishedIslands: new Map(),
   };
 
   for (const island of currentViewerWorld?.islands ?? []) {
     state.publishedIslands.set(island.id, Boolean(island.isPublic));
+  }
+
+  function positionIslands(map) {
+    if (!map || typeof map.querySelectorAll !== 'function') return;
+    const buttons = [...map.querySelectorAll('.map-island')];
+    const { height, positions } = layoutIslands(
+      buttons.map(button => button.dataset.id || button.dataset.islandId),
+      map.clientWidth || 720,
+    );
+    map.style.height = height + 'px';
+    buttons.forEach((button, index) => {
+      const { left, top, width } = positions[index];
+      Object.assign(button.style, { left: left + 'px', top: top + 'px', width: width + 'px' });
+    });
   }
 
   function announce(message) {
@@ -173,7 +192,28 @@ export function mountSocialExplore(container, {
     return profile.publicIslands.find(island => island.id === state.selectedIslandId) ?? profile.publicIslands[0];
   }
 
+  function cleanupMapBindings() {
+    disconnectMap?.();
+    disconnectMap = undefined;
+    mapResize?.disconnect();
+  }
+
+  function bindInteractiveMap() {
+    if (typeof container.querySelector !== 'function') return;
+    const map = container.querySelector('.island-water');
+    if (map) {
+      positionIslands(map);
+      mapResize?.observe(map);
+    }
+    const viewport = container.querySelector('.map-viewport');
+    if (viewport && typeof ResizeObserver !== 'undefined') {
+      disconnectMap = connectMap(viewport, camera);
+    }
+  }
+
   function render() {
+    cleanupMapBindings();
+
     const filterButtons = [
       ['all', 'All worlds'],
       ['following', 'Following'],
@@ -189,22 +229,25 @@ export function mountSocialExplore(container, {
       )).join('')}
     </div>`;
 
+    const introHeader = `<div class="intro social-intro">
+      <div>
+        <h1>Beyond your shore<span>.</span></h1>
+        <p class="lede">Explore real and clearly labelled sample worlds, follow explorers, and bring a roadmap back to your own.</p>
+      </div>
+      ${filterNav}
+    </div>`;
+
     if (state.status === 'loading') {
       container.setAttribute('aria-busy', 'true');
       container.innerHTML = `<div class="social-explore" data-social-state="loading">
-        <div class="intro">
-          <div>
-            <p class="eyebrow">THE PERSONAL ATLAS / EXPLORE</p>
-            <h1>Beyond your shore<span>.</span></h1>
-            <p class="lede">Charting shared archipelagos and public skill roadmaps…</p>
-          </div>
+        ${introHeader}
+        <div class="workspace">
+          <section class="field-notes social-state-card" role="status" aria-live="polite">
+            <p class="eyebrow">LOADING PUBLIC ATLAS</p>
+            <h2>Scanning the horizon…</h2>
+            <p>Fetching opt-in public profiles and adoptable roadmaps.</p>
+          </section>
         </div>
-        ${filterNav}
-        <section class="social-state-card" role="status" aria-live="polite">
-          <p class="eyebrow">LOADING PUBLIC ATLAS</p>
-          <h2>Scanning the horizon…</h2>
-          <p>Fetching opt-in public profiles and adoptable roadmaps.</p>
-        </section>
       </div>`;
       return;
     }
@@ -213,20 +256,15 @@ export function mountSocialExplore(container, {
 
     if (state.status === 'error') {
       container.innerHTML = `<div class="social-explore" data-social-state="error">
-        <div class="intro">
-          <div>
-            <p class="eyebrow">THE PERSONAL ATLAS / EXPLORE</p>
-            <h1>Beyond your shore<span>.</span></h1>
-            <p class="lede">Explore public worlds and bring a roadmap back to your own.</p>
-          </div>
+        ${introHeader}
+        <div class="workspace">
+          <section class="field-notes social-state-card social-error-card" role="alert">
+            <p class="eyebrow">CONNECTION INTERRUPTED</p>
+            <h2>Unable to load public worlds</h2>
+            <p>${escapeHtml(state.errorMessage || 'Could not reach the public atlas service.')}</p>
+            <button type="button" class="primary" data-social-action="retry">Try again ↻</button>
+          </section>
         </div>
-        ${filterNav}
-        <section class="social-state-card social-error-card" role="alert">
-          <p class="eyebrow">CONNECTION INTERRUPTED</p>
-          <h2>Unable to load public worlds</h2>
-          <p>${escapeHtml(state.errorMessage || 'Could not reach the public atlas service.')}</p>
-          <button type="button" class="primary" data-social-action="retry">Try again ↻</button>
-        </section>
       </div>`;
       return;
     }
@@ -236,21 +274,16 @@ export function mountSocialExplore(container, {
         ? 'You are not following any explorers yet. Follow an explorer to keep their public islands in this view.'
         : 'No public worlds match this filter yet.';
       container.innerHTML = `<div class="social-explore" data-social-state="empty">
-        <div class="intro">
-          <div>
-            <p class="eyebrow">THE PERSONAL ATLAS / EXPLORE</p>
-            <h1>Beyond your shore<span>.</span></h1>
-            <p class="lede">Explore public worlds and bring a roadmap back to your own.</p>
-          </div>
+        ${introHeader}
+        <div class="workspace">
+          <section class="field-notes social-state-card" role="status">
+            <p class="eyebrow">OPEN WATERS / 0 PUBLIC WORLDS</p>
+            <h2>No public worlds in sight</h2>
+            <p>${escapeHtml(emptyReason)}</p>
+            ${state.filter !== 'all' ? '<button type="button" class="small-action" data-social-action="filter" data-filter="all">Show all public worlds ↗</button>' : ''}
+            ${renderViewerSharingSection(currentViewerWorld, state.publishedIslands, onTogglePublish)}
+          </section>
         </div>
-        ${filterNav}
-        <section class="social-state-card" role="status">
-          <p class="eyebrow">OPEN WATERS / 0 PUBLIC WORLDS</p>
-          <h2>No public worlds in sight</h2>
-          <p>${escapeHtml(emptyReason)}</p>
-          ${state.filter !== 'all' ? '<button type="button" class="small-action" data-social-action="filter" data-filter="all">Show all public worlds ↗</button>' : ''}
-        </section>
-        ${renderViewerSharingBar(currentViewerWorld, state.publishedIslands, onTogglePublish)}
       </div>`;
       return;
     }
@@ -259,72 +292,66 @@ export function mountSocialExplore(container, {
     const activeIsland = getSelectedIsland(activeProfile);
     const firstGoal = activeIsland?.goals?.[0];
 
-    container.innerHTML = `<div class="social-explore" data-social-state="ready">
-      <div class="intro">
-        <div>
-          <p class="eyebrow">THE PERSONAL ATLAS / EXPLORE</p>
-          <h1>Beyond your shore<span>.</span></h1>
-          <p class="lede">Explore real and clearly labelled sample worlds, follow explorers, and adopt a roadmap into your own archipelago.</p>
+    const directoryBar = `<section class="social-directory" aria-label="Public explorer profiles">
+      ${state.profiles.map(profile => {
+        const isSelected = profile.id === activeProfile?.id;
+        return `<div class="social-profile-pill${isSelected ? ' is-active' : ''}">
+          <button type="button" class="social-profile-select" data-social-action="open-profile" data-profile-id="${escapeHtml(profile.id)}" aria-pressed="${isSelected}">
+            <span class="social-profile-name">
+              <strong>${escapeHtml(profile.displayName)}</strong>
+              <small>@${escapeHtml(profile.handle)} · ${profile.isSample ? 'Sample profile' : 'Public explorer'}</small>
+            </span>
+            <span class="social-profile-meta">${profile.publicIslandCount} ${profile.publicIslandCount === 1 ? 'island' : 'islands'} · ${profile.followerCount} ${profile.followerCount === 1 ? 'follower' : 'followers'}</span>
+          </button>
+          <button type="button" class="small-action social-follow-btn" data-social-action="${profile.isFollowing ? 'unfollow' : 'follow'}" data-profile-id="${escapeHtml(profile.id)}" aria-pressed="${profile.isFollowing}" aria-label="${profile.isFollowing ? 'Unfollow ' : 'Follow '}${escapeHtml(profile.displayName)}">
+            ${profile.isFollowing ? 'Following ✓' : '+ Follow'}
+          </button>
+        </div>`;
+      }).join('')}
+    </section>`;
+
+    const logDrawer = `<aside class="field-notes map-log" id="social-island-log" aria-label="Public island log" ${state.logOpen ? '' : 'hidden'}>
+      <button type="button" class="icon log-close" data-social-action="close-log" aria-label="Close island log">×</button>
+      ${activeProfile && activeIsland ? `
+        <p class="eyebrow">PUBLIC ATLAS / ${activeProfile.isSample ? 'SAMPLE PROFILE' : 'EXPLORER PROFILE'}</p>
+        <h2>${escapeHtml(activeIsland.title)}</h2>
+        <p class="stage-name">${escapeHtml(activeProfile.displayName)} (@${escapeHtml(activeProfile.handle)}) · Level ${escapeHtml(activeIsland.level)} ${escapeHtml(activeIsland.stageName)}</p>
+        ${activeProfile.bio ? `<p class="caption">${escapeHtml(activeProfile.bio)}</p>` : ''}
+        <div class="social-profile-actions">
+          <button type="button" class="small-action" data-social-action="${activeProfile.isFollowing ? 'unfollow' : 'follow'}" data-profile-id="${escapeHtml(activeProfile.id)}" aria-pressed="${activeProfile.isFollowing}">
+            ${activeProfile.isFollowing ? 'Following' : 'Follow ' + escapeHtml(activeProfile.displayName)} (${activeProfile.followerCount})
+          </button>
+          <span class="social-badge">${activeProfile.isSample ? 'Sample profile' : 'Opt-in Public'}</span>
         </div>
-      </div>
-
-      ${filterNav}
-
-      <section class="social-directory" aria-label="Public explorer profiles">
-        ${state.profiles.map(profile => {
-          const isSelected = profile.id === activeProfile?.id;
-          return `<div class="social-profile-pill${isSelected ? ' is-active' : ''}">
-            <button type="button" class="social-profile-select" data-social-action="open-profile" data-profile-id="${escapeHtml(profile.id)}" aria-pressed="${isSelected}">
-              <span class="social-profile-name">
-                <strong>${escapeHtml(profile.displayName)}</strong>
-                <small>@${escapeHtml(profile.handle)} · ${profile.isSample ? 'Sample profile' : 'Public explorer'}</small>
-              </span>
-              <span class="social-profile-meta">${profile.publicIslandCount} ${profile.publicIslandCount === 1 ? 'island' : 'islands'} · ${profile.followerCount} ${profile.followerCount === 1 ? 'follower' : 'followers'}</span>
-            </button>
-            <button type="button" class="small-action social-follow-btn" data-social-action="${profile.isFollowing ? 'unfollow' : 'follow'}" data-profile-id="${escapeHtml(profile.id)}" aria-pressed="${profile.isFollowing}" aria-label="${profile.isFollowing ? 'Unfollow ' : 'Follow '}${escapeHtml(profile.displayName)}">
-              ${profile.isFollowing ? 'Following ✓' : '+ Follow'}
-            </button>
-          </div>`;
-        }).join('')}
-      </section>
-
-      <div class="workspace">
-        ${renderArchipelagoMap(activeProfile, activeProfile?.publicIslands ?? [], activeIsland?.id)}
-        <aside class="field-notes" aria-label="Selected public island details">
-          ${activeProfile && activeIsland ? `
-            <div class="social-inspector-top">
-              <p class="eyebrow">PUBLIC ATLAS / ${activeProfile.isSample ? 'SAMPLE PROFILE' : 'EXPLORER PROFILE'}</p>
-              <span class="social-badge">${activeProfile.isSample ? 'Sample' : 'Opt-in Public'}</span>
-            </div>
-            <h2>${escapeHtml(activeIsland.title)}</h2>
-            <p class="stage-name">${escapeHtml(activeProfile.displayName)} (@${escapeHtml(activeProfile.handle)}) · Level ${escapeHtml(activeIsland.level)} ${escapeHtml(activeIsland.stageName)}</p>
-            ${activeProfile.bio ? `<p class="caption">${escapeHtml(activeProfile.bio)}</p>` : ''}
-            <div class="social-profile-actions">
-              <button type="button" class="small-action" data-social-action="${activeProfile.isFollowing ? 'unfollow' : 'follow'}" data-profile-id="${escapeHtml(activeProfile.id)}" aria-pressed="${activeProfile.isFollowing}">
-                ${activeProfile.isFollowing ? 'Following' : 'Follow ' + escapeHtml(activeProfile.displayName)} (${activeProfile.followerCount})
-              </button>
-            </div>
-            <p class="social-island-summary">${escapeHtml(activeIsland.publicSummary)}.</p>
-            ${activeIsland.sharedMilestone ? `<p class="caption"><strong>Shared milestone:</strong> ${escapeHtml(activeIsland.sharedMilestone)}</p>` : ''}
-            ${firstGoal ? `<p><strong>First goal</strong><br>${escapeHtml(firstGoal.title)}</p>` : ''}
-            <button type="button" class="primary" data-social-action="adopt" data-island-id="${escapeHtml(activeIsland.id)}" data-profile-id="${escapeHtml(activeProfile.id)}">
-              Adopt roadmap <span aria-hidden="true">↗</span>
-            </button>
-            <p class="caption">Your island starts at Level 1 with 0 XP and incomplete goals. Attribution to ${escapeHtml(activeProfile.displayName)} is preserved.</p>
-            <details class="roadmap-summary" open>
-              <summary>Starter roadmap (${activeIsland.goals.length} goals)</summary>
-              <p><strong>Focus</strong><span>${escapeHtml(activeIsland.roadmap?.focus)}</span></p>
-              ${activeIsland.roadmap?.checkpoint ? `<p><strong>Checkpoint</strong><span>${escapeHtml(activeIsland.roadmap.checkpoint)}</span></p>` : ''}
-              ${renderGoalRoadmapList(activeIsland.goals)}
-            </details>
-          ` : `<p class="eyebrow">PUBLIC ATLAS</p><h2>Select an island</h2><p>Choose a public island on the map to inspect its starter roadmap.</p>`}
-        </aside>
-      </div>
-
+        <p class="social-island-summary">${escapeHtml(activeIsland.publicSummary)}.</p>
+        ${activeIsland.sharedMilestone ? `<p class="caption"><strong>Shared milestone:</strong> ${escapeHtml(activeIsland.sharedMilestone)}</p>` : ''}
+        ${firstGoal ? `<p><strong>First goal</strong><br>${escapeHtml(firstGoal.title)}</p>` : ''}
+        <button type="button" class="primary social-adopt-btn" data-social-action="adopt" data-island-id="${escapeHtml(activeIsland.id)}" data-profile-id="${escapeHtml(activeProfile.id)}">
+          Adopt roadmap <span aria-hidden="true">↗</span>
+        </button>
+        <p class="caption">Your island starts at Level 1 with 0 XP and incomplete goals. Attribution to ${escapeHtml(activeProfile.displayName)} is preserved.</p>
+        <details class="roadmap-summary">
+          <summary>Starter roadmap (${activeIsland.goals.length} goals)</summary>
+          <p><strong>Focus</strong><span>${escapeHtml(activeIsland.roadmap?.focus)}</span></p>
+          ${activeIsland.roadmap?.checkpoint ? `<p><strong>Checkpoint</strong><span>${escapeHtml(activeIsland.roadmap.checkpoint)}</span></p>` : ''}
+          ${renderGoalRoadmapList(activeIsland.goals)}
+        </details>
+      ` : `<p class="eyebrow">PUBLIC ATLAS</p><h2>Select an island</h2><p>Choose a public island on the map to inspect its starter roadmap.</p>`}
       ${renderRecommendationsSection(state.matches, activeProfile?.id)}
-      ${renderViewerSharingBar(currentViewerWorld, state.publishedIslands, onTogglePublish)}
+      ${renderViewerSharingSection(currentViewerWorld, state.publishedIslands, onTogglePublish)}
       ${state.statusBanner ? `<p class="caption social-status-banner" role="status">${escapeHtml(state.statusBanner)}</p>` : ''}
+    </aside>`;
+
+    container.innerHTML = `<div class="social-explore" data-social-state="ready">
+      ${introHeader}
+      ${directoryBar}
+      <div class="workspace">
+        ${renderArchipelagoMap(activeProfile, activeProfile?.publicIslands ?? [], activeIsland?.id, state.logOpen)}
+        ${logDrawer}
+      </div>
     </div>`;
+
+    bindInteractiveMap();
   }
 
   async function load({ filter = state.filter, preserveSelection = true } = {}) {
@@ -337,7 +364,7 @@ export function mountSocialExplore(container, {
       const profiles = await client.listPublicProfiles({ filter });
       state.profiles = Array.isArray(profiles) ? profiles : [];
 
-      if ( typeof client.recommendPeople === 'function') {
+      if (typeof client.recommendPeople === 'function') {
         state.matches = await client.recommendPeople({ viewerWorld: currentViewerWorld });
       } else {
         state.matches = recommendExplorers(currentViewerWorld, state.profiles);
@@ -374,7 +401,19 @@ export function mountSocialExplore(container, {
 
     const action = button.dataset.socialAction;
     const profileId = button.dataset.profileId;
-    const islandId = button.dataset.islandId;
+    const islandId = button.dataset.islandId || button.dataset.id;
+
+    if (action === 'close-log') {
+      state.logOpen = false;
+      render();
+      return;
+    }
+
+    if (action === 'show-log') {
+      state.logOpen = !state.logOpen;
+      render();
+      return;
+    }
 
     if (action === 'retry') {
       await load({ filter: state.filter, preserveSelection: true });
@@ -388,6 +427,8 @@ export function mountSocialExplore(container, {
     }
 
     if (action === 'open-profile') {
+      camera.overview = true;
+      state.logOpen = true;
       const targetProfile = state.profiles.find(p => p.id === profileId);
       if (targetProfile) {
         state.selectedProfileId = targetProfile.id;
@@ -416,6 +457,7 @@ export function mountSocialExplore(container, {
 
     if (action === 'select-island') {
       state.selectedIslandId = islandId;
+      state.logOpen = true;
       const activeProfile = getSelectedProfile();
       const activeIsland = getSelectedIsland(activeProfile);
       if (activeIsland) {
@@ -505,7 +547,20 @@ export function mountSocialExplore(container, {
     }
   }
 
+  function handleKeydown(event) {
+    if (event.key === 'Escape' && state.logOpen) {
+      state.logOpen = false;
+      render();
+      if (typeof container.querySelector === 'function') {
+        container.querySelector('[data-social-action="show-log"]')?.focus?.({ preventScroll: true });
+      }
+    }
+  }
+
   container.addEventListener('click', handleAction);
+  if (typeof container.addEventListener === 'function') {
+    container.addEventListener('keydown', handleKeydown);
+  }
 
   const initialLoadPromise = load({ filter: 'all', preserveSelection: false });
 
@@ -530,11 +585,14 @@ export function mountSocialExplore(container, {
         matches: state.matches,
         selectedProfileId: state.selectedProfileId,
         selectedIslandId: state.selectedIslandId,
+        logOpen: state.logOpen,
         publishedIslands: Object.fromEntries(state.publishedIslands),
       };
     },
     destroy() {
+      cleanupMapBindings();
       container.removeEventListener('click', handleAction);
+      container.removeEventListener?.('keydown', handleKeydown);
     },
   };
 }

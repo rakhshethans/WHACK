@@ -3,37 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101f23">
+  <meta name="theme-color" content="#eef0e9">
   <link rel="icon" href="data:,">
   <title>WorldHopper | Social Explore Preview</title>
   <link rel="stylesheet" href="../styles.css">
   <link rel="stylesheet" href="./social.css">
   <style>
     .harness-toolbar {
-      margin: 16px auto 0;
-      width: min(1400px, 90%);
-      padding: 12px 16px;
-      background: #15272a;
-      border: 1px dashed #557173;
-      border-radius: 8px;
+      margin: 6px auto 0;
+      width: var(--frame);
+      padding: 6px 14px;
+      background: var(--surface);
+      border: 1px dashed var(--line);
+      border-radius: 14px;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
+      flex-shrink: 0;
     }
     .harness-controls {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 5px;
+    }
+    .harness-controls .small-action {
+      min-height: 30px;
+      padding: 4px 9px;
+      font-size: 11px;
     }
     .harness-adopted-toast {
-      margin: 12px auto 0;
-      width: min(1400px, 90%);
-      padding: 12px 16px;
-      border: 1px solid var(--accent);
-      border-radius: 8px;
-      background: #1b3132;
+      margin: 6px auto 0;
+      width: var(--frame);
+      padding: 8px 14px;
+      border: 1px solid var(--focus);
+      border-radius: 12px;
+      background: #edf4e9;
+      color: var(--ink);
+      font-size: 13px;
+      flex-shrink: 0;
     }
   </style>
 </head>

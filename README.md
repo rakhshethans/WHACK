@@ -1,56 +1,42 @@
-# WHACK Ideas:
+# WorldHopper
 
-## WorldHopper — Social Module Status & Codex Integration Guide (`worldhopper/social`)
+WorldHopper is an interactive archipelago for learning skills and pursuing personal ambitions. Each island offers one practice goal at a time. Completing goals earns XP and develops the island. Related skills can lead to new islands, and Explore lets you browse public and sample worlds, follow explorers, and adopt a starter roadmap into your own archipelago.
 
-This section is maintained by the Social Agent (`worldhopper/social`) to keep Codex (`worldhopper/first-island`) synchronized on completed social features, contracts, and integration steps.
+[Open the shared preview](https://worldbuilder-git-worldhopper-first-island-rak12.vercel.app/)
 
-### Latest Update (`worldhopper/social`)
+## Start here
 
-Implemented and verified the isolated WorldHopper Social module (`src/social/**`), Supabase schema & Row-Level Security policies (`supabase/**`), and automated test suite (`tests/social.test.mjs`, `tests/social-rls.test.mjs`).
+| Document | What it covers |
+| --- | --- |
+| [Original brief](docs/ORIGINAL_BRIEF.md) | The complete initial WarwickHack prompt, including product intent, feature phases, and technical constraints. |
+| [Status](STATUS.md) | What is live and verified, plus the next social workstream. |
+| [Agent instructions](AGENTS.md) | Branches, file ownership, integration rules, and verification. |
+| [Specification](SPEC.md) and [plan](PLAN.md) | The first-slice scope and initial implementation plan. Use Status for the current state. |
+| [Social module guide](src/social/README.md) | Contracts, Supabase RLS schema, fixture/Supabase clients, and `mountSocialExplore` API. |
 
-- **Social Contracts (`src/social/contracts.mjs`)**:
-  - `toPublicProfile(rawProfile, { viewerId, followingIds, blockedIds })`: Returns `{ id, handle, displayName, bio, interests, isSample, followerCount, followingCount, isFollowing, publicIslandCount, publicIslands }`. Strips `email`, `privateNotes`, `rawBrowserStorage`, and unpublished islands.
-  - `toPublicIsland(rawIsland, owner)`: Enforces strict opt-in per island (`isPublic === true`; returns `null` otherwise). Strips unshared private `objective`, per-goal `completed` state/timestamps, `difficulty`, `practiceAdjustment`, `onDevice`, and `continuation` goals.
-  - `toAdoptableRoadmap(publicIsland, ownerProfile)` & `validateAdoptableRoadmap(template)`: Produces a validated starter template directly compatible with `adoptIsland(world, template)` in `src/world.mjs` (`xp: 0`, `completed: false` on all starter goals, creator attribution in `attribution` and `creator`, plus `title`, `description`, `practice`, `finish`, `minutes`, `xp`, and `prerequisites` on each starter goal).
-- **Mountable Explore UI (`src/social/explore.mjs`, `src/social/social.css`)**:
-  - Exports `mountSocialExplore(container, { client, onAdopt, viewerWorld, onAnnounce, onTogglePublish })`.
-  - Works out of the box with `createFixtureSocialClient()` (`src/social/fixtures.mjs`) or `createSupabaseSocialClient()` (`src/social/supabase-client.mjs`).
-  - Supports browsing public profiles, opening another explorer's public archipelago on the SVG map, switching between their public islands, following/unfollowing, explainable people matching (`Similar Explorers`, `Mentor Matches`, `Discovery Matches` via `recommendExplorers` in `src/social/recommendations.mjs`), per-island opt-in visibility toggles, and `loading` / `empty` / `error` states with retry.
-  - Standalone preview harness available at `src/social/preview.html`.
-- **Supabase Backend & RLS (`supabase/migrations/20261107000000_social_schema.sql`, `supabase/config.toml`, `supabase/seed.sql`)**:
-  - Defines `public.profiles`, `public.islands` (`is_public` defaults to `false`), `public.island_private_state` (owner-only table for private objectives, `completed_goal_ids`, and `raw_storage`), and `public.follows`.
-  - Enforces RLS across all tables: Account B can browse and follow Account A, cannot read Account A's private islands even by ID, and cannot modify Account A's profile, islands, or follows.
-- **Verification**:
-  - `node --test`: **23/23 passing** (`tests/world.test.mjs`, `tests/social.test.mjs`, `tests/social-rls.test.mjs`).
-  - Browser verification completed at desktop (`1280px`) and mobile (`375px`) widths with zero console errors or horizontal overflow.
+## Run locally
+
+Use Node.js 20 or newer. Run `node --test` from the repository root. For a browser preview, serve the repository over HTTP with `python -m http.server 8000` and open `http://localhost:8000`.
+
+## Working in parallel
+
+Start both workstreams from `worldhopper/first-island`, the branch behind the shared preview. Use a separate checkout per agent and target PRs back to this branch.
+
+| Workstream | Branch | Ownership |
+| --- | --- | --- |
+| Codex learning and app integration | `worldhopper/learning` | The app shell, map renderer, goals, XP, difficulty feedback, skill recommendations, and their tests. |
+| Antigravity social and public Explore | `worldhopper/social` | `src/social/**`, `supabase/**`, and `tests/social*.test.mjs`. |
 
 ---
 
-### One-Pass Integration Instructions for `worldhopper/first-island`
+## Social Module Status & Codex Sync (`worldhopper/social`)
 
-1. **`index.html`**: Add the social stylesheet below `./src/styles.css`:
-   ```html
-   <link rel="stylesheet" href="./src/social/social.css">
-   ```
-2. **`src/app.mjs`**: Import `mountSocialExplore` and `createFixtureSocialClient` from `./social/index.mjs`:
-   ```js
-   import { mountSocialExplore, createFixtureSocialClient } from './social/index.mjs';
-   const socialClient = createFixtureSocialClient();
-   ```
-3. **Mount when `activeView === 'explore'`**:
-   Render `<div id="explore-mount"></div>` in the Explore view and mount:
-   ```js
-   mountSocialExplore(app.querySelector('#explore-mount'), {
-     client: socialClient,
-     viewerWorld: world,
-     onAnnounce: announce,
-     onAdopt(template) {
-       persist(adoptIsland(world, template));
-       selectedId = world.islands.at(-1).id;
-       activeView = 'world';
-       animateIsland = true;
-       announce(template.title + ' added to your world.');
-       render();
-     },
-   });
-   ```
+1. **Aligned with Light Atlas UI & Pannable Map (`ce0265c`)**:
+   - Merged `origin/worldhopper/learning` (`ce0265c`) into `worldhopper/social`.
+   - Updated `src/social/explore.mjs` and `src/social/social.css` to use the Light Atlas palette (`--paper`, `--surface`, `--ink`, `--muted`, `--line`, `--sea`, `--signal`, `--focus`), the pannable/zoomable `.map-viewport` (`layoutIslands` from `src/map-layout.mjs` + `connectMap` from `src/map-camera.mjs`), and the floating `.field-notes.map-log` slide-over drawer (`id="social-island-log"`).
+   - Wired the **Explore** tab on the main page (`index.html` and `src/app.mjs`) to mount `mountSocialExplore` directly inside `#explore-mount`.
+2. **Social Contracts (`src/social/contracts.mjs`)**:
+   - `toPublicProfile`, `toPublicIsland` (strict opt-in per island via `isPublic === true`), `toAdoptableRoadmap`, and `validateAdoptableRoadmap`.
+   - Strips email, private objectives, per-goal completion progress, continuation goals, and raw browser storage from all public reads.
+3. **Supabase Schema & Row-Level Security (`supabase/migrations/20261107000000_social_schema.sql`, `src/social/supabase-client.mjs`)**:
+   - Defines `public.profiles`, `public.islands` (`is_public` defaults to `false`), `public.island_private_state`, and `public.follows` with strict RLS policies verified across two accounts.
