@@ -35,6 +35,11 @@ function addIsland(world, island) {
   return { ...world, islands: [...world.islands, { ...island, id: 'island-' + (world.islands.length + 1), xp: 0 }] };
 }
 
+function starterGoal([title, description, finish], index, minutes, prerequisite) {
+  return { id: 'goal-' + (index + 1), title, description, finish, minutes,
+    xp: XP_AWARDS[index], prerequisites: prerequisite ? [prerequisite] : [], completed: false };
+}
+
 export function createIsland(world, { title = '', experience = 'beginner', minutes, objective, category = 'custom', topic, localRoadmap }) {
   const skill = Object.hasOwn(SKILLS, category) ? category : 'guitar';
   const customTopic = skill === 'custom' ? String(topic ?? '').trim() : undefined;
@@ -48,16 +53,8 @@ export function createIsland(world, { title = '', experience = 'beginner', minut
     : skill === 'custom' ? buildCustomRoadmap(input) : buildRoadmap({ category: skill, objective: target, experience });
   if (!plan) return world;
   const { focus, theme, checkpoint, next, practiceFocus, steps } = plan;
-  const goals = steps.map(([title, description, finish], index) => ({
-    id: 'goal-' + (index + 1),
-    title,
-    description,
-    finish,
-    minutes: skill === 'custom' ? sessionMinutes : Math.min(sessionMinutes, 10 + index * 5),
-    xp: XP_AWARDS[index],
-    prerequisites: index ? ['goal-' + index] : [],
-    completed: false,
-  }));
+  const goals = steps.map((step, index) => starterGoal(step, index,
+    skill === 'custom' ? sessionMinutes : Math.min(sessionMinutes, 10 + index * 5), index ? 'goal-' + index : undefined));
   return addIsland(world, {
     title: name, category: skill, topic: customTopic, theme, experience, objective: target,
     sessionMinutes, roadmap: { focus, checkpoint, next, practiceFocus, onDevice }, goals,
@@ -65,7 +62,7 @@ export function createIsland(world, { title = '', experience = 'beginner', minut
 }
 
 export function createGeneratedIsland(world, input) {
-  return input.localRoadmap?.steps?.length === XP_AWARDS.length
+  return [1, XP_AWARDS.length].includes(input.localRoadmap?.steps?.length)
     ? createIsland(world, { ...input, category: 'custom' }) : world;
 }
 
@@ -82,26 +79,45 @@ export function reviseIslandRoadmap(world, islandId, input) {
   const [replacement] = createGeneratedIsland(createWorld(), input).islands;
   if (!replacement) return world;
   const { id, xp, attribution } = island;
+  if (replacement.goals.length === 1) {
+    const revised = { ...replacement, id, xp, attribution, difficulty: island.difficulty,
+      goals: island.goals.filter(goal => goal.completed) };
+    revised.goals.push(generatedPracticeGoal(revised, replacement.goals[0]));
+    return replaceIsland(world, revised);
+  }
   const starters = island.goals.filter(goal => !goal.continuation);
   const goals = replacement.goals.map((goal, i) => {
     const previous = starters[i];
     return previous?.completed ? previous : previous ? { ...goal, id: previous.id, xp: previous.xp, prerequisites: previous.prerequisites } : goal;
   });
   goals.push(...island.goals.filter(goal => goal.continuation && goal.completed));
-  return { ...world, islands: world.islands.map(item => item.id === id
-    ? { ...replacement, id, xp, attribution, goals } : item) };
+  return replaceIsland(world, { ...replacement, id, xp, attribution, goals });
 }
 
 export function needsGeneratedPractice(island) {
   return Boolean(island.roadmap?.onDevice && !needsRoadmapRevision(island) && island.goals.every(goal => goal.completed));
 }
 
-export function appendGeneratedPractice(world, islandId, goal) {
+export function canQueueGeneratedPractice(island) {
+  return Boolean(island.roadmap?.onDevice && !needsRoadmapRevision(island) && island.goals.slice(0, -1).every(goal => goal.completed));
+}
+
+function replaceIsland(world, island) {
+  return { ...world, islands: world.islands.map(item => item.id === island.id ? island : item) };
+}
+
+function generatedPracticeGoal(island, goal) {
+  const index = island.goals.length;
+  if (index < XP_AWARDS.length) {
+    return starterGoal([goal.title, goal.description, goal.finish], index, island.sessionMinutes, island.goals.at(-1)?.id);
+  }
+  return continuationGoal(island, goal, island.goals.filter(item => item.continuation).length);
+}
+
+export function appendGeneratedPractice(world, islandId, goal, { ahead = false } = {}) {
   const island = world.islands.find(item => item.id === islandId);
-  if (!island || !needsGeneratedPractice(island) || !goal || isBoilerplateGoal(goal)) return world;
-  const continuation = continuationGoal(island, goal, island.goals.filter(item => item.continuation).length);
-  return { ...world, islands: world.islands.map(item => item.id === islandId
-    ? { ...item, goals: [...item.goals, continuation] } : item) };
+  if (!island || !(ahead ? canQueueGeneratedPractice(island) : needsGeneratedPractice(island)) || !goal || isBoilerplateGoal(goal)) return world;
+  return replaceIsland(world, { ...island, goals: [...island.goals, generatedPracticeGoal(island, goal)] });
 }
 
 function availableGoal(island) {

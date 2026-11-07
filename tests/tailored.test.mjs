@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { generateContinuation, generateCustomRoadmap } from '../src/local-planner.mjs';
+import { generateContinuation, generateCustomRoadmap, generateStarterRoadmap } from '../src/local-planner.mjs';
 import { appendGeneratedPractice, completeGoal, createGeneratedIsland, createWorld, getActiveGoal,
-  needsGeneratedPractice, needsRoadmapRevision, reviseIslandRoadmap, setDifficulty } from '../src/world.mjs';
+  canQueueGeneratedPractice, needsGeneratedPractice, needsRoadmapRevision, reviseIslandRoadmap, setDifficulty } from '../src/world.mjs';
 
 const input = { topic: 'Learn Python', objective: 'Summarise monthly expenses from CSV', experience: 'beginner', minutes: 10 };
 const goals = [
@@ -65,6 +65,38 @@ test('generated goals use the exact outcome and continue only with another accep
   assert.equal(appendGeneratedPractice(updated, island.id, goal), updated);
 });
 
+test('one exercise starts the island, and a queued exercise unlocks only after completion', async () => {
+  let requestedCount;
+  const model = {
+    ...mockModel(response),
+    create: async () => ({
+      prompt: async (prompt, { responseConstraint }) => {
+        requestedCount = responseConstraint.properties.goals.maxItems;
+        assert.match(prompt, /Summarise monthly expenses from CSV/);
+        return JSON.stringify({ ...response, goals: goals.slice(0, requestedCount) });
+      }, destroy() {},
+    }),
+  };
+  const { plan } = await generateStarterRoadmap(input, { model });
+  assert.equal(requestedCount, 1);
+  let world = createGeneratedIsland(createWorld(), { ...input, localRoadmap: plan });
+  const [island] = world.islands;
+  assert.equal(island.goals.length, 1);
+  assert.ok(canQueueGeneratedPractice(island));
+  assert.equal(getActiveGoal(island).title, goals[0].title);
+  for (const [index, source] of goals.slice(1).entries()) {
+    const { title, practice: description, finish } = source;
+    world = appendGeneratedPractice(world, island.id, { title, description, finish }, { ahead: true });
+    const [queued] = world.islands;
+    assert.equal(getActiveGoal(queued).title, goals[index].title);
+    assert.equal(canQueueGeneratedPractice(queued), false);
+    assert.equal(completeGoal(world, island.id, queued.goals.at(-1).id), world);
+    world = completeGoal(world, island.id, getActiveGoal(queued).id);
+  }
+  world = completeGoal(world, island.id, getActiveGoal(world.islands[0]).id);
+  assert.equal(world.islands[0].xp, 900);
+});
+
 test('rebuilding a saved generic plan keeps completed goals and earned XP', async () => {
   const { plan } = await generateCustomRoadmap(input, { model: mockModel(response) });
   const world = createGeneratedIsland(createWorld(), { ...input, localRoadmap: plan });
@@ -74,7 +106,8 @@ test('rebuilding a saved generic plan keeps completed goals and earned XP', asyn
   ] };
   assert.ok(needsRoadmapRevision(saved));
   assert.equal(getActiveGoal(saved), undefined);
-  const [updated] = reviseIslandRoadmap({ islands: [saved] }, saved.id, { ...input, localRoadmap: plan }).islands;
+  const { plan: repair } = await generateStarterRoadmap(input, { model: mockModel({ ...response, goals: [goals[1]] }) });
+  const [updated] = reviseIslandRoadmap({ islands: [saved] }, saved.id, { ...input, localRoadmap: repair }).islands;
   assert.equal(updated.xp, 40);
   assert.equal(updated.id, saved.id);
   assert.deepEqual(updated.goals[0], saved.goals[0]);

@@ -1,7 +1,7 @@
-import { createWorld, createIsland, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, reviseIslandRoadmap, needsGeneratedPractice, appendGeneratedPractice } from './world.mjs';
+import { createWorld, createIsland, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice } from './world.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
-import { generateCustomRoadmap, generateAdaptiveGoal, generateContinuation } from './local-planner.mjs';
+import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation } from './local-planner.mjs';
 import { DIFFICULTIES } from './difficulty.mjs';
 import { relatedSkill } from './skill-connections.mjs';
 import { layoutIslands } from './map-layout.mjs';
@@ -23,7 +23,7 @@ const onboardingTitle = document.querySelector('#onboarding-title');
 let pendingCreation;
 let revisingId;
 const adaptationDrafts = new Map();
-const pendingPractice = new Set();
+const pendingPractice = new Map();
 const practiceErrors = new Map();
 
 const PLAN_ERRORS = {
@@ -331,6 +331,7 @@ app.addEventListener('click', event => {
     logOpen = true;
     render();
     focusLog();
+    if (activeView === 'world') void preparePractice(selectedId, true);
     return;
   }
   if (action === 'new') {
@@ -399,20 +400,38 @@ app.addEventListener('click', event => {
     if (nextFocus.matches('h2, h3')) nextFocus.tabIndex = -1;
     nextFocus.focus({ preventScroll: true });
   }
+  if (action === 'complete' || action === 'select') void preparePractice(selectedId, true);
 });
 
-async function preparePractice(id) {
+async function preparePractice(id, ahead = false) {
   const island = world.islands.find(item => item.id === id);
-  if (!island || pendingPractice.has(id) || !needsGeneratedPractice(island)) return;
-  pendingPractice.add(id);
+  if (!island || pendingPractice.has(id) || dialog.open) return;
+  const waiting = needsGeneratedPractice(island);
+  if (ahead ? !canQueueGeneratedPractice(island) || pendingPractice.size : !waiting) return;
+  const controller = new AbortController();
+  pendingPractice.set(id, { controller, ahead });
   practiceErrors.delete(id);
-  render();
-  announce('Preparing your next goal.');
-  const result = await generateContinuation(island, { allowDownload: true });
+  if (waiting) {
+    render();
+    if (!ahead) announce('Preparing your next goal.');
+  }
+  const activeGoal = getActiveGoal(island);
+  const context = activeGoal?.adapted ? { ...island, goals: [...island.goals.slice(0, -1), activeGoal] } : island;
+  const result = await generateContinuation(context, { signal: controller.signal, allowDownload: !ahead });
+  if (pendingPractice.get(id)?.controller !== controller) return;
   pendingPractice.delete(id);
-  if (result.status === 'ready') persist(appendGeneratedPractice(world, id, result.goal));
-  else practiceErrors.set(id, result.status === 'unavailable' ? PLAN_ERRORS.unavailable : 'Couldn’t generate a specific next goal. Try again when you’re ready.');
-  if (activeView === 'world' && selectedId === id) {
+  const current = world.islands.find(item => item.id === id);
+  const needsGoal = current && needsGeneratedPractice(current);
+  if (result.status === 'ready') {
+    const updated = appendGeneratedPractice(world, id, result.goal, { ahead });
+    if (updated !== world) {
+      persist(updated);
+      if (!needsGoal && current?.goalFeedback) draftNextGoal(updated.islands.find(item => item.id === id), current.goalFeedback.id);
+    }
+  } else if (needsGoal) {
+    practiceErrors.set(id, result.status === 'unavailable' ? PLAN_ERRORS.unavailable : 'Couldn’t generate a specific next goal. Try again when you’re ready.');
+  }
+  if (needsGoal && activeView === 'world' && selectedId === id && logOpen && !dialog.open) {
     render();
     app.querySelector(result.status === 'ready' ? '#active-goal-title' : '[data-action="generate-practice"]')?.focus({ preventScroll: true });
     if (result.status === 'ready') announce('Your next goal is ready.');
@@ -427,6 +446,15 @@ function setPlanMessage(message = '', error = false) {
 }
 
 function openOnboarding(topic = '', objective = '', island) {
+  let refreshWaitingGoal = false;
+  for (const [id, task] of pendingPractice) {
+    if (!task.ahead) continue;
+    pendingPractice.delete(id);
+    task.controller.abort();
+    const current = world.islands.find(item => item.id === id);
+    if (id === selectedId && current && needsGeneratedPractice(current)) refreshWaitingGoal = true;
+  }
+  if (refreshWaitingGoal) render();
   form.reset();
   setPlanMessage();
   revisingId = island?.id;
@@ -468,16 +496,18 @@ form.addEventListener('submit', async event => {
     topicField.reportValidity();
     return;
   }
-  const planInput = { ...input, topic, objective: input.objective.trim() || topic, minutes: Number(input.minutes) };
+  const previous = world.islands.find(item => item.id === revisingId);
+  const recent = previous?.goals.filter(goal => goal.completed).slice(-3).map(({ title, description }) => ({ title, description }));
+  const planInput = { ...input, topic, objective: input.objective.trim() || topic, minutes: Number(input.minutes), recent };
   const controller = new AbortController();
   pendingCreation = controller;
   setCreating(true);
   setPlanMessage('Preparing your tailored plan on this device…');
-  const result = await generateCustomRoadmap(planInput, {
+  const result = await generateStarterRoadmap(planInput, {
     signal: controller.signal, allowDownload: true,
     onStatus(status, progress) {
       if (status === 'downloading') setPlanMessage('Downloading this browser’s AI model' + (progress === undefined ? '…' : ' (' + progress + '%)…'));
-      else setPlanMessage('Writing practice goals for your skill…');
+      else setPlanMessage('Writing your first tailored exercise…');
     },
   });
   if (pendingCreation !== controller) return;
@@ -506,6 +536,7 @@ form.addEventListener('submit', async event => {
   render();
   focusLog();
   announce(revisingId ? 'Your updated roadmap is ready.' : 'Your island is ready.');
+  void preparePractice(selectedId, true);
 });
 
 render();
