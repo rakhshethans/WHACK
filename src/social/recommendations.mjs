@@ -1,31 +1,4 @@
-import { SKILLS } from '../roadmaps.mjs';
-
-const COMPLEMENTARY_SKILLS = {
-  guitar: ['songwriting', 'people', 'speaking'],
-  songwriting: ['guitar', 'speaking', 'photography'],
-  photography: ['visual', 'songwriting', 'language'],
-  people: ['speaking', 'language', 'guitar'],
-  speaking: ['people', 'songwriting', 'board'],
-  language: ['people', 'speaking', 'photography'],
-  visual: ['photography', 'songwriting', 'compass'],
-  board: ['speaking', 'people', 'compass'],
-  compass: ['people', 'photography', 'guitar'],
-};
-
-function islandSkillKey(island) {
-  if (!island) return 'guitar';
-  if (island.category === 'custom') {
-    return island.theme || (island.topic ? island.topic.toLowerCase() : 'compass');
-  }
-  return island.category || 'guitar';
-}
-
-function islandSkillLabel(island) {
-  if (!island) return 'Skill';
-  if (island.category === 'custom' && island.topic) return island.topic;
-  if (Object.hasOwn(SKILLS, island.category)) return SKILLS[island.category].label;
-  return island.title || 'Skill';
-}
+import { normalizeIslandSkill, RELATED_SKILLS } from './graph.mjs';
 
 /**
  * Deterministic, explainable people recommendation engine.
@@ -39,11 +12,11 @@ export function recommendExplorers(viewerWorld, publicProfiles = [], { viewerId 
   const viewerSkills = new Map();
 
   for (const island of viewerIslands) {
-    const key = islandSkillKey(island);
+    const { skillKey, skillLabel } = normalizeIslandSkill(island);
     const level = island.level ?? Math.max(1, Math.floor((island.xp ?? 0) / 100) + 1);
-    const prev = viewerSkills.get(key);
+    const prev = viewerSkills.get(skillKey);
     if (!prev || level > prev.level) {
-      viewerSkills.set(key, { key, label: islandSkillLabel(island), level, title: island.title });
+      viewerSkills.set(skillKey, { key: skillKey, label: skillLabel, level, title: island.title });
     }
   }
 
@@ -69,8 +42,8 @@ export function recommendExplorers(viewerWorld, publicProfiles = [], { viewerId 
     const complementaryIslands = [];
 
     for (const island of profile.publicIslands) {
-      const key = islandSkillKey(island);
-      const viewerSkill = viewerSkills.get(key);
+      const { skillKey } = normalizeIslandSkill(island);
+      const viewerSkill = viewerSkills.get(skillKey);
       if (viewerSkill) {
         sharedIslands.push({ island, viewerSkill });
         if ((island.level ?? 1) > viewerSkill.level) {
@@ -78,8 +51,8 @@ export function recommendExplorers(viewerWorld, publicProfiles = [], { viewerId 
         }
       } else {
         novelIslands.push(island);
-        const complements = COMPLEMENTARY_SKILLS[primaryViewerSkill.key] ?? [];
-        if (complements.includes(key) || complements.includes(island.category)) {
+        const complements = RELATED_SKILLS[primaryViewerSkill.key] ?? [];
+        if (complements.includes(skillKey) || complements.includes(island.category)) {
           complementaryIslands.push(island);
         }
       }
@@ -108,7 +81,7 @@ export function recommendExplorers(viewerWorld, publicProfiles = [], { viewerId 
 
   // 1. Mentor Match: highest mentorScore (or highest level shared/featured island)
   const mentorCandidate = [...scored]
-    .sort((a, b) => b.mentorScore - a.mentorScore || b.maxIslandLevel - a.maxIslandLevel)
+    .sort((a, b) => b.mentorScore - a.mentorScore || b.maxIslandLevel - a.maxIslandLevel || a.profile.id.localeCompare(b.profile.id))
     .find(item => !assignedIds.has(item.profile.id));
 
   if (mentorCandidate) {
@@ -116,7 +89,7 @@ export function recommendExplorers(viewerWorld, publicProfiles = [], { viewerId 
     const featured = mentorCandidate.mentorIslands[0]?.island
       ?? mentorCandidate.sharedIslands[0]?.island
       ?? mentorCandidate.profile.publicIslands[0];
-    const skillLabel = islandSkillLabel(featured);
+    const { skillLabel } = normalizeIslandSkill(featured);
     const reason = mentorCandidate.mentorIslands.length > 0
       ? `${mentorCandidate.profile.displayName} has reached Level ${featured.level} (${featured.stageName}) in ${skillLabel} with "${featured.title}" and shares a structured roadmap you can adopt.`
       : `${mentorCandidate.profile.displayName} has developed "${featured.title}" to Level ${featured.level} (${featured.stageName}) in ${skillLabel}, offering a proven progression path.`;
@@ -132,13 +105,13 @@ export function recommendExplorers(viewerWorld, publicProfiles = [], { viewerId 
 
   // 2. Similar Explorer: shares an interest or similar pace
   const similarCandidate = [...scored]
-    .sort((a, b) => b.similarScore - a.similarScore || a.maxIslandLevel - b.maxIslandLevel)
+    .sort((a, b) => b.similarScore - a.similarScore || a.maxIslandLevel - b.maxIslandLevel || a.profile.id.localeCompare(b.profile.id))
     .find(item => !assignedIds.has(item.profile.id));
 
   if (similarCandidate) {
     assignedIds.add(similarCandidate.profile.id);
     const shared = similarCandidate.sharedIslands[0]?.island ?? similarCandidate.profile.publicIslands[0];
-    const skillLabel = islandSkillLabel(shared);
+    const { skillLabel } = normalizeIslandSkill(shared);
     const reason = similarCandidate.sharedIslands.length > 0
       ? `Both of you are charting ${skillLabel} islands — ${similarCandidate.profile.displayName}'s "${shared.title}" focuses on ${shared.roadmap?.focus?.toLowerCase() || skillLabel.toLowerCase()}.`
       : `${similarCandidate.profile.displayName} builds structured ${skillLabel} sessions (${shared.sessionMinutes} min) at a steady pace alongside your archipelago.`;
@@ -154,7 +127,7 @@ export function recommendExplorers(viewerWorld, publicProfiles = [], { viewerId 
 
   // 3. Discovery Match: introduces an unfamiliar or complementary skill
   const discoveryCandidate = [...scored]
-    .sort((a, b) => b.discoveryScore - a.discoveryScore)
+    .sort((a, b) => b.discoveryScore - a.discoveryScore || a.profile.id.localeCompare(b.profile.id))
     .find(item => !assignedIds.has(item.profile.id));
 
   if (discoveryCandidate) {
@@ -162,7 +135,7 @@ export function recommendExplorers(viewerWorld, publicProfiles = [], { viewerId 
     const novel = discoveryCandidate.complementaryIslands[0]
       ?? discoveryCandidate.novelIslands[0]
       ?? discoveryCandidate.profile.publicIslands[0];
-    const novelLabel = islandSkillLabel(novel);
+    const { skillLabel: novelLabel } = normalizeIslandSkill(novel);
     const reason = hasViewerIslands && discoveryCandidate.complementaryIslands.length > 0
       ? `Because you practise ${primaryViewerSkill.label}, ${discoveryCandidate.profile.displayName}'s ${novelLabel} island ("${novel.title}") connects your skills to a new world.`
       : `${discoveryCandidate.profile.displayName} opens a new world in ${novelLabel} with "${novel.title}" (${novel.roadmap?.focus || novel.publicSummary}).`;
@@ -180,7 +153,7 @@ export function recommendExplorers(viewerWorld, publicProfiles = [], { viewerId 
   for (const item of scored) {
     if (assignedIds.has(item.profile.id)) continue;
     const featured = item.novelIslands[0] ?? item.profile.publicIslands[0];
-    const label = islandSkillLabel(featured);
+    const { skillLabel: label } = normalizeIslandSkill(featured);
     results.push({
       category: item.sharedIslands.length > 0 ? 'Similar Explorers' : 'Discovery Matches',
       profile: item.profile,

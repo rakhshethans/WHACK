@@ -128,13 +128,21 @@ create policy "island_private_state_owner_delete"
   on public.island_private_state for delete
   using (auth.uid() = owner_id);
 
--- FOLLOWS POLICIES (anyone can read public follows; only authenticated follower can insert/delete own row)
+-- FOLLOWS POLICIES (only visible when both endpoints are public profiles, or to either endpoint of the relationship)
 create policy "follows_select_public"
   on public.follows for select
   using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = follows.following_id and (p.is_public = true or auth.uid() = follows.follower_id)
+    auth.uid() = follows.follower_id
+    or auth.uid() = follows.following_id
+    or (
+      exists (
+        select 1 from public.profiles p_target
+        where p_target.id = follows.following_id and p_target.is_public = true
+      )
+      and exists (
+        select 1 from public.profiles p_follower
+        where p_follower.id = follows.follower_id and p_follower.is_public = true
+      )
     )
   );
 

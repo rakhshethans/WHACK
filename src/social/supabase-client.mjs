@@ -1,4 +1,5 @@
 import { toPublicIsland, toPublicProfile } from './contracts.mjs';
+import { rankNeighborsByGraph } from './graph.mjs';
 import { recommendExplorers } from './recommendations.mjs';
 
 const PUBLIC_PROFILE_COLUMNS = 'id,handle,display_name,bio,interests,is_public,is_sample';
@@ -91,7 +92,7 @@ export function createSupabaseSocialClient({
     return data;
   }
 
-  async function fetchHydratedProfiles() {
+  async function fetchHydratedProfiles({ requirePublicIslands = true } = {}) {
     const [profilesRows, islandsRows, followsRows] = await Promise.all([
       rest('profiles', { query: { select: PUBLIC_PROFILE_COLUMNS, is_public: 'eq.true' } }),
       rest('islands', { query: { select: PUBLIC_ISLAND_COLUMNS, is_public: 'eq.true' } }),
@@ -103,13 +104,22 @@ export function createSupabaseSocialClient({
         .filter(row => row.follower_id === viewerId)
         .map(row => row.following_id),
     );
+    const followerIds = new Set(
+      (followsRows ?? [])
+        .filter(row => row.following_id === viewerId)
+        .map(row => row.follower_id),
+    );
 
-    return (profilesRows ?? [])
+    const projected = (profilesRows ?? [])
       .map(row => {
         const raw = mapDbProfileToRaw(row, islandsRows ?? [], followsRows ?? []);
-        return toPublicProfile(raw, { viewerId, followingIds });
+        return toPublicProfile(raw, { viewerId, followingIds, followerIds });
       })
-      .filter(profile => profile && profile.publicIslands.length > 0);
+      .filter(Boolean);
+
+    return requirePublicIslands
+      ? projected.filter(profile => profile.publicIslands.length > 0)
+      : projected;
   }
 
   return {
@@ -117,9 +127,12 @@ export function createSupabaseSocialClient({
     viewerId,
 
     async listPublicProfiles({ filter = 'all' } = {}) {
-      const profiles = await fetchHydratedProfiles();
+      const profiles = await fetchHydratedProfiles({ requirePublicIslands: true });
       if (filter === 'following') {
         return profiles.filter(p => p.isFollowing);
+      }
+      if (filter === 'followers') {
+        return profiles.filter(p => p.followsViewer);
       }
       if (filter && filter !== 'all') {
         return profiles.filter(p => (
@@ -128,6 +141,19 @@ export function createSupabaseSocialClient({
         ));
       }
       return profiles;
+    },
+
+    async listNetworkProfiles() {
+      const profiles = await fetchHydratedProfiles({ requirePublicIslands: false });
+      return {
+        following: profiles.filter(p => p.isFollowing),
+        followers: profiles.filter(p => p.followsViewer),
+      };
+    },
+
+    async rankNeighbors({ viewerWorld, limit = 8 } = {}) {
+      const profiles = await fetchHydratedProfiles({ requirePublicIslands: true });
+      return rankNeighborsByGraph(viewerWorld, profiles, { viewerId, limit });
     },
 
     async getPublicWorld(profileId) {
@@ -144,8 +170,11 @@ export function createSupabaseSocialClient({
       const followingIds = new Set(
         (followsRows ?? []).filter(f => f.follower_id === viewerId).map(f => f.following_id),
       );
+      const followerIds = new Set(
+        (followsRows ?? []).filter(f => f.following_id === viewerId).map(f => f.follower_id),
+      );
       const raw = mapDbProfileToRaw(row, islandsRows ?? [], followsRows ?? []);
-      const profile = toPublicProfile(raw, { viewerId, followingIds });
+      const profile = toPublicProfile(raw, { viewerId, followingIds, followerIds });
       if (!profile) {
         throw new Error('Public world not found or not shared.');
       }
@@ -254,7 +283,7 @@ export function createSupabaseSocialClient({
     },
 
     async recommendPeople({ viewerWorld } = {}) {
-      const profiles = await fetchHydratedProfiles();
+      const profiles = await fetchHydratedProfiles({ requirePublicIslands: true });
       return recommendExplorers(viewerWorld, profiles, { viewerId });
     },
   };
@@ -380,6 +409,12 @@ export function createRlsSimulatedFetch({
     if (table === 'follows') {
       if (method === 'GET') {
         const rows = db.follows
+          .filter(f => {
+            if (uid && (f.follower_id === uid || f.following_id === uid)) return true;
+            const followerPublic = db.profiles.some(p => p.id === f.follower_id && p.is_public === true);
+            const followingPublic = db.profiles.some(p => p.id === f.following_id && p.is_public === true);
+            return followerPublic && followingPublic;
+          })
           .filter(f => matchesEqFilter(f, url.searchParams))
           .map(f => pickColumns(f, selectParam));
         return jsonResponse(200, rows);

@@ -100,7 +100,15 @@ export function toPublicIsland(rawIsland, owner = {}) {
  * Projects a raw user/profile record into a safe PublicProfile.
  * Excludes email, private notes, raw browser storage, and unpublished islands.
  */
-export function toPublicProfile(rawProfile, { viewerId = null, followingIds = new Set(), blockedIds = new Set() } = {}) {
+export function toPublicProfile(
+  rawProfile,
+  {
+    viewerId = null,
+    followingIds = new Set(),
+    followerIds = new Set(),
+    blockedIds = new Set(),
+  } = {},
+) {
   if (!rawProfile || rawProfile.isPublic === false) return null;
   const id = String(rawProfile.id ?? '').trim();
   if (!id || blockedIds.has(id)) return null;
@@ -123,6 +131,12 @@ export function toPublicProfile(rawProfile, { viewerId = null, followingIds = ne
       ? followingIds.includes(id)
       : Boolean(rawProfile.isFollowing);
 
+  const followsViewer = followerIds instanceof Set
+    ? followerIds.has(id)
+    : Array.isArray(followerIds)
+      ? followerIds.includes(id)
+      : Boolean(rawProfile.followsViewer);
+
   return {
     id,
     handle,
@@ -133,6 +147,7 @@ export function toPublicProfile(rawProfile, { viewerId = null, followingIds = ne
     followerCount: Math.max(0, Number(rawProfile.followerCount) || 0),
     followingCount: Math.max(0, Number(rawProfile.followingCount) || 0),
     isFollowing: id === viewerId ? false : isFollowing,
+    followsViewer: id === viewerId ? false : followsViewer,
     publicIslandCount: publicIslands.length,
     publicIslands,
   };

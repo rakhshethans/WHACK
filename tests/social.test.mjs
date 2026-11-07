@@ -7,8 +7,12 @@ import {
   toAdoptableRoadmap,
   validateAdoptableRoadmap,
   createFixtureSocialClient,
+  normalizeIslandSkill,
+  rankNeighborsByGraph,
   recommendExplorers,
   mountSocialExplore,
+  HOME_CLUSTER_POS,
+  NEIGHBOR_SECTORS,
 } from '../src/social/index.mjs';
 
 const rawOwnerRecord = {
@@ -118,12 +122,17 @@ const rawOwnerRecord = {
 };
 
 test('public projection strips email, private objectives, detailed progress, private islands, and raw storage', () => {
-  const profile = toPublicProfile(rawOwnerRecord, { viewerId: 'user-viewer', followingIds: new Set(['user-maya']) });
+  const profile = toPublicProfile(rawOwnerRecord, {
+    viewerId: 'user-viewer',
+    followingIds: new Set(['user-maya']),
+    followerIds: new Set(['user-maya']),
+  });
 
   assert.equal(profile.id, 'user-maya');
   assert.equal(profile.displayName, 'Maya Chen');
   assert.equal(profile.handle, 'maya-chen');
   assert.equal(profile.isFollowing, true);
+  assert.equal(profile.followsViewer, true);
   assert.equal(profile.publicIslandCount, 1);
   assert.equal(profile.publicIslands.length, 1);
 
@@ -210,10 +219,14 @@ test('toAdoptableRoadmap produces a valid starter template that resets XP and co
 });
 
 test('fixture client supports profile browsing, public world inspection, opt-in publishing, and follow/unfollow', async () => {
-  const client = createFixtureSocialClient({ viewerId: 'user-viewer' });
+  const client = createFixtureSocialClient({
+    viewerId: 'user-viewer',
+    initialFollowingIds: [],
+    initialFollowerIds: ['user-lin'],
+  });
 
   const profiles = await client.listPublicProfiles();
-  assert.ok(profiles.length >= 3);
+  assert.ok(profiles.length >= 8);
   // All returned profiles only expose public islands
   for (const profile of profiles) {
     assert.equal('email' in profile, false);
@@ -236,6 +249,13 @@ test('fixture client supports profile browsing, public world inspection, opt-in 
   assert.equal(unfollowed.isFollowing, false);
   assert.equal(unfollowed.followerCount, initialFollowers);
 
+  // Follower with 0 public islands is still accessible in network list and getPublicWorld
+  const network = await client.listNetworkProfiles();
+  assert.equal(network.followers.some(p => p.id === 'user-lin' && p.publicIslandCount === 0), true);
+  const linWorld = await client.getPublicWorld('user-lin');
+  assert.equal(linWorld.profile.displayName, 'Lin Zhou');
+  assert.equal(linWorld.islands.length, 0);
+
   // Private island cannot be fetched even by ID
   const privateLookup = await client.getPublicIsland('island-private-hidden');
   assert.equal(privateLookup, null);
@@ -245,6 +265,107 @@ test('fixture client supports profile browsing, public world inspection, opt-in 
     () => client.setIslandVisibility(worldView.islands[0].id, { isPublic: false }),
     /permission|owner|forbidden/i,
   );
+});
+
+test('normalizeIslandSkill keeps exact skills distinct from broad themes and rankNeighborsByGraph re-ranks neighbours by skill graph', () => {
+  const japaneseIsland = { category: 'custom', topic: 'Japanese language', theme: 'language', title: 'Kyoto Converse' };
+  const spanishIsland = { category: 'custom', topic: 'Spanish', theme: 'language', title: 'Iberian Rails' };
+  const potteryIsland = { category: 'custom', topic: 'Wheel pottery', theme: 'compass', title: 'Clay Harbor' };
+  const bakingIsland = { category: 'custom', topic: 'Sourdough baking', theme: 'compass', title: 'Crust Cove' };
+
+  const jpNorm = normalizeIslandSkill(japaneseIsland);
+  const esNorm = normalizeIslandSkill(spanishIsland);
+  assert.equal(jpNorm.skillKey, 'japanese');
+  assert.equal(esNorm.skillKey, 'spanish');
+  assert.notEqual(jpNorm.skillKey, esNorm.skillKey, 'Japanese and Spanish must have distinct exact skill keys');
+  assert.equal(jpNorm.themeKey, 'language');
+  assert.equal(esNorm.themeKey, 'language');
+
+  // Unrelated custom skills with fallback 'compass' artwork theme must not share a themeKey
+  const potNorm = normalizeIslandSkill(potteryIsland);
+  const bakeNorm = normalizeIslandSkill(bakingIsland);
+  assert.notEqual(potNorm.skillKey, bakeNorm.skillKey);
+  assert.equal(potNorm.themeKey, null);
+  assert.equal(bakeNorm.themeKey, null);
+
+  const client = createFixtureSocialClient({
+    viewerId: 'user-viewer',
+    initialFollowingIds: [],
+    initialFollowerIds: [],
+  });
+  const candidates = client.getSnapshotProfiles();
+
+  // Case 1: Viewer learning Japanese & Origami -> Hana Sato (Origami + Japanese) and Sora Takahashi (Japanese + Chess) rank at the top
+  let jpWorld = createIsland(createWorld(), {
+    title: 'Tokyo Phrases',
+    category: 'custom',
+    topic: 'Japanese',
+    objective: 'Converse in Tokyo',
+  });
+  jpWorld = createIsland(jpWorld, {
+    title: 'Paper Cranes',
+    category: 'custom',
+    topic: 'Origami',
+    objective: 'Fold a paper crane',
+  });
+
+  const jpRanked = rankNeighborsByGraph(jpWorld, candidates, { limit: 8 });
+  assert.equal(jpRanked.length, 8);
+  assert.equal(jpRanked[0].profile.id, 'user-hana', 'Hana shares both Origami and Japanese');
+  assert.match(jpRanked[0].reasonLabel, /Shared skills · Origami & Japanese|Shared skills · Japanese & Origami/);
+  assert.equal(jpRanked[1].profile.id, 'user-sora', 'Sora shares Japanese and links to Origami via Chess');
+  assert.match(jpRanked[1].reasonLabel, /Both learning Japanese/);
+
+  // Mateo (Spanish) should be linked via Language bridge, ranked lower than exact Japanese matches
+  const mateoEntry = jpRanked.find(e => e.profile.id === 'user-mateo');
+  assert.ok(mateoEntry);
+  assert.ok(mateoEntry.score < jpRanked[1].score);
+
+  // Case 2: Viewer learning Guitar & Songwriting -> Maya Chen and Noah Silva rank at the top
+  let musicWorld = createIsland(createWorld(), {
+    title: 'Campfire Chords',
+    category: 'guitar',
+    objective: 'Play acoustic songs',
+  });
+  musicWorld = createIsland(musicWorld, {
+    title: 'First Chorus',
+    category: 'songwriting',
+    objective: 'Write a song',
+  });
+
+  const musicRanked = rankNeighborsByGraph(musicWorld, candidates, { limit: 8 });
+  const topTwoIds = new Set([musicRanked[0].profile.id, musicRanked[1].profile.id]);
+  assert.equal(topTwoIds.has('user-maya'), true);
+  assert.equal(topTwoIds.has('user-noah'), true);
+
+  // Case 3: Fewer than 5 candidates and empty viewer world are handled cleanly without percentages
+  const smallRanked = rankNeighborsByGraph(createWorld(), candidates.slice(0, 3), { limit: 8 });
+  assert.equal(smallRanked.length, 3);
+  for (const item of smallRanked) {
+    assert.equal(/%/.test(item.reasonLabel), false, 'labels must be evidence-based, not uncalibrated percentages');
+  }
+});
+
+test('all 8 surrounding neighbour sectors and Home Waters are collision-free on the shared ocean canvas', () => {
+  const boxes = [
+    { id: 'home', ...HOME_CLUSTER_POS },
+    ...NEIGHBOR_SECTORS.map(s => ({ id: `sector-${s.index}`, ...s })),
+  ];
+
+  assert.equal(NEIGHBOR_SECTORS.length, 8);
+  for (let i = 0; i < boxes.length; i += 1) {
+    const a = boxes[i];
+    for (let j = i + 1; j < boxes.length; j += 1) {
+      const b = boxes[j];
+      const overlapsX = a.left < b.left + b.width && a.left + a.width > b.left;
+      const overlapsY = a.top < b.top + b.height && a.top + a.height > b.top;
+      assert.equal(
+        overlapsX && overlapsY,
+        false,
+        `Bounding boxes ${a.id} and ${b.id} must not overlap`,
+      );
+    }
+  }
 });
 
 test('recommendExplorers categorises matches into Similar Explorers, Mentor Matches, and Discovery Matches with explanations', () => {
@@ -292,7 +413,6 @@ function createTestContainer() {
     async clickButton(selectorAttrs) {
       const handler = listeners.get('click');
       assert.ok(handler, 'click listener must be registered on container');
-      // Verify the button with matching data attributes exists in rendered innerHTML
       for (const [key, expected] of Object.entries(selectorAttrs)) {
         const attrName = key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
         const snippet = `data-${attrName}="${expected}"`;
@@ -314,7 +434,11 @@ function createTestContainer() {
 
 test('mountSocialExplore exercises loading, ready, empty, and error states with retry recovery', async () => {
   const container = createTestContainer();
-  const client = createFixtureSocialClient({ latencyMs: 15, failWithError: 'Supabase network timeout' });
+  const client = createFixtureSocialClient({
+    latencyMs: 15,
+    initialFollowingIds: [],
+    failWithError: 'Supabase network timeout',
+  });
 
   const controller = mountSocialExplore(container, { client });
   // Immediately after mount, container is in loading state
@@ -337,7 +461,7 @@ test('mountSocialExplore exercises loading, ready, empty, and error states with 
   await container.clickButton({ socialAction: 'filter', filter: 'following' });
   assert.equal(controller.getState().status, 'empty');
   assert.match(container.innerHTML, /data-social-state="empty"/);
-  assert.match(container.innerHTML, /not following any explorers yet/);
+  assert.match(container.innerHTML, /not following any explorers with public islands yet/);
 
   // Reset filter to all worlds from empty state
   await container.clickButton({ socialAction: 'filter', filter: 'all' });
@@ -345,7 +469,7 @@ test('mountSocialExplore exercises loading, ready, empty, and error states with 
   controller.destroy();
 });
 
-test('mountSocialExplore renders user islands at the map centre and nearby user island clusters on the pannable ocean without top profile cards', async () => {
+test('mountSocialExplore renders graph-ranked neighbour clusters, Following & Followers lists, and switches to Solo Archipelago View', async () => {
   const container = createTestContainer();
   const viewerWorld = createIsland(createWorld(), {
     title: 'My Home Guitar Island',
@@ -370,55 +494,88 @@ test('mountSocialExplore renders user islands at the map centre and nearby user 
   });
   await controller.ready;
 
-  // 1. No top profile-card directory strip; all clusters live inside the map canvas
+  // 1. No top profile-card directory strip; 8 graph-ranked neighbours surround Home Waters
   assert.equal(container.innerHTML.includes('class="social-directory"'), false);
   assert.match(container.innerHTML, /My Home Guitar Island/);
-  assert.match(container.innerHTML, /archipelago-cluster/);
-  assert.ok(controller.getState().profiles.length >= 5, 'at least 5 hardcoded nearby users');
-
-  // Default view starts focused on current user's islands with inspector drawer closed
+  assert.match(container.innerHTML, /data-map-mode="neighborhood"/);
+  assert.equal(controller.getState().neighborEntries.length, 8);
   assert.equal(controller.getState().logOpen, false);
   assert.equal(controller.getState().activeCluster, 'home');
 
-  // 2. Clicking a nearby user's island group reveals info about that user and their islands
-  await container.clickButton({ socialAction: 'open-profile', profileId: 'user-noah' });
-  assert.equal(controller.getState().selectedProfileId, 'user-noah');
-  assert.equal(controller.getState().activeCluster, 'user-noah');
+  // Record initial sector assignments to verify sector stability after follow/unfollow
+  const initialSectorForNoah = controller.getState().neighborEntries.find(e => e.profile.id === 'user-noah')?.sector.index;
+  assert.equal(typeof initialSectorForNoah, 'number');
+
+  // 2. Open the Following & Followers network panel
+  await container.clickButton({ socialAction: 'open-network', networkTab: 'following' });
   assert.equal(controller.getState().logOpen, true);
-  assert.match(container.innerHTML, /Noah Silva/);
+  assert.equal(controller.getState().network.following.length, 2);
+  assert.equal(controller.getState().network.followers.length, 4);
+
+  // Switch to Followers tab -> includes Lin Zhou (who has 0 public islands) and Elena Rostova
+  await container.clickButton({ socialAction: 'network-tab', networkTab: 'followers' });
+  assert.match(container.innerHTML, /Lin Zhou/);
+  assert.match(container.innerHTML, /No public islands yet/);
+
+  // 3. Click "View archipelago" on a follower with 0 public islands -> opens Solo Archipelago Mode cleanly
+  await container.clickButton({ socialAction: 'view-solo-archipelago', profileId: 'user-lin' });
+  assert.equal(controller.getState().mapMode, 'solo');
+  assert.equal(controller.getState().soloWorld.profile.id, 'user-lin');
+  assert.equal(controller.getState().soloWorld.islands.length, 0);
+  assert.match(container.innerHTML, /data-map-mode="solo"/);
+  assert.match(container.innerHTML, /hasn’t published any public islands yet/);
+
+  // Return to neighbourhood map
+  await container.clickButton({ socialAction: 'exit-solo' });
+  assert.equal(controller.getState().mapMode, 'neighborhood');
+  assert.match(container.innerHTML, /data-map-mode="neighborhood"/);
+
+  // 4. Click a profile in Following/Followers with public islands -> opens Solo Archipelago Mode with their islands
+  await container.clickButton({ socialAction: 'open-network', networkTab: 'following' });
+  await container.clickButton({ socialAction: 'view-solo-archipelago', profileId: 'user-noah' });
+  assert.equal(controller.getState().mapMode, 'solo');
+  assert.equal(controller.getState().soloWorld.profile.id, 'user-noah');
+  assert.equal(controller.getState().soloWorld.islands.length, 2);
   assert.match(container.innerHTML, /Verse Dunes/);
   assert.match(container.innerHTML, /Rhythm Reef/);
 
-  // 3. Clicking another island in Noah's cluster switches the active island in the drawer
+  // Select second island on Noah's solo archipelago map and adopt it
   await container.clickButton({ socialAction: 'select-island', islandId: 'island-noah-guitar' });
   assert.equal(controller.getState().selectedIslandId, 'island-noah-guitar');
-  assert.match(container.innerHTML, /Rhythm Reef/);
 
-  // 4. Follow and unfollow Noah from the revealed cluster info panel
-  await container.clickButton({ socialAction: 'follow', profileId: 'user-noah' });
-  assert.ok(announcements.some(msg => /Now following Noah Silva/.test(msg)));
-  await container.clickButton({ socialAction: 'unfollow', profileId: 'user-noah' });
-  assert.ok(announcements.some(msg => /Unfollowed Noah Silva/.test(msg)));
-
-  // 5. Adopt Noah's island roadmap
   await container.clickButton({
     socialAction: 'adopt',
     islandId: 'island-noah-guitar',
     profileId: 'user-noah',
   });
-
   assert.equal(adoptedTemplates.length, 1);
-  const { template } = adoptedTemplates[0];
-  assert.equal(template.title, 'Rhythm Reef');
-  assert.equal(template.attribution, 'Noah Silva');
-  assert.equal(template.xp, 0);
-  assert.ok(template.goals.length >= 4);
+  assert.equal(adoptedTemplates[0].template.title, 'Rhythm Reef');
+  assert.equal(adoptedTemplates[0].template.attribution, 'Noah Silva');
 
-  const nextWorld = adoptIsland(createWorld(), template);
-  assert.equal(nextWorld.islands.length, 1);
-  assert.equal(nextWorld.islands[0].xp, 0);
-  assert.equal(nextWorld.islands[0].attribution, 'Noah Silva');
-  assert.equal(getStage(nextWorld.islands[0].xp).level, 1);
+  // Unfollow and re-follow Noah and verify his neighbourhood sector index stayed stable
+  await container.clickButton({ socialAction: 'exit-solo' });
+  await container.clickButton({ socialAction: 'open-profile', profileId: 'user-noah' });
+  await container.clickButton({ socialAction: 'unfollow', profileId: 'user-noah' });
+  const sectorAfterUnfollow = controller.getState().neighborEntries.find(e => e.profile.id === 'user-noah')?.sector.index;
+  assert.equal(sectorAfterUnfollow, initialSectorForNoah, 'neighbour stays in the same sector after follow/unfollow');
+
+  // 5. Switch between dummy accounts to show different users receive different graph neighbours & recommendations
+  const topNeighborBeforeSwitch = controller.getState().neighborEntries[0].profile.id;
+  await container.clickButton({ socialAction: 'switch-viewer', viewerId: 'user-sora' });
+  assert.equal(controller.getState().activeViewerId, 'user-sora');
+  assert.match(container.innerHTML, /SORA TAKAHASHI’S ARCHIPELAGO · HOME WATERS/);
+  assert.match(container.innerHTML, /Kyoto Converse/);
+  assert.match(container.innerHTML, /Checkmate Atoll/);
+
+  // Sora (Japanese + Chess) gets Hana Sato (Origami + Japanese) and Priya Nair (Chess + Speaking) at the top instead of Guitar neighbours
+  const soraTopTwo = new Set([
+    controller.getState().neighborEntries[0].profile.id,
+    controller.getState().neighborEntries[1].profile.id,
+  ]);
+  assert.equal(soraTopTwo.has('user-hana'), true);
+  assert.equal(soraTopTwo.has('user-priya'), true);
+  assert.notEqual(controller.getState().neighborEntries[0].profile.id, topNeighborBeforeSwitch);
+
   controller.destroy();
 });
 
@@ -468,4 +625,3 @@ test('mountSocialExplore escapes untrusted HTML in profile and roadmap strings',
   assert.match(container.innerHTML, /&lt;script&gt;evil\(\)&lt;\/script&gt;/);
   controller.destroy();
 });
-

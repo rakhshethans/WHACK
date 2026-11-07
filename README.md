@@ -13,7 +13,7 @@ WorldHopper is an interactive archipelago for learning skills and pursuing perso
 | [Agent instructions](AGENTS.md) | Branches, file ownership, integration rules, and verification. |
 | [Specification](SPEC.md) and [plan](PLAN.md) | The first-slice scope and initial implementation plan. Use Status for the current state. |
 | [Social module guide](src/social/README.md) | Contracts, Supabase RLS schema, fixture/Supabase clients, and `mountSocialExplore` API. |
-| [Social Graph & Network Plan](docs/SOCIAL_GRAPH_PLAN.md) | Implementation plan for graph-ranked surrounding neighbours (`rankNeighborsByGraph`) and Following/Followers individual archipelago view. |
+| [Social Graph & Network Plan](docs/SOCIAL_GRAPH_PLAN.md) | Architecture and review notes for graph-ranked surrounding neighbours, dummy account switching, and Following/Followers solo archipelago view. |
 
 ## Run locally
 
@@ -32,16 +32,15 @@ Start both workstreams from `worldhopper/first-island`, the branch behind the sh
 
 ## Social Module Status & Codex Sync (`worldhopper/social`)
 
-1. **Spatial Ocean Cluster Map (`src/social/explore.mjs`, `src/social/social.css`, `src/social/fixtures.mjs`)**:
-   - **No top profile cards**: Instead of a directory of profile cards, the Explore tab renders a `2400px × 1680px` shared ocean canvas (`.social-ocean-scene`) powered by `connectMap` (`src/map-camera.mjs`).
-   - **Default View — Current User's Archipelago**: The map starts centered on the current user's own islands (`data-cluster-id="home"`) with `logOpen: false` so only the user's islands and surrounding directional wayfinders are visible initially.
-   - **Click & Drag to Nearby Users' Island Groups**: Sample users with nearby island clusters are placed in surrounding ocean sectors (`.archipelago-cluster.neighbor-cluster`).
-   - **Click to Inspect User & Islands**: Clicking any nearby user's island group banner (`data-social-action="open-profile"`) or individual island (`data-social-action="select-island"`) opens the floating `.field-notes.map-log` drawer (`#social-island-log`) with the user's profile, follow toggle, island switcher tabs, starter roadmap, and one-click **Adopt roadmap ↗** action.
-2. **Planned Next Update ([`docs/SOCIAL_GRAPH_PLAN.md`](docs/SOCIAL_GRAPH_PLAN.md))**:
-   - **Graph-Ranked Surrounding Neighbours (5–10 Dynamic Neighbours)**: `rankNeighborsByGraph` (`src/social/graph.mjs`) builds a heterogeneous User–Skill–Follow graph over 12 sample explorers and runs Personalized PageRank (Random Walk with Restart) + Adamic-Adar similarity to select and position the top 5–10 neighbours around the user's Home Waters.
-   - **Following & Followers Section + Individual Archipelago Map View**: Tracks both `isFollowing` and `followsViewer`; clicking any profile in **Following** or **Followers** opens their **Individual Archipelago View** (`mapMode: 'solo'`) on the ocean map using `layoutIslands` (`src/map-layout.mjs`), with a **"← Back to neighbourhood"** button.
-3. **Social Contracts (`src/social/contracts.mjs`)**:
-   - `toPublicProfile`, `toPublicIsland` (strict opt-in per island via `isPublic === true`), `toAdoptableRoadmap`, and `validateAdoptableRoadmap`.
-   - Strips email, private objectives, per-goal completion progress, continuation goals, and raw browser storage from all public reads.
+1. **Graph-Ranked Surrounding Neighbours (`src/social/graph.mjs`, `src/social/recommendations.mjs`)**:
+   - **`normalizeIslandSkill` & `normalizeInterestToken`**: Keeps exact skills distinct from broad themes (`Japanese` vs `Spanish`, `Chess` vs `Shogi`, `Origami`) and ignores generic `'compass'` artwork fallbacks so unrelated custom skills never falsely link.
+   - **`rankNeighborsByGraph`**: Builds a directed weighted User–Skill–Theme–Follow graph over 11 dummy explorers and combines Adamic-Adar inverse-frequency shared-skill scoring, 1-hop related skill bridges (`RELATED_SKILLS`), and Personalized PageRank ($\alpha = 0.80$ with dangling-node mass return) to place the top **8** neighbours into 8 collision-free compass sectors (`NW`, `N`, `NE`, `E`, `SE`, `S`, `SW`, `W`) around Home Waters.
+   - **Evidence-Based Labels & Stable Sectors**: Displays concrete connection badges (`Both learning Japanese`, `Shared skills · Guitar & Songwriting`, `Related skill · Japanese → Spanish`) instead of uncalibrated percentages, and preserves each neighbour's sector index across follow/unfollow actions so the map never jumps.
+2. **Dummy Account Switcher (`src/social/fixtures.mjs`, `src/social/explore.mjs`)**:
+   - No login/auth required: includes an interactive **Viewing as dummy account** bar (`You (My world)`, `Maya Chen`, `Sora Takahashi`, `Elena Rostova`, `Ari Patel`) at the top of Explore.
+   - Switching dummy accounts places that persona's islands at the center of the ocean (`Home Waters`), re-computes the surrounding 8 graph-ranked neighbours, updates the Social Compass recommendations, and switches the active Following & Followers graph.
+3. **Following & Followers Network + Individual Archipelago Map View (`data-map-mode="solo"`)**:
+   - Tracks both `isFollowing` and `followsViewer` via `listNetworkProfiles()`, independent of the map's top 8 ranked subset (including followers with `0` public islands such as `Lin Zhou`).
+   - Clicking **View archipelago ↗** on any profile in **Following** or **Followers** (or **Solo archipelago view ↗** on any cluster) fetches their world via `getPublicWorld(profileId)` and switches the map to `data-map-mode="solo"`, rendering only that explorer's islands with `layoutIslands` (`src/map-layout.mjs`) and a **← Back to neighbourhood** button that restores neighbourhood camera state and focus.
 4. **Supabase Schema & Row-Level Security (`supabase/migrations/20261107000000_social_schema.sql`, `src/social/supabase-client.mjs`)**:
-   - Defines `public.profiles`, `public.islands` (`is_public` defaults to `false`), `public.island_private_state`, and `public.follows` with strict RLS policies verified across two accounts.
+   - Defines `public.profiles`, `public.islands` (`is_public` defaults to `false`), `public.island_private_state`, and `public.follows` (with `follows_select_public` requiring both endpoints to be public unless `auth.uid()` is a participant).

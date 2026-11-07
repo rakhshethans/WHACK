@@ -1,5 +1,6 @@
 import { createIsland, createWorld } from '../world.mjs';
 import { toPublicIsland, toPublicProfile } from './contracts.mjs';
+import { rankNeighborsByGraph } from './graph.mjs';
 import { recommendExplorers } from './recommendations.mjs';
 
 function buildFixtureIsland({
@@ -184,7 +185,7 @@ export function createDefaultFixtureRecords() {
       displayName: 'Sora Takahashi',
       email: 'sora.private@warwick.example',
       bio: 'Practising conversational Japanese and tactical chess endgames in the South-West waters.',
-      interests: ['language', 'board'],
+      interests: ['japanese', 'chess'],
       isSample: true,
       isPublic: true,
       followerCount: 19,
@@ -260,19 +261,301 @@ export function createDefaultFixtureRecords() {
         }),
       ],
     },
+    {
+      id: 'user-mateo',
+      handle: 'mateo-rivera',
+      displayName: 'Mateo Rivera',
+      email: 'mateo.private@warwick.example',
+      bio: 'Learning Spanish for a rail journey across Spain while practising acoustic guitar rhythms.',
+      interests: ['spanish', 'guitar'],
+      isSample: true,
+      isPublic: true,
+      followerCount: 14,
+      followingCount: 8,
+      islands: [
+        buildFixtureIsland({
+          id: 'island-iberian-rails',
+          ownerId: 'user-mateo',
+          title: 'Iberian Rails',
+          category: 'custom',
+          topic: 'Spanish',
+          objective: 'Order meals and navigate stations on a trip to Spain',
+          publicSummary: 'Practical Spanish travel dialogues for stations, cafés, and check-ins',
+          isPublic: true,
+          experience: 'beginner',
+          minutes: 20,
+          xp: 250,
+          sharedMilestone: 'Completed three unscripted travel role-plays.',
+        }),
+        buildFixtureIsland({
+          id: 'island-flamenco-pier',
+          ownerId: 'user-mateo',
+          title: 'Flamenco Pier',
+          category: 'guitar',
+          objective: 'Play rhythmic acoustic progressions with clean dynamics',
+          publicSummary: 'Acoustic strumming patterns, percussive muting, and chord flow',
+          isPublic: true,
+          experience: 'intermediate',
+          minutes: 20,
+          xp: 250,
+        }),
+      ],
+    },
+    {
+      id: 'user-hana',
+      handle: 'hana-sato',
+      displayName: 'Hana Sato',
+      email: 'hana.private@warwick.example',
+      bio: 'Folding modular origami sculptures and practising conversational Japanese dialogues.',
+      interests: ['origami', 'japanese'],
+      isSample: true,
+      isPublic: true,
+      followerCount: 22,
+      followingCount: 10,
+      islands: [
+        buildFixtureIsland({
+          id: 'island-paper-crane-cay',
+          ownerId: 'user-hana',
+          title: 'Paper Crane Cay',
+          category: 'custom',
+          topic: 'Origami',
+          objective: 'Fold complex paper cranes and modular polyhedra from diagrams',
+          publicSummary: 'Crisp square bases, petal folds, and unaided diagram folding',
+          isPublic: true,
+          experience: 'intermediate',
+          minutes: 15,
+          xp: 500,
+          sharedMilestone: 'Folded a complete crane model from memory.',
+        }),
+        buildFixtureIsland({
+          id: 'island-kana-harbor',
+          ownerId: 'user-hana',
+          title: 'Kana Harbor',
+          category: 'custom',
+          topic: 'Japanese language',
+          objective: 'Hold everyday conversations in Japanese',
+          publicSummary: 'Short spoken Japanese exchanges and active listening drills',
+          isPublic: true,
+          experience: 'beginner',
+          minutes: 15,
+          xp: 100,
+        }),
+      ],
+    },
+    {
+      id: 'user-liam',
+      handle: 'liam-oconnor',
+      displayName: 'Liam O’Connor',
+      email: 'liam.private@warwick.example',
+      bio: 'Indie songwriter working on stage presence, lyric hooks, and spoken introductions.',
+      interests: ['songwriting', 'speaking'],
+      isSample: true,
+      isPublic: true,
+      followerCount: 17,
+      followingCount: 9,
+      islands: [
+        buildFixtureIsland({
+          id: 'island-chorus-lighthouse',
+          ownerId: 'user-liam',
+          title: 'Chorus Lighthouse',
+          category: 'songwriting',
+          objective: 'Write a memorable chorus and arrangement for a band demo',
+          publicSummary: 'Hook writing, verse-to-chorus contrast, and vocal phrasing',
+          isPublic: true,
+          experience: 'intermediate',
+          minutes: 25,
+          xp: 250,
+        }),
+        buildFixtureIsland({
+          id: 'island-open-mic-point',
+          ownerId: 'user-liam',
+          title: 'Open Mic Point',
+          category: 'custom',
+          topic: 'Public speaking',
+          objective: 'Give engaging two-minute song introductions on stage',
+          publicSummary: 'Concise stage banter, deliberate pauses, and audience connection',
+          isPublic: true,
+          experience: 'beginner',
+          minutes: 15,
+          xp: 100,
+        }),
+      ],
+    },
+    {
+      id: 'user-priya',
+      handle: 'priya-nair',
+      displayName: 'Priya Nair',
+      email: 'priya.private@warwick.example',
+      bio: 'Tournament chess player and society speaker charting tactical endgames and clear arguments.',
+      interests: ['chess', 'speaking'],
+      isSample: true,
+      isPublic: true,
+      followerCount: 27,
+      followingCount: 12,
+      islands: [
+        buildFixtureIsland({
+          id: 'island-endgame-reef',
+          ownerId: 'user-priya',
+          title: 'Endgame Reef',
+          category: 'custom',
+          topic: 'Chess',
+          objective: 'Convert winning chess endgames under club time controls',
+          publicSummary: 'Candidate move comparison, opponent reply checks, and post-game annotation',
+          isPublic: true,
+          experience: 'intermediate',
+          minutes: 20,
+          xp: 500,
+          sharedMilestone: 'Annotated five club games without a tactical blunder.',
+        }),
+        buildFixtureIsland({
+          id: 'island-debate-strait',
+          ownerId: 'user-priya',
+          title: 'Debate Strait',
+          category: 'custom',
+          topic: 'Public speaking',
+          objective: 'Deliver structured two-minute arguments with clear examples',
+          publicSummary: 'One-sentence thesis framing, concrete examples, and Q&A',
+          isPublic: true,
+          experience: 'intermediate',
+          minutes: 15,
+          xp: 250,
+        }),
+      ],
+    },
+    {
+      id: 'user-zoe',
+      handle: 'zoe-laurent',
+      displayName: 'Zoe Laurent',
+      email: 'zoe.private@warwick.example',
+      bio: 'Street photographer and French learner documenting rainy evening reflections and café dialogues.',
+      interests: ['photography', 'french'],
+      isSample: true,
+      isPublic: true,
+      followerCount: 21,
+      followingCount: 8,
+      islands: [
+        buildFixtureIsland({
+          id: 'island-streetlight-atoll',
+          ownerId: 'user-zoe',
+          title: 'Streetlight Atoll',
+          category: 'photography',
+          objective: 'Make a street photography series around evening reflections',
+          publicSummary: 'Framing architecture, hard light vs shade, and repeating visual motifs',
+          isPublic: true,
+          experience: 'intermediate',
+          minutes: 20,
+          xp: 500,
+          sharedMilestone: 'Sequenced a six-frame night reflection series.',
+        }),
+        buildFixtureIsland({
+          id: 'island-parisian-cafe',
+          ownerId: 'user-zoe',
+          title: 'Parisian Café',
+          category: 'custom',
+          topic: 'French language',
+          objective: 'Hold a natural conversation in French at a neighbourhood café',
+          publicSummary: 'Everyday French conversation openings, clarification phrases, and listening',
+          isPublic: true,
+          experience: 'beginner',
+          minutes: 15,
+          xp: 100,
+        }),
+      ],
+    },
+    {
+      id: 'user-lin',
+      handle: 'lin-zhou',
+      displayName: 'Lin Zhou',
+      email: 'lin.private@warwick.example',
+      bio: 'New explorer charting private practice notes before publishing a first public island.',
+      interests: ['origami', 'guitar'],
+      isSample: true,
+      isPublic: true,
+      followerCount: 4,
+      followingCount: 5,
+      islands: [
+        buildFixtureIsland({
+          id: 'island-lin-private-draft',
+          ownerId: 'user-lin',
+          title: 'Private Fold Notebook',
+          category: 'custom',
+          topic: 'Origami',
+          objective: 'Practise basic folds privately first',
+          isPublic: false,
+          experience: 'beginner',
+          minutes: 15,
+          xp: 40,
+        }),
+      ],
+    },
   ];
 }
 
+const DEFAULT_PERSONA_NETWORKS = {
+  'user-local-explorer': {
+    following: ['user-maya', 'user-noah'],
+    followers: ['user-maya', 'user-ari', 'user-elena', 'user-lin'],
+  },
+  'user-maya': {
+    following: ['user-noah', 'user-liam', 'user-mateo'],
+    followers: ['user-noah', 'user-ari', 'user-liam', 'user-lin'],
+  },
+  'user-sora': {
+    following: ['user-hana', 'user-priya', 'user-mateo'],
+    followers: ['user-hana', 'user-priya', 'user-zoe'],
+  },
+  'user-elena': {
+    following: ['user-ari', 'user-zoe', 'user-priya'],
+    followers: ['user-liam', 'user-ari', 'user-noah'],
+  },
+  'user-ari': {
+    following: ['user-zoe', 'user-elena', 'user-maya'],
+    followers: ['user-zoe', 'user-elena', 'user-hana'],
+  },
+};
+
+const SWITCHABLE_DUMMY_IDS = ['user-maya', 'user-sora', 'user-elena', 'user-ari'];
+
 export function createFixtureSocialClient({
-  viewerId = 'user-local-explorer',
+  viewerId: initialViewerId = 'user-local-explorer',
   initialProfiles = createDefaultFixtureRecords(),
-  initialFollowingIds = [],
+  initialFollowingIds,
+  initialFollowerIds,
   blockedIds = [],
   latencyMs = 0,
   failWithError = null,
 } = {}) {
   const records = structuredClone(initialProfiles);
-  const following = new Set(initialFollowingIds);
+  let activeViewerId = initialViewerId;
+
+  const networkByViewer = new Map();
+  for (const [id, net] of Object.entries(DEFAULT_PERSONA_NETWORKS)) {
+    networkByViewer.set(id, {
+      following: new Set(net.following),
+      followers: new Set(net.followers),
+    });
+  }
+  if (!networkByViewer.has(activeViewerId)) {
+    networkByViewer.set(activeViewerId, {
+      following: new Set(initialFollowingIds ?? ['user-maya', 'user-noah']),
+      followers: new Set(initialFollowerIds ?? ['user-maya', 'user-ari', 'user-elena', 'user-lin']),
+    });
+  } else {
+    if (initialFollowingIds !== undefined) {
+      networkByViewer.get(activeViewerId).following = new Set(initialFollowingIds);
+    }
+    if (initialFollowerIds !== undefined) {
+      networkByViewer.get(activeViewerId).followers = new Set(initialFollowerIds);
+    }
+  }
+
+  function currentFollowSets() {
+    if (!networkByViewer.has(activeViewerId)) {
+      networkByViewer.set(activeViewerId, { following: new Set(), followers: new Set() });
+    }
+    return networkByViewer.get(activeViewerId);
+  }
+
   const blocked = new Set(blockedIds);
   let forcedError = failWithError;
 
@@ -285,29 +568,98 @@ export function createFixtureSocialClient({
     }
   }
 
-  function projectProfiles() {
+  function projectAllVisibleProfiles() {
+    const { following, followers } = currentFollowSets();
     return records
-      .map(record => toPublicProfile(record, { viewerId, followingIds: following, blockedIds: blocked }))
-      .filter(profile => profile && profile.publicIslands.length > 0);
+      .filter(record => record.id !== activeViewerId)
+      .map(record => toPublicProfile(record, {
+        viewerId: activeViewerId,
+        followingIds: following,
+        followerIds: followers,
+        blockedIds: blocked,
+      }))
+      .filter(Boolean);
+  }
+
+  function projectProfilesWithIslands() {
+    return projectAllVisibleProfiles().filter(profile => profile.publicIslands.length > 0);
   }
 
   return {
     mode: 'fixture',
-    viewerId,
+    get viewerId() {
+      return activeViewerId;
+    },
 
     setForcedError(error) {
       forcedError = error;
     },
 
     getSnapshotProfiles() {
-      return projectProfiles();
+      return projectProfilesWithIslands();
+    },
+
+    listDummyPersonas() {
+      const personas = [
+        {
+          id: 'user-local-explorer',
+          displayName: 'You (My world)',
+          handle: 'you',
+          summary: 'Your local islands',
+          isLocalViewer: true,
+        },
+      ];
+      for (const id of SWITCHABLE_DUMMY_IDS) {
+        const rec = records.find(r => r.id === id);
+        if (!rec) continue;
+        const publicIslands = (rec.islands ?? []).filter(i => i.isPublic);
+        personas.push({
+          id: rec.id,
+          displayName: rec.displayName,
+          handle: rec.handle,
+          summary: publicIslands.map(i => i.topic || i.category).join(' & '),
+          isLocalViewer: false,
+          world: {
+            islands: structuredClone(publicIslands),
+          },
+        });
+      }
+      return personas;
+    },
+
+    async switchViewer(nextViewerId) {
+      await maybeDelayAndCheck();
+      activeViewerId = nextViewerId || 'user-local-explorer';
+      const rec = records.find(r => r.id === activeViewerId);
+      if (!rec) {
+        return {
+          id: 'user-local-explorer',
+          displayName: 'You (My world)',
+          handle: 'you',
+          isLocalViewer: true,
+          world: null,
+        };
+      }
+      const publicIslands = (rec.islands ?? []).filter(i => i.isPublic);
+      return {
+        id: rec.id,
+        displayName: rec.displayName,
+        handle: rec.handle,
+        isLocalViewer: false,
+        world: {
+          islands: structuredClone(publicIslands),
+        },
+      };
     },
 
     async listPublicProfiles({ filter = 'all' } = {}) {
       await maybeDelayAndCheck();
-      const all = projectProfiles();
+      const all = projectProfilesWithIslands();
       if (filter === 'following') {
         return all.filter(profile => profile.isFollowing);
+      }
+      if (filter === 'followers') {
+        return all.filter(profile => profile.followsViewer);
       }
       if (filter && filter !== 'all') {
         return all.filter(profile => (
@@ -318,10 +670,34 @@ export function createFixtureSocialClient({
       return all;
     },
 
+    async listNetworkProfiles() {
+      await maybeDelayAndCheck();
+      const visible = projectAllVisibleProfiles();
+      return {
+        following: visible.filter(profile => profile.isFollowing),
+        followers: visible.filter(profile => profile.followsViewer),
+      };
+    },
+
+    async rankNeighbors({ viewerWorld, limit = 8 } = {}) {
+      await maybeDelayAndCheck();
+      return rankNeighborsByGraph(viewerWorld, projectProfilesWithIslands(), {
+        viewerId: activeViewerId,
+        blockedIds: blocked,
+        limit,
+      });
+    },
+
     async getPublicWorld(profileId) {
       await maybeDelayAndCheck();
+      const { following, followers } = currentFollowSets();
       const raw = records.find(item => item.id === profileId || item.handle === profileId);
-      const profile = toPublicProfile(raw, { viewerId, followingIds: following, blockedIds: blocked });
+      const profile = toPublicProfile(raw, {
+        viewerId: activeViewerId,
+        followingIds: following,
+        followerIds: followers,
+        blockedIds: blocked,
+      });
       if (!profile) {
         throw new Error('Public world not found or not shared.');
       }
@@ -343,18 +719,19 @@ export function createFixtureSocialClient({
       return null;
     },
 
-    async followProfile(targetProfileId, { actorId = viewerId } = {}) {
+    async followProfile(targetProfileId, { actorId = activeViewerId } = {}) {
       await maybeDelayAndCheck();
-      if (actorId !== viewerId) {
+      if (actorId !== activeViewerId) {
         throw new Error('Forbidden: cannot modify follows on behalf of another user.');
       }
-      if (!targetProfileId || targetProfileId === viewerId) {
+      if (!targetProfileId || targetProfileId === activeViewerId) {
         throw new Error('Cannot follow your own profile.');
       }
       const record = records.find(item => item.id === targetProfileId);
       if (!record || record.isPublic === false || blocked.has(targetProfileId)) {
         throw new Error('Profile is not available to follow.');
       }
+      const { following } = currentFollowSets();
       if (!following.has(targetProfileId)) {
         following.add(targetProfileId);
         record.followerCount = (record.followerCount ?? 0) + 1;
@@ -366,15 +743,16 @@ export function createFixtureSocialClient({
       };
     },
 
-    async unfollowProfile(targetProfileId, { actorId = viewerId } = {}) {
+    async unfollowProfile(targetProfileId, { actorId = activeViewerId } = {}) {
       await maybeDelayAndCheck();
-      if (actorId !== viewerId) {
+      if (actorId !== activeViewerId) {
         throw new Error('Forbidden: cannot modify follows on behalf of another user.');
       }
       const record = records.find(item => item.id === targetProfileId);
       if (!record) {
         throw new Error('Profile not found.');
       }
+      const { following } = currentFollowSets();
       if (following.has(targetProfileId)) {
         following.delete(targetProfileId);
         record.followerCount = Math.max(0, (record.followerCount ?? 1) - 1);
@@ -391,7 +769,7 @@ export function createFixtureSocialClient({
       for (const record of records) {
         const island = (record.islands ?? []).find(item => item.id === islandId);
         if (!island) continue;
-        if (record.id !== viewerId && island.ownerId !== viewerId) {
+        if (record.id !== activeViewerId && island.ownerId !== activeViewerId) {
           throw new Error('Forbidden: only the island owner can change island visibility.');
         }
         if (typeof isPublic === 'boolean') island.isPublic = isPublic;
@@ -404,7 +782,7 @@ export function createFixtureSocialClient({
 
     async updateProfile(profileId, updates = {}) {
       await maybeDelayAndCheck();
-      if (profileId !== viewerId) {
+      if (profileId !== activeViewerId) {
         throw new Error('Forbidden: only the profile owner can update their profile.');
       }
       const record = records.find(item => item.id === profileId);
@@ -418,12 +796,21 @@ export function createFixtureSocialClient({
       if (typeof updates.isPublic === 'boolean') {
         record.isPublic = updates.isPublic;
       }
-      return toPublicProfile(record, { viewerId, followingIds: following, blockedIds: blocked });
+      const { following, followers } = currentFollowSets();
+      return toPublicProfile(record, {
+        viewerId: activeViewerId,
+        followingIds: following,
+        followerIds: followers,
+        blockedIds: blocked,
+      });
     },
 
     async recommendPeople({ viewerWorld } = {}) {
       await maybeDelayAndCheck();
-      return recommendExplorers(viewerWorld, projectProfiles(), { viewerId, blockedIds: blocked });
+      return recommendExplorers(viewerWorld, projectProfilesWithIslands(), {
+        viewerId: activeViewerId,
+        blockedIds: blocked,
+      });
     },
   };
 }
