@@ -3,15 +3,19 @@
 ## Available in the preview
 
 - One map for all personal islands, with distinct themed art for Guitar, Songwriting, Photography, and custom goals.
-- Personalised practice paths, one active goal at a time, XP thresholds, and continuing goals beyond the first roadmap.
-- Custom skills and ambitions such as meeting new people. The initial path uses an on-device browser model when ready and a guided fallback otherwise.
+- Generated islands use six hand-drawn landforms and eight muted terrain palettes. Familiar skills use the illustrated icon library. Unfamiliar skills show a seal while an installed Nano model designs a matching landmark in the background. The browser saves the drawing and reuses it for related skills. Goal requests take priority over the artwork.
+- Personalised practice paths, one active goal at a time, and continuing goals beyond the first roadmap. The ten-level XP curve reaches Mastery at 36,000 XP. Completing a goal resets the seven-day grace period even at Mastery. Inactive islands lose 10–400 XP per day depending on their level. The island log shows the next deduction, and demotion changes the artwork and next exercise. Older saves keep their XP and start with a fresh grace period.
+- New personal islands open as soon as the browser model returns the first tailored exercise. The app starts loading an installed Nano model when the island form opens and releases unused warmup after 45 seconds. A checkpoint is optional. The next exercise is prepared while the current one is open. Saved generic plans can be rebuilt while keeping earned XP.
 - Per-island difficulty feedback that persists and adjusts later practice. Related-skill suggestions explain the connection and can open or create the suggested island.
+- Generated exercises have a written feedback form. A successful rewrite replaces the current exercise, preserves its XP reward, and uses the latest note to guide future exercises on that island.
 - Browser-local saves, sample-world exploration, and adoption with creator attribution and fresh progress.
 
-## Verified baseline
+## Verified current state
 
-Commit `b19410c` passed 14 Node tests. The deployed preview was checked on desktop and mobile for difficulty feedback, reload persistence, and the Guitar-to-Songwriting connection. The model integration is covered by a simulated model in tests, and the guided fallback was verified in the live preview.
+All 49 Node tests pass. Desktop and mobile Chrome checks with a simulated model verified written feedback, cancellation, retries, retained preferences after reload, and XP on completion. Earlier checks covered background icon generation and reuse.
+
+Vercel Authentication has blocked direct access from the isolated test browser, so interactive verification uses the local build.
 
 ## Next workstream
 
-Build real profiles, opt-in public islands, and follow and unfollow in `src/social/`, starting with a fixture client. Introduce shared persistence and access rules before public data is enabled. See [README](README.md) and [AGENTS](AGENTS.md) for file ownership and integration.
+Benchmark a hosted text model against the five-second target and extend tailored generation to unsupported browsers and devices. Review Antigravity’s shared ocean and mentor-style neighbour ranking (`worldhopper/social`, `d771a71`) before wiring them into Explore.

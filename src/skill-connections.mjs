@@ -56,7 +56,8 @@ export function relatedSkill(island, islands) {
   const from = island.category === 'custom' ? island.theme : island.category;
   if (!Object.hasOwn(ROUTES, from)) return null;
   const route = ROUTES[from];
-  const existing = islands.find(other => other.id !== island.id && other.category === route.category
-    && (route.category !== 'custom' || other.theme === route.theme));
+  const destination = route.theme ?? route.category;
+  const existing = islands.find(other => other.id !== island.id
+    && (other.category === 'custom' ? other.theme : other.category) === destination);
   return { ...route, islandId: existing?.id };
 }
