@@ -1,0 +1,275 @@
+/* WorldHopper Social Explore Styles — Nautical Atlas Aesthetic */
+
+.social-explore {
+  display: grid;
+  gap: 20px;
+}
+
+.social-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.social-filter-chip {
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 13px;
+  min-height: 38px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.social-filter-chip:hover,
+.social-filter-chip[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--accent);
+  background: #233b3d;
+}
+
+.social-directory {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+  gap: 12px;
+}
+
+.social-profile-pill {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.social-profile-pill.is-active {
+  border-color: var(--accent);
+  background: #1b3235;
+}
+
+.social-profile-select {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  padding: 0;
+  min-width: 0;
+}
+
+.social-profile-name {
+  display: grid;
+  line-height: 1.25;
+}
+
+.social-profile-name small,
+.social-profile-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.social-follow-btn {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.social-inspector-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.social-inspector-top .eyebrow {
+  margin: 0;
+}
+
+.social-badge {
+  font: 700 10px/1.3 ui-monospace, Consolas, monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid #796744;
+  border-radius: 4px;
+  padding: 3px 6px;
+  white-space: nowrap;
+}
+
+.social-profile-actions {
+  margin: 10px 0;
+}
+
+.social-profile-actions .small-action {
+  display: inline-block;
+  margin-top: 0;
+}
+
+.social-island-summary {
+  color: var(--text);
+  margin: 10px 0;
+}
+
+.social-goal-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 10px;
+}
+
+.social-goal-item {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #102023;
+}
+
+.social-goal-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.social-goal-practice {
+  margin: 6px 0;
+  font-size: 12px;
+}
+
+.social-recommendations {
+  margin-top: 8px;
+  padding: 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.social-section-head {
+  margin-bottom: 14px;
+}
+
+.social-match-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 14px;
+}
+
+.social-match-card {
+  display: grid;
+  align-content: space-between;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #122326;
+}
+
+.social-match-card.is-selected {
+  border-color: var(--accent);
+}
+
+.social-match-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.social-match-top .eyebrow {
+  margin: 0;
+}
+
+.social-match-card h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.social-match-card h3 small {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.social-match-reason {
+  margin: 0;
+  font-size: 13px;
+}
+
+.social-match-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.social-sharing-bar {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.social-sharing-title {
+  font-size: 22px;
+}
+
+.social-sharing-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.social-share-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #122326;
+}
+
+.social-share-item .small-action {
+  margin-top: 0;
+}
+
+.social-state-card {
+  padding: 28px 24px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.social-error-card {
+  border-color: #b7614f;
+}
+
+.social-status-banner {
+  padding: 8px 12px;
+  border-left: 2px solid var(--accent);
+  background: #192f31;
+}
+
+@media (max-width: 500px) {
+  .social-profile-pill {
+    grid-template-columns: 1fr;
+  }
+  .social-follow-btn {
+    width: 100%;
+    text-align: center;
+  }
+  .social-recommendations,
+  .social-sharing-bar,
+  .social-state-card {
+    padding: 15px;
+  }
+}
