@@ -320,15 +320,10 @@ function render() {
   socialController = undefined;
   disconnectMap?.();
   disconnectMap = undefined;
-  const previous = app.querySelector('.map-viewport');
   const previousLog = app.querySelector('.map-log');
   const sameView = renderedView === activeView;
   const opening = logOpen && (!previousLog || previousLog.hidden || !sameView);
   const logScroll = sameView && !opening ? previousLog?.scrollTop : 0;
-  if (previous && renderedView === 'world') {
-    worldCamera.left = previous.scrollLeft;
-    worldCamera.top = previous.scrollTop;
-  }
   mapResize.disconnect();
   worldTab.setAttribute('aria-pressed', String(activeView === 'world'));
   exploreTab.setAttribute('aria-pressed', String(activeView === 'explore'));

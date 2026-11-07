@@ -14,33 +14,52 @@ export function zoomAround(camera, requested, width, height, minimum = 0.7, anch
 
 export function connectMap(viewport, camera) {
   const scene = viewport.querySelector('.map-scene');
+  let panArea = scene.parentElement;
+  if (panArea === viewport) {
+    panArea = document.createElement('div');
+    panArea.className = 'map-pan-area';
+    scene.replaceWith(panArea);
+    panArea.append(scene);
+  }
   const frame = viewport.closest('.map-frame');
   const mouseHelp = matchMedia('(any-pointer: fine)').matches;
+  let insetX = 0;
+  let insetY = 0;
   const overviewZoom = () => fitMapZoom(viewport.offsetWidth - 12, Math.max(1, viewport.offsetHeight - 116),
     scene.offsetWidth, scene.offsetHeight);
   const apply = () => {
     const minimum = overviewZoom();
-    if (camera.overview || camera.zoom <= minimum) {
+    if (camera.overview) {
       Object.assign(camera, { overview: true, zoom: minimum, left: 0, top: 0 });
+    } else {
+      camera.zoom = Math.max(camera.zoom, minimum);
     }
+    insetX = camera.overview ? 0 : Math.round(viewport.clientWidth * 0.6);
+    insetY = camera.overview ? 0 : Math.round(viewport.clientHeight * 0.6);
+    panArea.style.padding = `${insetY}px ${insetX}px`;
     viewport.classList.toggle('is-overview', camera.overview);
     scene.style.zoom = camera.zoom;
-    viewport.scrollTo(camera.left, camera.top);
+    viewport.scrollTo(camera.left + insetX, camera.top + insetY);
     frame.querySelector('.map-pan-hint').textContent = mouseHelp ? 'Scroll to zoom · Drag to pan'
       : camera.overview ? 'Zoom in to explore' : 'Drag to pan';
     frame.querySelector('[data-zoom="in"]').disabled = camera.zoom >= 1.8;
     frame.querySelector('[data-zoom="out"]').disabled = camera.overview;
   };
-  function changeZoom(multiplier, anchor) {
-    const current = { zoom: camera.zoom, left: viewport.scrollLeft, top: viewport.scrollTop };
+  function readPosition() {
     if (camera.overview) {
       const viewBounds = viewport.getBoundingClientRect();
       const sceneBounds = scene.getBoundingClientRect();
-      current.left = viewBounds.left - sceneBounds.left;
-      current.top = viewBounds.top - sceneBounds.top;
+      return { left: viewBounds.left - sceneBounds.left, top: viewBounds.top - sceneBounds.top };
     }
-    Object.assign(camera, zoomAround(current, camera.zoom * multiplier,
-      viewport.clientWidth, viewport.clientHeight, overviewZoom(), anchor), { overview: false });
+    return { left: viewport.scrollLeft - insetX, top: viewport.scrollTop - insetY };
+  }
+
+  function changeZoom(multiplier, anchor) {
+    const minimum = overviewZoom();
+    const current = { zoom: camera.zoom, ...readPosition() };
+    const next = zoomAround(current, camera.zoom * multiplier,
+      viewport.clientWidth, viewport.clientHeight, minimum, anchor);
+    Object.assign(camera, next, { overview: next.zoom <= minimum });
     apply();
   }
 
@@ -58,10 +77,10 @@ export function connectMap(viewport, camera) {
 
   apply();
   viewport.addEventListener('wheel', onWheel, { passive: false });
-  viewport.addEventListener('scroll', () => {
-    camera.left = viewport.scrollLeft;
-    camera.top = viewport.scrollTop;
-  });
+  function savePosition() {
+    if (!camera.overview) Object.assign(camera, readPosition());
+  }
+  viewport.addEventListener('scroll', savePosition);
   for (const button of frame.querySelectorAll('[data-zoom]')) {
     button.addEventListener('click', () => {
       const action = button.dataset.zoom;
@@ -91,6 +110,12 @@ export function connectMap(viewport, camera) {
       dragged = true;
       viewport.setPointerCapture(event.pointerId);
       viewport.classList.add('is-panning');
+      if (camera.overview) {
+        Object.assign(camera, readPosition(), { overview: false });
+        apply();
+        drag.left = viewport.scrollLeft;
+        drag.top = viewport.scrollTop;
+      }
     }
     viewport.scrollTo(drag.left - x, drag.top - y);
   });
@@ -108,11 +133,13 @@ export function connectMap(viewport, camera) {
     }
   }, true);
 
-  const resize = new ResizeObserver(() => { if (camera.overview) apply(); });
+  const resize = new ResizeObserver(apply);
   resize.observe(viewport);
   resize.observe(scene);
   return () => {
+    savePosition();
     resize.disconnect();
     viewport.removeEventListener('wheel', onWheel);
+    viewport.removeEventListener('scroll', savePosition);
   };
 }
