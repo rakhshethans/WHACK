@@ -145,27 +145,6 @@ const PROFILES = [
   },
 ];
 
-function generalProfile(topic, objective, experience) {
-  const first = experience === 'beginner'
-    ? 'Find one simple example of ' + topic + ' and pick one basic action you can try with the tools you already have.'
-    : 'Choose an example of your current work in ' + topic + ' and attempt the part that most often slows you down.';
-  return {
-    theme: 'compass',
-    checkpoint: 'Complete a small real example of ' + topic + ' and show one improvement toward “' + objective + '”.',
-    steps: [
-      ['Make a first attempt at ' + topic, first, 'Save, demonstrate or describe one attempt and identify a single point to improve.'],
-      ['Isolate one part of the skill', 'Take the part you struggled with. Remove the other steps and practise a smaller version of that action.', 'Complete two attempts and point out one difference between them.'],
-      ['Use the skill in a small example', 'Choose a short example that contributes directly to “' + objective + '”. Use the part you just practised.', 'Produce one observable result and describe what made it work.'],
-      ['Compare with a clear reference', 'Find a worked example or ask someone familiar with ' + topic + ' to look at your attempt.', 'Identify one specific gap you can practise next.'],
-      ['Make a deliberate revision', 'Repeat your example with one change that addresses the gap.', 'Keep the earlier result and show what changed.'],
-      ['Try a different situation', 'Use the same skill in a new example with one changed constraint.', 'Complete the new example and identify where the skill transferred.'],
-      ['Bring it closer to your ambition', 'Choose a more realistic version of “' + objective + '” and practise the piece you are ready for.', 'Complete that piece and identify the next part you need to learn.'],
-      ['Review and set the next challenge', 'Compare your current work in ' + topic + ' with your first attempt.', 'Name one clear improvement and choose a new challenge to build on it.'],
-    ],
-    practice: ['Apply ' + topic + ' to a fresh example', 'Choose new material relevant to “' + objective + '”. Change one constraint from your last attempt and practise the hardest step.', 'Keep an example that shows how you handled the change.'],
-  };
-}
-
 const TRACKS = [...PROFILES, ...AUTHORED_TRACKS];
 
 function firstMatch(text) {
@@ -181,17 +160,22 @@ function firstMatch(text) {
   return match;
 }
 
-function customProfile({ topic, objective, experience }) {
+function customProfile({ topic, objective }) {
   const profile = firstMatch(topic) ?? firstMatch(objective);
   const context = topic + ' ' + objective;
   if (profile?.theme === 'language' && SPANISH_TRAVEL.matches.test(context)
       && /\b(travel|trip|holiday|abroad|visit|vacation|spain)\b/i.test(context)) return SPANISH_TRAVEL;
-  return profile ?? generalProfile(topic, objective, experience);
+  return profile;
+}
+
+export function customArtworkTheme(input) {
+  return customProfile(input)?.theme ?? 'compass';
 }
 
 export function buildCustomRoadmap(input) {
   const { topic, objective, experience, minutes } = input;
   const profile = customProfile(input);
+  if (!profile) return null;
   const { theme } = profile;
   if (profile.authored) {
     const { focus, checkpoint, next, steps } = buildRoadmap({ category: theme, objective: topic + ' ' + objective, experience });
@@ -240,7 +224,9 @@ export function nextCustomPractice(island, index) {
   if (island.roadmap?.practiceFocus) {
     return nextPractice({ category: island.theme, roadmap: { focus: island.roadmap.practiceFocus } }, index);
   }
-  const { practice, authored } = customProfile(island);
+  const profile = customProfile(island);
+  if (!profile) return null;
+  const { practice, authored } = profile;
   if (authored) {
     const { theme, practiceFocus } = buildCustomRoadmap(island);
     return nextPractice({ category: theme, roadmap: { focus: practiceFocus } }, index);

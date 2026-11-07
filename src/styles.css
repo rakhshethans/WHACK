@@ -400,6 +400,9 @@ input::placeholder { color: #586a66; }
 .name-option summary { width: fit-content; min-height: 26px; }
 form .primary { width: 100%; margin-top: 3px; }
 form .primary:disabled { cursor: wait; opacity: .75; }
+.plan-message { margin: 0 0 8px; font-size: 13px; line-height: 1.45; }
+.plan-message:empty { margin: 0; }
+.plan-message[data-error] { color: #8b3425; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 

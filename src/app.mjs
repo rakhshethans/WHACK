@@ -1,7 +1,7 @@
-import { createWorld, createIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest } from './world.mjs';
+import { createWorld, createIsland, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, reviseIslandRoadmap, needsGeneratedPractice, appendGeneratedPractice } from './world.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
-import { generateCustomRoadmap, generateAdaptiveGoal } from './local-planner.mjs';
+import { generateCustomRoadmap, generateAdaptiveGoal, generateContinuation } from './local-planner.mjs';
 import { DIFFICULTIES } from './difficulty.mjs';
 import { relatedSkill } from './skill-connections.mjs';
 import { layoutIslands } from './map-layout.mjs';
@@ -18,8 +18,20 @@ const objectiveField = form.elements.objective;
 const topicField = form.elements.topic;
 const createLabel = document.querySelector('#create-island-label');
 const createButton = form.querySelector('button[type="submit"]');
+const planMessage = document.querySelector('#plan-message');
+const onboardingTitle = document.querySelector('#onboarding-title');
 let pendingCreation;
+let revisingId;
 const adaptationDrafts = new Map();
+const pendingPractice = new Set();
+const practiceErrors = new Map();
+
+const PLAN_ERRORS = {
+  clarify: 'Name one specific skill or outcome. Try “Bake a sourdough loaf” or “Learn Spanish for a train trip”. Make sure the optional outcome fits that skill.',
+  unsuitable: 'WorldHopper couldn’t turn that request into a safe practice plan. Try a different skill or outcome.',
+  unavailable: 'This device can’t generate a tailored plan. Try WorldHopper in a compatible desktop browser with built-in AI.',
+  retry: 'A specific plan couldn’t be generated this time. Try again or add a more concrete outcome.',
+};
 
 function positionIslands(map) {
   const buttons = [...map.querySelectorAll('.map-island')];
@@ -174,6 +186,17 @@ function connectionMarkup(island) {
   </section>`;
 }
 
+function currentPracticeMarkup(island, goal, number) {
+  if (needsRoadmapRevision(island)) return `<section class="active-goal">
+    <h3>This roadmap needs more detail</h3><p>Generate a plan for your exact skill. Your island and earned XP will stay.</p>
+    <button class="primary" data-action="revise-plan">Update roadmap</button></section>`;
+  if (needsGeneratedPractice(island)) return `<section class="active-goal">
+    <h3>Ready for your next goal</h3><p>Generate a new exercise that builds on what you’ve already completed.</p>
+    <button class="primary" data-action="generate-practice" data-id="${escapeHtml(island.id)}" ${pendingPractice.has(island.id) ? 'disabled' : ''}>${pendingPractice.has(island.id) ? 'Preparing your next goal…' : 'Generate next goal'}</button>
+    ${practiceErrors.has(island.id) ? `<p role="status">${escapeHtml(practiceErrors.get(island.id))}</p>` : ''}</section>`;
+  return goalMarkup(goal, number, island.category === 'custom' ? island.goalFeedback?.rating : island.difficulty ?? 'standard', island.objective);
+}
+
 function currentWorld() {
   const island = world.islands.find(item => item.id === selectedId) ?? world.islands[0];
   const stage = getStage(island?.xp ?? 0);
@@ -191,7 +214,7 @@ function currentWorld() {
           <h2>${escapeHtml(island.title)}</h2>${island.attribution ? `<p class="caption">Roadmap by ${escapeHtml(island.attribution)}</p>` : ''}<p class="stage-name">${escapeHtml(stage.name)} · ${island.xp} XP</p>
           <progress value="${levelXp}" max="${levelTarget}" aria-label="XP toward Level ${stage.level + 1}"></progress>
           <p class="caption">${levelXp} / ${levelTarget} XP toward Level ${stage.level + 1}</p>
-          ${goalMarkup(activeGoal, goalsCompleted + 1, island.category === 'custom' ? island.goalFeedback?.rating : island.difficulty ?? 'standard', island.objective)}
+          ${currentPracticeMarkup(island, activeGoal, goalsCompleted + 1)}
           ${roadmapSummary(island)}
           ${connectionMarkup(island)}` :
           `<p class="eyebrow">ISLAND LOG / 00</p><h2>Open waters</h2>
@@ -314,6 +337,15 @@ app.addEventListener('click', event => {
     openOnboarding();
     return;
   }
+  if (action === 'revise-plan') {
+    const island = world.islands.find(item => item.id === selectedId);
+    if (island) openOnboarding(island.topic, island.objective === island.topic ? '' : island.objective, island);
+    return;
+  }
+  if (action === 'generate-practice') {
+    void preparePractice(id);
+    return;
+  }
   if (action === 'start-connection') {
     const island = world.islands.find(item => item.id === selectedId);
     const recommendation = island && relatedSkill(island, world.islands);
@@ -350,7 +382,7 @@ app.addEventListener('click', event => {
     const reward = goal.xp + ' XP earned. ';
     const nextGoal = getActiveGoal(updated);
     announce(reward + (animateIsland ? 'Island advanced to Level ' + newLevel + '. ' : '')
-      + (nextGoal?.adapted ? 'Next goal adapted to your feedback.' : 'Next goal ready.'));
+      + (nextGoal?.adapted ? 'Next goal adapted to your feedback.' : nextGoal ? 'Next goal ready.' : 'Generate your next goal when you’re ready.'));
   }
   if (action === 'adopt') {
     const demo = demoIslands[activeDemo];
@@ -369,18 +401,55 @@ app.addEventListener('click', event => {
   }
 });
 
-function openOnboarding(topic = '', objective = '') {
+async function preparePractice(id) {
+  const island = world.islands.find(item => item.id === id);
+  if (!island || pendingPractice.has(id) || !needsGeneratedPractice(island)) return;
+  pendingPractice.add(id);
+  practiceErrors.delete(id);
+  render();
+  announce('Preparing your next goal.');
+  const result = await generateContinuation(island, { allowDownload: true });
+  pendingPractice.delete(id);
+  if (result.status === 'ready') persist(appendGeneratedPractice(world, id, result.goal));
+  else practiceErrors.set(id, result.status === 'unavailable' ? PLAN_ERRORS.unavailable : 'Couldn’t generate a specific next goal. Try again when you’re ready.');
+  if (activeView === 'world' && selectedId === id) {
+    render();
+    app.querySelector(result.status === 'ready' ? '#active-goal-title' : '[data-action="generate-practice"]')?.focus({ preventScroll: true });
+    if (result.status === 'ready') announce('Your next goal is ready.');
+  }
+}
+
+function setPlanMessage(message = '', error = false) {
+  planMessage.textContent = message;
+  planMessage.toggleAttribute('data-error', error);
+  if (error && message === PLAN_ERRORS.clarify) topicField.setAttribute('aria-invalid', 'true');
+  else topicField.removeAttribute('aria-invalid');
+}
+
+function openOnboarding(topic = '', objective = '', island) {
   form.reset();
+  setPlanMessage();
+  revisingId = island?.id;
+  onboardingTitle.textContent = island ? 'Update your roadmap' : 'Chart a new island';
   form.querySelector('.name-option').open = false;
   topicField.value = topic;
   objectiveField.value = objective;
+  if (island) {
+    form.elements.title.value = island.title === island.topic ? '' : island.title;
+    form.elements.experience.value = island.experience || 'beginner';
+    form.elements.minutes.value = [10, 20, 30].includes(island.sessionMinutes) ? island.sessionMinutes : 20;
+  }
+  setCreating(false);
   dialog.showModal();
 }
 
 function setCreating(creating) {
   createButton.disabled = creating;
-  createLabel.textContent = creating ? 'Building your practice plan…' : 'Create my island';
+  for (const field of form.querySelectorAll('input, select')) field.disabled = creating;
+  createLabel.textContent = creating ? 'Building your practice plan…' : revisingId ? 'Update my roadmap' : 'Create my island';
 }
+
+form.addEventListener('input', () => setPlanMessage());
 
 dialog.addEventListener('close', () => {
   if (dialog.open || !pendingCreation) return;
@@ -400,26 +469,43 @@ form.addEventListener('submit', async event => {
     return;
   }
   const planInput = { ...input, topic, objective: input.objective.trim() || topic, minutes: Number(input.minutes) };
-  if (globalThis.LanguageModel) {
-    const controller = new AbortController();
-    pendingCreation = controller;
-    setCreating(true);
-    planInput.localRoadmap = await generateCustomRoadmap(planInput, { signal: controller.signal });
-    if (pendingCreation !== controller) return;
-    pendingCreation = undefined;
-    setCreating(false);
-    if (!dialog.open) return;
+  const controller = new AbortController();
+  pendingCreation = controller;
+  setCreating(true);
+  setPlanMessage('Preparing your tailored plan on this device…');
+  const result = await generateCustomRoadmap(planInput, {
+    signal: controller.signal, allowDownload: true,
+    onStatus(status, progress) {
+      if (status === 'downloading') setPlanMessage('Downloading this browser’s AI model' + (progress === undefined ? '…' : ' (' + progress + '%)…'));
+      else setPlanMessage('Writing practice goals for your skill…');
+    },
+  });
+  if (pendingCreation !== controller) return;
+  pendingCreation = undefined;
+  setCreating(false);
+  if (!dialog.open) return;
+  if (result.status !== 'ready') {
+    setPlanMessage(PLAN_ERRORS[result.status], true);
+    if (result.status === 'clarify') topicField.focus();
+    else createButton.focus();
+    return;
   }
-  persist(createIsland(world, planInput));
-  selectedId = world.islands.at(-1).id;
+  const inputWithPlan = { ...planInput, localRoadmap: result.plan };
+  const next = revisingId ? reviseIslandRoadmap(world, revisingId, inputWithPlan) : createGeneratedIsland(world, inputWithPlan);
+  if (next === world) {
+    setPlanMessage(PLAN_ERRORS.retry, true);
+    return;
+  }
+  persist(next);
+  selectedId = revisingId ?? world.islands.at(-1).id;
   dialog.close();
   form.reset();
-  animateIsland = true;
+  animateIsland = !revisingId;
   activeView = 'world';
   logOpen = true;
   render();
   focusLog();
-  announce('Your island is ready.');
+  announce(revisingId ? 'Your updated roadmap is ready.' : 'Your island is ready.');
 });
 
 render();

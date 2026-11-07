@@ -187,7 +187,7 @@ test('island scenery varies deterministically while retaining each skill landmar
   assert.notEqual(photoArt, renderIsland(photo, 1), 'island development continues to update the art');
 });
 
-test('the local planner accepts structured goals and falls back on unavailable or duplicate output', async () => {
+test('the local planner accepts structured goals and rejects unavailable or duplicate output', async () => {
   const input = { topic: 'Pottery', objective: 'Make a cup', experience: 'beginner', minutes: 10 };
   let created = 0;
   let destroyed = 0;
@@ -203,22 +203,22 @@ test('the local planner accepts structured goals and falls back on unavailable o
       return {
         prompt: async (prompt, options) => {
           assert.match(prompt, /"topic":"Pottery"/);
-          assert.equal(options.responseConstraint.properties.goals.minItems, 8);
-          return JSON.stringify({ checkpoint: 'Finish a small practice cup.', goals });
+          assert.equal(options.responseConstraint.properties.goals.maxItems, 8);
+          return JSON.stringify({ decision: 'ready', checkpoint: 'Finish a small practice cup.', goals });
         },
         destroy: () => { destroyed += 1; },
       };
     },
   };
-  assert.equal(await generateCustomRoadmap(input, { model: { ...model, availability: async () => 'downloadable' } }), null);
+  assert.deepEqual(await generateCustomRoadmap(input, { model: { ...model, availability: async () => 'downloadable' } }), { status: 'unavailable' });
   assert.equal(created, 0);
-  const generated = await generateCustomRoadmap(input, { model });
+  const { plan: generated } = await generateCustomRoadmap(input, { model });
   assert.equal(generated.steps.length, 8);
   const [island] = createIsland(createWorld(), { ...input, title: 'Pottery', category: 'custom', localRoadmap: generated }).islands;
   assert.equal(island.roadmap.onDevice, true);
   assert.equal(getActiveGoal(island).title, goals[0].title);
   goals[1].practice = goals[0].practice;
-  assert.equal(await generateCustomRoadmap(input, { model }), null);
+  assert.deepEqual(await generateCustomRoadmap(input, { model }), { status: 'retry' });
   assert.equal(destroyed, 2);
 });
 
