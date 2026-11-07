@@ -13,6 +13,8 @@
 
 All 42 Node tests pass. Desktop and mobile Chrome checks with a simulated model verified inactivity, demotion, artwork, easier exercises, saving, and maintenance at level 10. Earlier browser checks covered island creation and stable themed artwork. A prior real Nano run took 15.5 seconds to write an exercise with the model loaded.
 
+Vercel built the progression preview. Vercel Authentication blocked direct access from the isolated test browser, so the progression journey was verified against the local build.
+
 ## Next workstream
 
 Benchmark a hosted text model against the five-second target and extend tailored generation to unsupported browsers and devices. Then review Antigravity’s shared ocean Explore integration (`worldhopper/social`, `e52fb84`) against the updated learning branch. Verify the fixture experience before enabling opt-in public data.
