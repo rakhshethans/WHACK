@@ -1,7 +1,7 @@
-import { createWorld, createIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty } from './world.mjs';
+import { createWorld, createIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest } from './world.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
-import { generateCustomRoadmap } from './local-planner.mjs';
+import { generateCustomRoadmap, generateAdaptiveGoal } from './local-planner.mjs';
 import { DIFFICULTIES } from './difficulty.mjs';
 import { relatedSkill } from './skill-connections.mjs';
 
@@ -21,6 +21,7 @@ const objectiveLabel = document.querySelector('#objective-label');
 const createLabel = document.querySelector('#create-island-label');
 const createButton = form.querySelector('button[type="submit"]');
 let pendingCreation;
+const adaptationDrafts = new Map();
 
 function loadWorld() {
   try {
@@ -119,6 +120,7 @@ function goalMarkup(goal, number, difficulty) {
   return `<section class="active-goal" aria-labelledby="active-goal-title">
     <div class="goal-card-top"><p class="eyebrow">CURRENT GOAL / ${number}</p><span class="goal-reward">+${escapeHtml(goal.xp)} XP</span></div>
     <h3 id="active-goal-title">${escapeHtml(goal.title)}</h3>
+    ${goal.adapted ? `<p class="goal-adaptation">${goal.adapted === 'support' ? 'Smaller next step based on your feedback' : 'Stretch goal based on your feedback'}</p>` : ''}
     <p>${escapeHtml(goal.description)}</p>
     ${goal.practiceAdjustment ? `<p class="practice-adjustment"><strong>${difficulty === 'support' ? 'Start here' : 'Stretch practice'}</strong> ${escapeHtml(goal.practiceAdjustment)}</p>` : ''}
     ${goal.finish ? `<p class="goal-finish"><strong>Done when</strong> ${escapeHtml(goal.finish)}</p>` : ''}
@@ -162,7 +164,7 @@ function currentWorld() {
           <h2>${escapeHtml(island.title)}</h2>${island.attribution ? `<p class="caption">Roadmap by ${escapeHtml(island.attribution)}</p>` : ''}<p class="stage-name">${escapeHtml(stage.name)} · ${island.xp} XP</p>
           <progress value="${levelXp}" max="${levelTarget}" aria-label="XP toward Level ${stage.level + 1}"></progress>
           <p class="caption">${levelXp} / ${levelTarget} XP toward Level ${stage.level + 1}</p>
-          ${goalMarkup(activeGoal, goalsCompleted + 1, island.difficulty ?? 'standard')}
+          ${goalMarkup(activeGoal, goalsCompleted + 1, island.category === 'custom' ? island.goalFeedback?.rating : island.difficulty ?? 'standard')}
           ${roadmapSummary(island)}
           ${connectionMarkup(island)}` :
           `<p class="eyebrow">ISLAND LOG / 00</p><h2>Open waters</h2>
@@ -198,6 +200,28 @@ worldTab.addEventListener('click', () => changeView('world'));
 exploreTab.addEventListener('click', () => changeView('explore'));
 document.querySelector('#close-dialog').addEventListener('click', () => dialog.close());
 
+function discardDraft(islandId) {
+  const draft = adaptationDrafts.get(islandId);
+  adaptationDrafts.delete(islandId);
+  draft?.controller.abort();
+  return draft;
+}
+
+function draftNextGoal(island, goalId) {
+  discardDraft(island.id);
+  if (!globalThis.LanguageModel) return;
+  const request = getAdaptationRequest(island, goalId);
+  if (!request) return;
+  const controller = new AbortController();
+  const draft = { goalId, controller, candidate: null };
+  adaptationDrafts.set(island.id, draft);
+  generateAdaptiveGoal(request, { signal: controller.signal }).then(candidate => {
+    if (!controller.signal.aborted) draft.candidate = candidate;
+  }).catch(() => {
+    if (adaptationDrafts.get(island.id) === draft) discardDraft(island.id);
+  });
+}
+
 app.addEventListener('click', event => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
@@ -223,6 +247,8 @@ app.addEventListener('click', event => {
     const updated = setDifficulty(world, selectedId, id, rating);
     if (updated === world) return;
     persist(updated);
+    const island = world.islands.find(item => item.id === selectedId);
+    draftNextGoal(island, id);
     render();
     app.querySelector('[data-action="difficulty"][aria-pressed="true"]')?.focus({ preventScroll: true });
     announce('Practice difficulty updated for this island.');
@@ -234,14 +260,18 @@ app.addEventListener('click', event => {
     const island = world.islands.find(item => item.id === selectedId);
     if (!island) return;
     const goal = getActiveGoal(island);
-    const next = completeGoal(world, island.id, id);
+    if (goal?.id !== id) return;
+    const draft = discardDraft(island.id);
+    const next = completeGoal(world, island.id, id, draft?.goalId === id ? draft.candidate : null);
     if (next === world) return;
     const updated = next.islands.find(item => item.id === island.id);
     const newLevel = getStage(updated.xp).level;
     persist(next);
     animateIsland = newLevel > getStage(island.xp).level;
     const reward = goal.xp + ' XP earned. ';
-    announce(reward + (animateIsland ? 'Island advanced to Level ' + newLevel + '. ' : '') + 'Next goal ready.');
+    const nextGoal = getActiveGoal(updated);
+    announce(reward + (animateIsland ? 'Island advanced to Level ' + newLevel + '. ' : '')
+      + (nextGoal?.adapted ? 'Next goal adapted to your feedback.' : 'Next goal ready.'));
   }
   if (action === 'adopt') {
     const demo = demoIslands[activeDemo];
