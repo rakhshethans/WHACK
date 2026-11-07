@@ -23,8 +23,9 @@
     <form id="island-form">
       <div class="dialog-top"><span class="eyebrow">EXPEDITION LOG / 01</span><button type="button" class="icon" id="close-dialog" aria-label="Close">×</button></div>
       <h2 id="onboarding-title">Chart a new island</h2>
-      <p>Start with guitar. Tell us what you want to be able to play.</p>
-      <label>Island name<input name="title" required maxlength="40" placeholder="e.g. Guitar Island" value="Guitar Island"></label>
+      <p>Choose the skill you want to practise and describe what you hope to achieve.</p>
+      <label>Skill<select name="category"><option value="guitar">Guitar</option><option value="songwriting">Songwriting</option><option value="photography">Photography</option></select></label>
+      <label>Island name <small>(optional)</small><input name="title" maxlength="40" placeholder="e.g. Guitar Island"></label>
       <label>Your objective<input name="objective" required maxlength="110" placeholder="e.g. Play a song for friends"></label>
       <div class="form-row">
         <label>Experience<select name="experience"><option value="beginner">New to it</option><option value="intermediate">Some experience</option><option value="advanced">Confident</option></select></label>

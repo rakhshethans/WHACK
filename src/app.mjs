@@ -1,5 +1,6 @@
 import { createWorld, createIsland, completeGoal, getStage, adoptIsland } from './world.mjs';
-import { renderScene } from './scene.mjs';
+import { renderOcean, renderIsland } from './scene.mjs';
+import { SKILLS } from './roadmaps.mjs';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#onboarding');
@@ -8,6 +9,9 @@ const worldTab = document.querySelector('#world-tab');
 const exploreTab = document.querySelector('#explore-tab');
 const announcement = document.querySelector('#announcement');
 const storageKey = 'worldhopper-world-v1';
+const skillField = form.elements.category;
+const titleField = form.elements.title;
+const objectiveField = form.elements.objective;
 
 function loadWorld() {
   try {
@@ -29,11 +33,12 @@ let storageUnavailable = false;
 let animateIsland = false;
 
 const demoIslands = [
-  { title: 'The Chord Coast', objective: 'Play a song from start to finish', creator: 'Maya Chen', initials: 'MC', xp: 240, experience: 'beginner', minutes: 20 },
-  { title: 'Resonance Bay', objective: 'Build a fingerstyle practice routine', creator: 'Noah Silva', initials: 'NS', xp: 440, experience: 'intermediate', minutes: 30 }
+  { title: 'The Chord Coast', category: 'guitar', objective: 'Play a song from start to finish', creator: 'Maya Chen', xp: 250, experience: 'beginner', minutes: 20 },
+  { title: 'Verse Dunes', category: 'songwriting', objective: 'Write and record an original song', creator: 'Noah Silva', xp: 500, experience: 'intermediate', minutes: 30 },
+  { title: 'Silver Lens', category: 'photography', objective: 'Make a portfolio of mountain landscapes', creator: 'Ari Patel', xp: 250, experience: 'beginner', minutes: 20 },
 ].map((demo, index) => ({
   ...demo,
-  source: { ...createIsland(createWorld(), { ...demo, category: 'guitar' }).islands[0], id: 'demo-guitar-' + index, creator: demo.creator, creatorName: demo.creator, ownerName: demo.creator, attribution: demo.creator, xp: demo.xp }
+  source: { ...createIsland(createWorld(), demo).islands[0], id: String(index), attribution: demo.creator, xp: demo.xp },
 }));
 
 function escapeHtml(value) {
@@ -60,22 +65,54 @@ function changeView(view) {
   render();
 }
 
-function sceneMarkup(island, stage) {
+function emptyMap() {
   return `<section class="map-frame" aria-label="Island map">
     <div class="map-coordinates"><span>✦</span> 07° 24′ N &nbsp; / &nbsp; 48° 12′ W</div>
-    <div class="map-art${animateIsland ? ' animate-island' : ''}">${renderScene(island, stage)}</div>
-    <div class="map-footer"><span><i></i> ${island ? 'ISLAND IN VIEW' : 'UNCHARTED WATERS'}</span><span class="map-scale">└────┘ <b>1 NM</b></span></div>
+    <div class="map-art">${renderOcean()}</div>
+    <div class="map-footer"><span><i></i> UNCHARTED WATERS</span><span class="map-scale">└────┘ <b>1 NM</b></span></div>
   </section>`;
 }
 
-function goalMarkup(goal, island) {
-  const completedIds = new Set(island.goals.filter(item => item.completed).map(item => item.id));
+function archipelagoMap(islands, selection, explore = false) {
+  if (!islands.length) return emptyMap();
+  return `<section class="map-frame archipelago-frame" aria-label="Archipelago map">
+    <div class="map-water">${renderOcean(true)}</div>
+    <div class="map-coordinates"><span>✦</span> ${explore ? 'SAMPLE ARCHIPELAGO' : 'MY ARCHIPELAGO'}</div>
+    <div class="archipelago-grid${islands.length === 1 ? ' single-island' : ''}">
+      ${islands.map(island => {
+        const selected = island.id === selection;
+        const { level } = getStage(island.xp);
+        const skill = Object.hasOwn(SKILLS, island.category) ? SKILLS[island.category].label : 'Skill';
+        return `<button type="button" class="map-island${selected && animateIsland ? ' animate-island' : ''}"
+          data-action="${explore ? 'demo' : 'select'}" data-id="${escapeHtml(island.id)}" aria-pressed="${selected}">
+          <span class="island-art">${renderIsland(island, level)}</span>
+          <span class="island-pin"><strong>${escapeHtml(island.title)}</strong><small>${skill} · Lv ${level}</small></span>
+        </button>`;
+      }).join('')}
+    </div>
+    <div class="map-footer"><span><i></i> ${islands.length} ${islands.length === 1 ? 'ISLAND' : 'ISLANDS'} CHARTED</span><span class="map-scale">SELECT AN ISLAND</span></div>
+  </section>`;
+}
+
+function roadmapSummary(island) {
+  if (!island.roadmap) return '';
+  return `<div class="roadmap-summary">
+    ${island.objective ? `<p><strong>Your ambition</strong><span>${escapeHtml(island.objective)}</span></p>` : ''}
+    <p><strong>Focus</strong><span>${escapeHtml(island.roadmap.focus)}</span></p>
+    <p><strong>Roadmap checkpoint</strong><span>${escapeHtml(island.roadmap.checkpoint)}</span></p>
+    ${island.roadmap.next ? `<p><strong>Beyond this roadmap</strong><span>${escapeHtml(island.roadmap.next)}</span></p>` : ''}
+  </div>`;
+}
+
+function goalMarkup(goal, completedIds) {
   const locked = !goal.prerequisites.every(id => completedIds.has(id));
   const action = goal.completed ? '<span class="complete-label">✓ Complete</span>' :
     locked ? '<span class="lock-label">Prerequisite required</span>' :
       `<button class="small-action" data-action="complete" data-id="${escapeHtml(goal.id)}">Mark complete</button>`;
   return `<li class="goal ${goal.completed ? 'done' : ''}"><div><h3>${escapeHtml(goal.title)}</h3>
-    <p>${escapeHtml(goal.description)}</p><span class="goal-meta">${escapeHtml(goal.minutes)} MIN · +${escapeHtml(goal.xp)} XP</span></div>
+    <p>${escapeHtml(goal.description)}</p>
+    ${goal.finish ? `<p class="goal-finish"><strong>Done when</strong> ${escapeHtml(goal.finish)}</p>` : ''}
+    <span class="goal-meta">${escapeHtml(goal.minutes)} MIN${goal.finish ? ' / SESSION' : ''} · +${escapeHtml(goal.xp)} XP</span></div>
     ${action}</li>`;
 }
 
@@ -84,21 +121,22 @@ function currentWorld() {
   const stage = getStage(island?.xp ?? 0);
   const progress = stage.nextThreshold == null ? 100 :
     Math.max(0, Math.min(100, 100 * (island?.xp - stage.threshold) / (stage.nextThreshold - stage.threshold)));
-  const subheading = island ? 'Each completed goal adds XP and changes the island.' :
-    'Start with guitar. As you practise, your island grows.';
+  const completedIds = new Set(island?.goals.filter(goal => goal.completed).map(goal => goal.id));
+  const subheading = island ? 'Select any island on the map to see its roadmap and progress.' :
+    'Choose a skill you want to develop. As you practise, its island grows.';
   return `<div class="intro"><div><p class="eyebrow">THE PERSONAL ATLAS / MY WORLD</p><h1>Your archipelago<span>.</span></h1><p class="lede">${subheading}</p></div>
     <button class="primary" data-action="new">+ New island</button></div>
-    ${world.islands.length > 1 ? `<div class="island-list" aria-label="Your islands">${world.islands.map(item =>
-      `<button data-action="select" data-id="${escapeHtml(item.id)}" aria-pressed="${item.id === island.id}">${escapeHtml(item.title)}</button>`).join('')}</div>` : ''}
-    <div class="workspace">${sceneMarkup(island, stage.level)}
+    <div class="workspace">${archipelagoMap(world.islands, island?.id)}
       <aside class="field-notes">
         ${island ? `<p class="eyebrow">ISLAND LOG / LEVEL ${stage.level}</p>
           <h2>${escapeHtml(island.title)}</h2>${island.attribution ? `<p class="caption">Roadmap by ${escapeHtml(island.attribution)}</p>` : ''}<p class="stage-name">${escapeHtml(stage.name)} · ${island.xp} XP</p>
           <progress value="${progress}" max="100" aria-label="Progress to next level"></progress>
           <p class="caption">${stage.nextThreshold == null ? 'Final stage reached' : (stage.nextThreshold - island.xp) + ' XP to the next level'}</p>
-          <h3 class="section-title">Your roadmap</h3><ol class="goal-list">${island.goals.map(goal => goalMarkup(goal, island)).join('')}</ol>` :
+          ${roadmapSummary(island)}
+          <h3 class="section-title">Your roadmap</h3>${island.roadmap ? '<p class="caption">Take as many sessions as you need to finish each goal.</p>' : ''}
+          <ol class="goal-list">${island.goals.map(goal => goalMarkup(goal, completedIds)).join('')}</ol>` :
           `<p class="eyebrow">ISLAND LOG / 00</p><h2>Open waters</h2>
-          <p>Choose a guitar objective and how much time you have, then follow your island’s roadmap.</p>
+          <p>Choose a skill, an objective and how much practice time you have.</p>
           <button class="small-action" data-action="new">Chart your first island ↗</button>`}
       </aside></div>`;
 }
@@ -108,9 +146,7 @@ function discoverWorlds() {
   const stage = getStage(demo.xp);
   return `<div class="intro"><div><p class="eyebrow">THE PERSONAL ATLAS / EXPLORE</p><h1>Beyond your shore<span>.</span></h1>
     <p class="lede">Explore sample worlds and bring a roadmap back to your own.</p></div></div>
-    <div class="island-list" aria-label="Sample islands">${demoIslands.map((item, index) =>
-      `<button data-action="demo" data-id="${index}" aria-pressed="${index === activeDemo}">${escapeHtml(item.title)}</button>`).join('')}</div>
-    <div class="workspace">${sceneMarkup(demo.source, stage.level)}
+    <div class="workspace">${archipelagoMap(demoIslands.map(item => item.source), demo.source.id, true)}
       <aside class="field-notes"><p class="eyebrow">PUBLIC ATLAS / SAMPLE PROFILE</p><h2>${escapeHtml(demo.title)}</h2>
       <p class="stage-name">${escapeHtml(demo.creator)} · Level ${stage.level}</p>
       <p>${escapeHtml(demo.objective)}.</p>
@@ -138,6 +174,7 @@ app.addEventListener('click', event => {
   if (!button) return;
   const { action, id } = button.dataset;
   if (action === 'new') {
+    updateSkillHints();
     dialog.showModal();
     return;
   }
@@ -164,23 +201,31 @@ app.addEventListener('click', event => {
   }
   render();
   const nextFocus = action === 'select' || action === 'demo' ?
-    app.querySelector('[aria-pressed="true"]') : app.querySelector('.field-notes h2');
+    app.querySelector('[data-action="' + action + '"][aria-pressed="true"]') : app.querySelector('.field-notes h2');
   if (nextFocus) {
     if (nextFocus.tagName === 'H2') nextFocus.tabIndex = -1;
     nextFocus.focus({ preventScroll: true });
   }
 });
 
+function updateSkillHints() {
+  const skill = SKILLS[skillField.value];
+  titleField.placeholder = 'e.g. ' + skill.label + ' Island';
+  objectiveField.placeholder = skill.objective;
+}
+
+skillField.addEventListener('change', updateSkillHints);
+
 form.addEventListener('submit', event => {
   event.preventDefault();
   const input = Object.fromEntries(new FormData(form));
-  if (!input.title.trim() || !input.objective.trim()) {
-    const field = form.elements[input.title.trim() ? 'objective' : 'title'];
-    field.value = '';
-    field.reportValidity();
+  if (!input.objective.trim()) {
+    objectiveField.value = '';
+    objectiveField.reportValidity();
     return;
   }
-  persist(createIsland(world, { ...input, minutes: Number(input.minutes), category: 'guitar' }));
+  const title = input.title.trim() || SKILLS[input.category].label + ' Island';
+  persist(createIsland(world, { ...input, title, minutes: Number(input.minutes) }));
   selectedId = world.islands.at(-1).id;
   dialog.close();
   form.reset();

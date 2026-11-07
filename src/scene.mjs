@@ -40,7 +40,7 @@ function tower(x, y, scale) {
   </g>`;
 }
 
-function terrain(stage) {
+function guitarTerrain(stage) {
   const buildings = [
     stage >= 4 ? lodge(536,300,.88,'#7ba9a3') : '',
     stage >= 5 ? tower(495,303,1.12) : '',
@@ -55,7 +55,7 @@ function terrain(stage) {
     <path d="M280 338 320 304 388 272 451 255 504 252 575 270 642 297 678 323 694 339 681 360 630 389 557 411 490 419 421 409 348 385 303 363Z" fill="#d3ae74"/>
     <path d="M280 338 303 363 348 385 421 409 490 419 490 431 421 420 348 396 303 374 280 347Z" fill="#9d7956"/>
     <path d="M490 419 557 411 630 389 681 360 694 339 694 350 681 373 630 400 557 422 490 431Z" fill="#82684f"/>
-    <path d="M303 337 342 306 390 286 452 267 504 263 565 279 629 306 668 330 676 341 663 354 619 377 552 399 490 408 424 398 361 377 318 355Z" fill="url(#wh-meadow)" stroke="#a0b575" stroke-width="2"/>
+    <path d="M303 337 342 306 390 286 452 267 504 263 565 279 629 306 668 330 676 341 663 354 619 377 552 399 490 408 424 398 361 377 318 355Z" fill="#92ac72" stroke="#a0b575" stroke-width="2"/>
     <path d="M355 351q41-40 111-52 70-16 138 22l26 20-41 30-82 26-101-14Z" fill="#89a968" opacity=".64"/>
     <path d="M488 407q-36-25-23-55 9-14 35-21t41-25M463 354q-23 5-58 1m68-9q30 18 69 10" fill="none" stroke="#d9c18a" stroke-width="7" stroke-linecap="round"/>
     <path d="M488 407q-36-25-23-55 9-14 35-21t41-25M463 354q-23 5-58 1m68-9q30 18 69 10" fill="none" stroke="#f5d6a0" stroke-width="2" stroke-linecap="round"/>
@@ -64,18 +64,92 @@ function terrain(stage) {
     <path d="m495 440 14-5 10 9-13 8-9-3Z" fill="#cb895b"/><path d="m506 437-1 9m-6-4 11-3" stroke="#f6ddaa"/>
     ${trees.map(([x, y, scale]) => tree(x, y, scale)).join('')}
     ${buildings.join('')}
+    ${guitarLandmark(stage)}
     <g fill="#e0c78c" opacity=".9"><circle cx="387" cy="370" r="2"/><circle cx="396" cy="373" r="1.7"/><circle cx="569" cy="363" r="2.1"/><circle cx="576" cy="367" r="1.3"/><circle cx="616" cy="345" r="2"/></g>
     <path d="m470 370 4-7 6 4-2 7Z" fill="#da7750"/><path d="m474 363 3-3m-7 6-2-2m10 1 2-2" stroke="#f8cb7b" stroke-width="1.5" stroke-linecap="round"/>
   </g>`;
 }
 
+function guitarLandmark(stage) {
+  return `<g class="guitar-landmark" transform="translate(464 286) rotate(-24)">
+    <ellipse cy="23" rx="31" ry="11" fill="#183c34" opacity=".45"/>
+    <path d="M-9 1C-26-14-32 0-29 15c3 16 16 20 29 17 14 3 27-1 30-17C33 0 27-14 9 1H5v-59h-10V1Z" fill="#9d583c" stroke="#f5cd7e" stroke-width="3"/>
+    <circle cy="13" r="6" fill="#472e29" stroke="#e7ae62" stroke-width="2"/>
+    <path d="M-2-57v75m4-75v75" stroke="#f9dda3" stroke-width="1.3"/>
+    <path d="M-9-61h18l-2 13H-7Z" fill="#7c4a36" stroke="#e2a866" stroke-width="2"/>
+    ${stage >= 3 ? '<path d="M-34-20v-15l10-3v15m-10 3c-7-3-9 6-2 6m12-9c-7-3-9 6-2 6" fill="none" stroke="#ffdda3" stroke-width="2.5"/>' : ''}
+  </g>`;
+}
+
+function songwritingTerrain(stage) {
+  return `<g class="wh-island songwriting-terrain">
+    <ellipse cx="483" cy="416" rx="210" ry="33" fill="#121e32" opacity=".45"/>
+    <path d="m270 358 45-46 83-35 73-35 103 14 92 41 45 48-40 47-114 36-117 9-118-29Z" fill="#b5cad1" opacity=".29"/>
+    <path d="m288 351 54-49 98-33 77-17 94 23 77 61-35 44-92 45-110 8-103-29Z" fill="#724e64"/>
+    <path d="m288 340 54-49 98-33 77-17 94 23 77 61-35 44-92 45-110 8-103-29Z" fill="#e7a687"/>
+    <path d="m348 393 103 29 110-8 92-45 35-44v11l-35 44-92 45-110 8-103-29Z" fill="#a86976"/>
+    <path d="m320 337 65-47 129-36 85 25 64 45-31 34-77 38-101 11-89-25Z" fill="#ae7497"/>
+    <path d="m356 333 60-37 93-24 82 21 43 31-35 34-64 21-73 6-73-19Z" fill="#d69baa"/>
+    <path d="m372 346 31 17 42 13 58 3 59-13 49-30m-221-20 35 24 63 17 63-9 38-20" fill="none" stroke="#f8bf9f" stroke-width="3"/>
+    <g transform="translate(488 309)">
+      <ellipse cy="28" rx="75" ry="21" fill="#71485c" opacity=".43"/>
+      <path d="m-64 0 32-17 32 8 30-13 37 11v34L30 13 0 24l-31-9-33 10Z" fill="#673a57"/>
+      <path d="m-64-4 32-17 32 8 30-13 37 11v30L30 5 0 16l-31-9-33 10Z" fill="#fae1b4" stroke="#8e5573" stroke-width="2"/>
+      <path d="M0-13v29m-52-14 20-7 23 4m-43 12 20-7 23 4m19-7 20-8 22 5m-42 12 20-8 22 5" fill="none" stroke="#b48286" stroke-width="2"/>
+      <path d="M13 2q6-49 61-68-7 28-31 47L21-10Z" fill="#8b416d" stroke="#ffe2ab" stroke-width="2.5"/>
+      <path d="M13 2q18-30 49-56" fill="none" stroke="#ffe2ab" stroke-width="2"/>
+    </g>
+    ${stage >= 2 ? lodge(394,359,.8,'#ac557e') : ''}
+    ${stage >= 3 ? '<path d="M528 371q28-26 68-16l15 8q-39 6-57 20Z" fill="#653a5c" stroke="#f4ba9b" stroke-width="3"/>' : ''}
+    ${stage >= 4 ? lodge(573,299,.82,'#bd5d87') : ''}
+    ${stage >= 5 ? tower(628,329,.84) : ''}
+  </g>`;
+}
+
+function photographyTerrain(stage) {
+  return `<g class="wh-island photography-terrain">
+    <ellipse cx="482" cy="408" rx="206" ry="38" fill="#0c233b" opacity=".4"/>
+    <path d="m269 350 66-63 130-44 96 17 86 33 64 62-67 46-115 38-117-6-96-33Z" fill="#bbd9de" opacity=".28"/>
+    <path d="m293 351 64-61 112-38 94 18 73 31 52 49-53 40-110 39-108-7-92-34Z" fill="#4f637e"/>
+    <path d="m293 338 64-61 112-38 94 18 73 31 52 49-53 40-110 39-108-7-92-34Z" fill="#a7c6d3"/>
+    <path d="m315 338 49-47 100-39 99 18 59 26 46 43-47 31-98 35-99-10-86-30Z" fill="#6d8ca9"/>
+    <path d="m344 337 73-112 20 28 63-77 55 77 30-33 61 105-91 32-75 14Z" fill="#506b8a"/>
+    <path d="m344 337 73-112 20 28-19 49-39 27Zm76-17 80-144 55 77-43 72-39 29Z" fill="#849fb8"/>
+    <path d="m390 267 27-42 20 28-14 13-9-10-11 14Zm80-35 30-56 36 50-22-3-10 11-13-12-14 17Zm95 42 20-54 27 46-16-3-10 12-10-8Z" fill="#e9eef0"/>
+    <path d="m555 345 47-12 19 12-51 20-55 16-32 10" stroke="#ccdce2" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="m325 351 36-19 55 8 17 13-37 17-50-5Z" fill="#4c9eaa" stroke="#b3e4e2" stroke-width="2"/>
+    <g transform="translate(510 363)">
+      <ellipse cy="12" rx="58" ry="14" fill="#1e3b55" opacity=".47"/>
+      <path d="m-46-23 58-15 43 10v26L0 17l-46-13Z" fill="#26394d" stroke="#dae5e5" stroke-width="2"/>
+      <path d="m-46-23 58-15 43 10L0-12Z" fill="#a8c2cb"/>
+      <path d="m-20-24 3-14 27-6 15 9-2 7Z" fill="#45647d" stroke="#b7d5d9" stroke-width="2"/>
+      <ellipse cx="25" cy="-9" rx="15" ry="11" fill="#182c40" stroke="#9bc3d0" stroke-width="3" transform="rotate(-17 25 -9)"/>
+      <ellipse cx="26" cy="-10" rx="8" ry="6" fill="#58a3b8" transform="rotate(-17 26 -10)"/>
+      <circle cx="27" cy="-13" r="2.6" fill="#f0f6e4"/>
+    </g>
+    ${stage >= 2 ? lodge(579,322,.8,'#779aaa') : ''}
+    ${stage >= 3 ? '<path d="m403 365 16-12 21 7-15 13Z" fill="#e0d8b2" stroke="#fff0c8" stroke-width="2"/>' : ''}
+    ${stage >= 4 ? lodge(384,305,.7,'#6d899f') : ''}
+    ${stage >= 5 ? tower(612,335,.8) : ''}
+  </g>`;
+}
+
+function islandTerrain(island, stage) {
+  if (island.category === 'songwriting') return songwritingTerrain(stage);
+  if (island.category === 'photography') return photographyTerrain(stage);
+  return guitarTerrain(stage);
+}
+
+export function renderIsland(island, stage) {
+  return `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false">${islandTerrain(island, stage)}</svg>`;
+}
+
 const waves = [[114,167],[198,293],[282,203],[359,121],[537,161],[671,224],[813,173],[771,302],[124,424],[227,465],[330,510],[596,484],[720,438],[836,401],[785,511],[413,466],[195,208],[755,115]];
 
-export function renderScene(island, stage) {
-  return `<svg class="wh-scene" viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${island ? 'An island with ' + stage + ' landmarks' : 'An open ocean awaiting your first island'}">
+export function renderOcean(backgroundOnly = false) {
+  return `<svg class="wh-scene" viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" ${backgroundOnly ? 'aria-hidden="true" preserveAspectRatio="xMidYMid slice"' : `role="img" aria-label="An open ocean awaiting your first island"`}>
     <defs>
       <radialGradient id="wh-sea" cx="50%" cy="42%" r="69%"><stop stop-color="#417f7e"/><stop offset=".6" stop-color="#245959"/><stop offset="1" stop-color="#133740"/></radialGradient>
-      <linearGradient id="wh-meadow" x2=".65" y2="1"><stop stop-color="#b3c484"/><stop offset="1" stop-color="#688e61"/></linearGradient>
       <pattern id="wh-grid" width="68" height="40" patternUnits="userSpaceOnUse"><path d="m0 20 34-20 34 20-34 20Z" fill="none" stroke="#cae9d6" stroke-width=".6" opacity=".12"/></pattern>
     </defs>
     <rect width="960" height="620" fill="url(#wh-sea)"/>
@@ -84,6 +158,6 @@ export function renderScene(island, stage) {
     <g fill="none" stroke="#e0f4d3" stroke-width="1.5" opacity=".42">${waves.map(([x, y]) => `<path d="M${x} ${y}q6-3 12 0t12 0m-18 5q6-3 12 0"/>`).join('')}</g>
     <g transform="translate(108 487)" fill="#d8ddad" opacity=".69"><circle r="26" fill="none" stroke="#d8ddad" stroke-width=".7"/><path d="M0-22 4-4 17 0 4 4 0 22-4 4-17 0-4-4Z" fill="none" stroke="#d8ddad"/><path d="M0-22 4-4 0 0Z M0 22-4 4 0 0Z"/><text x="0" y="-34" font-family="sans-serif" font-size="9" text-anchor="middle">N</text></g>
     <path d="M759 219q8-7 14 0 6-7 14 0m-42 10q5-4 9 0 4-4 9 0" fill="none" stroke="#e6efcf" stroke-width="1.4" opacity=".62"/>
-    ${island ? terrain(stage) : '<g opacity=".35" stroke="#c7e3c6" fill="none"><ellipse cx="481" cy="347" rx="102" ry="44" stroke-dasharray="3 5"/><path d="M466 347h30m-15-15v30" stroke-width="1.5"/></g>'}
+    ${backgroundOnly ? '' : '<g opacity=".35" stroke="#c7e3c6" fill="none"><ellipse cx="481" cy="347" rx="102" ry="44" stroke-dasharray="3 5"/><path d="M466 347h30m-15-15v30" stroke-width="1.5"/></g>'}
   </svg>`;
 }

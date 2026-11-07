@@ -12,8 +12,8 @@ button, a, input, select { outline-offset: 4px; }
 .edition { justify-self: end; color: var(--muted); }
 .edition span, h1 span, .eyebrow { color: var(--accent); }
 nav { display: flex; gap: 6px; }
-nav button, .island-list button { color: var(--muted); border: 1px solid transparent; border-radius: 6px; padding: 8px 13px; background: transparent; white-space: nowrap; }
-nav button:hover, .island-list button:hover, [aria-pressed="true"] { background: #263e3e; border-color: #405656; color: var(--text); }
+nav button { color: var(--muted); border: 1px solid transparent; border-radius: 6px; padding: 8px 13px; background: transparent; white-space: nowrap; }
+nav button:hover, nav [aria-pressed="true"] { background: #263e3e; border-color: #405656; color: var(--text); }
 main { margin: 0 auto; width: min(1400px, 90%); }
 .intro { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: clamp(28px, 5vw, 70px) 0 25px; }
 .eyebrow { margin: 0 0 10px; }
@@ -55,8 +55,6 @@ progress::-moz-progress-bar { background: var(--accent); }
 .complete-label, .lock-label { display: block; font-size: 11px; }
 .complete-label { color: #afd3a3; }
 .lock-label { color: var(--muted); }
-.island-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.island-list button { border-color: var(--line); white-space: normal; overflow-wrap: anywhere; }
 .preview-list { padding-left: 18px; color: var(--muted); }
 footer { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); border-top: 1px solid var(--line); padding: 18px 0; margin-top: 30px; }
 dialog { width: min(480px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; border: 1px solid #566f6e; border-radius: 12px; color: var(--text); background: #192e31; padding: 25px; }
@@ -88,3 +86,59 @@ form .primary { width: 100%; margin-top: 9px; }
   @keyframes island-rise { from { opacity: .3; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 }
 
+
+.archipelago-frame { min-height: 390px; }
+.map-water { position: absolute; inset: 0; pointer-events: none; }
+.map-water svg { display: block; width: 100%; height: 100%; object-fit: cover; }
+.archipelago-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 174px), 1fr));
+  align-items: start;
+  gap: clamp(6px, 1vw, 16px);
+  padding: 63px clamp(12px, 2vw, 30px) 63px;
+  min-height: 390px;
+}
+.archipelago-grid.single-island { grid-template-columns: minmax(0, 480px); place-content: center; }
+.map-island {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 0;
+}
+.island-art { display: block; width: 100%; }
+.island-art svg { display: block; width: 100%; height: auto; overflow: visible; }
+.map-island:hover .island-art { filter: brightness(1.13); }
+.island-pin {
+  display: grid;
+  max-width: 100%;
+  padding: 4px 9px;
+  border: 1px solid #6e8e88;
+  border-radius: 5px;
+  background: #112c2ded;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+.island-pin small { margin-top: 3px; color: var(--muted); font-size: 11px; }
+.map-island[aria-pressed="true"] .island-pin { border-color: var(--accent); color: var(--accent); }
+.roadmap-summary { margin-top: 18px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
+.roadmap-summary p { display: grid; gap: 2px; margin: 0 0 8px; font-size: 12px; overflow-wrap: anywhere; }
+.roadmap-summary p:last-child { margin-bottom: 0; }
+.roadmap-summary strong, .goal-finish strong { color: var(--text); }
+.goal .goal-finish { margin-top: 6px; }
+.goal-finish strong { margin-right: 4px; }
+.goal-list { margin-top: 9px; }
+form label small { display: inline; color: var(--muted); }
+form label:has(small) { display: block; }
+form label:has(small) input { display: block; margin-top: 4px; }
+@media (max-width: 500px) {
+  .archipelago-frame, .archipelago-grid { min-height: 285px; }
+  .archipelago-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); padding: 43px 8px 44px; }
+  .island-pin { font-size: 12px; padding-inline: 5px; }
+}
