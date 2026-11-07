@@ -1,7 +1,7 @@
 import { createWorld, createIsland, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice } from './world.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
-import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation } from './local-planner.mjs';
+import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation, warmStarterModel } from './local-planner.mjs';
 import { DIFFICULTIES } from './difficulty.mjs';
 import { relatedSkill } from './skill-connections.mjs';
 import { layoutIslands } from './map-layout.mjs';
@@ -21,6 +21,7 @@ const createButton = form.querySelector('button[type="submit"]');
 const planMessage = document.querySelector('#plan-message');
 const onboardingTitle = document.querySelector('#onboarding-title');
 let pendingCreation;
+let starterWarmup;
 let revisingId;
 const adaptationDrafts = new Map();
 const pendingPractice = new Map();
@@ -475,6 +476,8 @@ function openOnboarding(topic = '', objective = '', island) {
   }
   setCreating(false);
   dialog.showModal();
+  starterWarmup?.cancel();
+  starterWarmup = warmStarterModel();
 }
 
 function setCreating(creating) {
@@ -486,8 +489,10 @@ function setCreating(creating) {
 form.addEventListener('input', () => setPlanMessage());
 
 dialog.addEventListener('close', () => {
-  if (dialog.open || !pendingCreation) return;
-  pendingCreation.abort();
+  if (dialog.open) return;
+  starterWarmup?.cancel();
+  starterWarmup = undefined;
+  pendingCreation?.abort();
   pendingCreation = undefined;
   setCreating(false);
 });
@@ -510,7 +515,7 @@ form.addEventListener('submit', async event => {
   setCreating(true);
   setPlanMessage('Preparing your tailored plan on this device…');
   const result = await generateStarterRoadmap(planInput, {
-    signal: controller.signal, allowDownload: true,
+    signal: controller.signal, allowDownload: true, warmup: starterWarmup,
     onStatus(status, progress) {
       if (status === 'downloading') setPlanMessage('Downloading this browser’s AI model' + (progress === undefined ? '…' : ' (' + progress + '%)…'));
       else if (status === 'starting') setPlanMessage('Starting Gemini Nano in Chrome…');

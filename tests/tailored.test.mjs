@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { generateContinuation, generateCustomRoadmap, generateStarterRoadmap } from '../src/local-planner.mjs';
+import { generateContinuation, generateCustomRoadmap, generateStarterRoadmap, warmStarterModel } from '../src/local-planner.mjs';
 import { appendGeneratedPractice, completeGoal, createGeneratedIsland, createWorld, getActiveGoal,
   canQueueGeneratedPractice, needsGeneratedPractice, needsRoadmapRevision, reviseIslandRoadmap, setDifficulty } from '../src/world.mjs';
 
@@ -119,6 +119,35 @@ test('a valid first exercise is accepted when Nano omits or leaves the checkpoin
     assert.equal(result.plan.checkpoint, undefined);
     assert.equal(result.plan.steps[0][0], goals[0].title);
   }
+});
+
+test('starter warmup reuses the session and skips models that need a download', async () => {
+  let created = 0;
+  let destroyed = 0;
+  let warmSignal;
+  const model = { availability: async () => 'available', create: async ({ signal }) => {
+    created++;
+    warmSignal = signal;
+    return {
+      prompt: async () => JSON.stringify({ ...response, goals: [goals[0]] }),
+      destroy() { destroyed++; },
+    };
+  } };
+  const warmup = warmStarterModel(model);
+  assert.equal((await generateStarterRoadmap(input, { model, warmup })).status, 'ready');
+  assert.equal(created, 1);
+  assert.equal(destroyed, 1);
+  assert.equal(await warmup.take(), null);
+
+  const unused = warmStarterModel(model);
+  await Promise.resolve();
+  unused.cancel();
+  assert.ok(warmSignal.aborted);
+  assert.equal(await unused.take(), null);
+
+  const downloadable = warmStarterModel({ ...model, availability: async () => 'downloadable' });
+  assert.equal(await downloadable.take(), null);
+  assert.equal(created, 2);
 });
 
 test('model setup and prompt timeouts are reported separately', async () => {
