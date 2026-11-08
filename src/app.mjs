@@ -689,7 +689,6 @@ function openOnboarding(topic = '', objective = '', island) {
   if (island) {
     form.elements.title.value = island.title === island.topic ? '' : island.title;
     form.elements.experience.value = island.experience || 'beginner';
-    form.elements.minutes.value = [10, 20, 30].includes(island.sessionMinutes) ? island.sessionMinutes : 20;
   }
   setCreating(false);
   dialog.showModal();
@@ -728,7 +727,7 @@ form.addEventListener('submit', async event => {
   const previous = world.islands.find(item => item.id === revisingId);
   const recent = previous?.goals.filter(goal => goal.completed).slice(-3).map(({ title, description }) => ({ title, description }));
   const skillLevel = getStage(previous?.xp ?? 0).level;
-  const planInput = { ...input, topic, objective: input.objective.trim() || topic, minutes: Number(input.minutes), recent, skillLevel };
+  const planInput = { ...input, topic, objective: input.objective.trim() || topic, minutes: previous?.sessionMinutes ?? 20, recent, skillLevel };
   const controller = new AbortController();
   pendingCreation = controller;
   setCreating(true);
