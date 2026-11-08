@@ -10,6 +10,24 @@
   <script type="module" src="./src/app.mjs"></script>
 </head>
 <body>
+  <div class="page-wave" aria-hidden="true">
+    <svg viewBox="0 0 1440 900" preserveAspectRatio="none" focusable="false">
+      <defs>
+        <linearGradient id="page-wave-light" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+          <stop stop-color="#dbeafb"/>
+          <stop offset=".62" stop-color="#c4e2fb"/>
+          <stop offset="1" stop-color="#ecf6ff"/>
+        </linearGradient>
+        <linearGradient id="page-wave-mist" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+          <stop stop-color="#f7fbff"/>
+          <stop offset="1" stop-color="#d4eaff"/>
+        </linearGradient>
+      </defs>
+      <path class="page-wave-swell" d="M-90-90H1530V405C1290 520 1110 486 891 333S452 67 191 165-90 199-90 199Z" fill="url(#page-wave-light)"/>
+      <path class="page-wave-foam" d="M-90 36C220-29 433 62 641 170S1109 421 1530 230V388C1162 518 906 336 701 246S259 27-90 153Z" fill="url(#page-wave-mist)" opacity=".76"/>
+      <path class="page-wave-swell" d="M-90 624C232 459 436 639 713 709S1229 708 1530 554V990H-90Z" fill="url(#page-wave-light)" opacity=".72"/>
+    </svg>
+  </div>
   <header class="masthead">
     <a class="brand" href="./" aria-label="WorldHopper">
       <span class="masthead-icon map-icon" aria-hidden="true">

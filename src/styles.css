@@ -29,6 +29,7 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  isolation: isolate;
   margin: 0;
   color: var(--ink);
   background:
@@ -36,6 +37,15 @@ body {
     var(--paper);
   font: 15px/1.55 Geist, system-ui, sans-serif;
 }
+
+.page-wave {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.page-wave svg { display: block; width: 100%; height: 100%; }
 
 button, input, select { font: inherit; }
 button, summary { cursor: pointer; }
@@ -507,6 +517,12 @@ form .primary:disabled { cursor: wait; opacity: .75; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .page-wave-swell { animation: page-wave-drift 30s ease-in-out infinite alternate; }
+  .page-wave-foam { animation: page-wave-drift 38s ease-in-out infinite alternate-reverse; }
+  @keyframes page-wave-drift {
+    from { transform: translate(-18px, -14px); }
+    to { transform: translate(24px, 20px); }
+  }
   .primary, .small-action, nav button, .island-pin { transition: background-color 180ms ease, border-color 180ms ease; }
   .animate-island .wh-island { animation: island-rise 520ms cubic-bezier(.18,.75,.3,1) both; }
   @keyframes island-rise { from { opacity: .3; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }

@@ -3,6 +3,7 @@
 ## Available in the preview
 
 - One map for all personal islands, with distinct themed art for Guitar, Songwriting, Photography, and custom goals.
+- A pale blue wave backdrop frames the ocean map. It drifts slowly and stays still when reduced motion is enabled.
 - Explore and My world share the same map frame size. Explore controls contains the demo account switcher, All worlds, Following and Followers. The Explorer log has separate Following and Followers sections, Social Compass, and sample roadmaps.
 - On desktop, the mouse wheel zooms around the pointer. Once zoomed in, dragging pans within the charted map area. Reset returns to the fitted view. Zoom buttons, touch panning, and arrow keys are also available.
 - My world shows faint dotted sea routes between related skills. Selecting an island highlights its routes. Each island has at most two, and routes that cannot pass around other islands are omitted.
