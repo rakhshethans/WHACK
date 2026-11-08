@@ -144,7 +144,7 @@ main { width: var(--frame); margin-inline: auto; flex: 1; min-height: 0; display
 }
 .intro-action { grid-area: 1 / 2 / span 2; }
 .eyebrow { color: var(--focus); margin: 0 0 10px; }
-h1, h2 { margin: 0; font-weight: 650; letter-spacing: -.065em; line-height: 1.02; }
+h1, h2 { margin: 0; font-weight: 650; letter-spacing: -.02em; line-height: 1.12; }
 h1 { font-size: clamp(26px, 3.3vw, 46px); }
 h1 span { color: var(--focus); }
 h2 { font-size: clamp(31px, 3vw, 39px); }
@@ -375,7 +375,7 @@ progress::-moz-progress-bar { background: var(--focus); }
   font: 650 11px/1.5 var(--mono);
   white-space: nowrap;
 }
-.active-goal h3 { margin: 11px 0 0; font-size: 22px; font-weight: 670; letter-spacing: -.04em; line-height: 1.16; overflow-wrap: anywhere; }
+.active-goal h3 { margin: 11px 0 0; font-size: 22px; font-weight: 670; letter-spacing: normal; line-height: 1.25; overflow-wrap: anywhere; }
 .active-goal p:not(.eyebrow) { margin: 8px 0; color: var(--mist); font-size: 13px; }
 .active-goal p.goal-meta { font-size: 10px; }
 .active-goal p.goal-adaptation { color: var(--signal); }
@@ -533,7 +533,7 @@ form .primary:disabled { cursor: wait; opacity: .75; }
   .brand-wordmark { display: none; }
 }
 
-@media (max-width: 364px) {
+@media (max-width: 385px) {
   .intro h1 { min-height: 2lh; align-content: center; }
 }
 
