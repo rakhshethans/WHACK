@@ -2,7 +2,7 @@
 
 WorldHopper is an interactive archipelago for learning skills and pursuing personal ambitions. Each island offers one practice goal at a time. Completing goals earns XP and develops the island. Related skills can lead to new islands, and Explore lets you browse public and sample worlds, follow explorers, and adopt a starter roadmap into your own archipelago.
 
-[Open the shared preview]([https://worldbuilder-git-worldhopper-first-island-rak12.vercel.app/](https://worldbuilder-git-worldhopper-integration-review-rak12.vercel.app/))
+[Open the shared preview]([https://worldbuilder-git-worldhopper-integration-review-rak12.vercel.app/])
 
 The integration branch combines My world and Social Explore. The integrated Explore currently runs against labelled sample personas. Roadmap sharing in this mode is saved in the browser and only visible inside the demo.
 
