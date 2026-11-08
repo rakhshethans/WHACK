@@ -21,9 +21,7 @@ The integration branch combines My world and Social Explore. The integrated Expl
 
 Use Node.js 20 or newer. Run `node --test` from the repository root. For a browser preview, serve the repository over HTTP with `python -m http.server 8000` and open `http://localhost:8000`.
 
-To reset a test world, open the app with `?testing=1`, choose **Reset islands** in the My world footer, and confirm. This clears the current browser’s islands and their progress. Explore’s sample islands remain available.
-
-To reset a test world, open the app with `?testing=1`, choose **Reset islands** in the My world footer, and confirm. This clears the current browser’s islands and their progress. Explore’s sample islands remain available.
+To reset your world, click the **Reset personal islands** button in the footer at the bottom of the page and confirm. This clears the current browser’s personal islands and progress, returning to an uncharted archipelago. Explore’s sample and community islands remain available.
 
 ## Working in parallel
 
@@ -84,9 +82,12 @@ To break ties and reward broader neighbourhood cohesion among already-eligible c
 
 The final composite score for each eligible candidate is:
 $$\text{score} = \text{sharedScore} + 2 \times \text{relatedBridgeCount} + \text{socialScore} + 3 \times \frac{\text{PPR}(u)}{\max_v \text{PPR}(v)}$$
-Candidates are sorted by descending `score` (with deterministic alphabetical tie-breaking on `profile.id`), capped at `limit = 8`, and assigned to the `inner` ring (ranks `1..4`) or `outer` ring (ranks `5..8`).
+Candidates are sorted by descending `score` (with deterministic alphabetical tie-breaking on `profile.id`).
 
-#### Step 5: Evidence-Based Relationship Badges
+#### Step 5: Recommendation Diversity (`maxPerPrimarySkill = 2`)
+To avoid over-concentrating recommendations on a single topic when multiple candidates share it (for example, four Origami explorers filling all visible slots), `rankNeighborsByGraph` enforces a diversity cap: at most 2 candidates sharing the exact same primary skill/focus occupy the recommendation slots. Candidates with diverse, complementary, or secondary shared skills fill the remaining slots up to `limit = 8`.
+
+#### Step 6: Evidence-Based Relationship Badges
 Each recommended neighbour receives an explicit, human-readable relationship badge and explanation based on their highest-scoring shared skill:
 - **Mentor** (`theirLevel > viewerLevel`): e.g. `Mentor · Origami Lv 4 (you Lv 1)`
 - **You could mentor** (`theirLevel < viewerLevel`): e.g. `You could mentor · Guitar Lv 2 (you Lv 4)`
@@ -100,14 +101,15 @@ Each recommended neighbour receives an explicit, human-readable relationship bad
 - **Home Waters at Center**: The active viewer's islands are rendered at the center of the pannable ocean canvas, surrounded by a dashed territory ring.
 - **8 Compass Sectors (`NW`, `N`, `NE`, `E`, `SE`, `S`, `SW`, `W`)**: Up to 8 recommended neighbours are placed around Home Waters. Ranks `1..4` (closest matches) pull slightly closer to the center (`radialScale = 0.93`), while ranks `5..8` sit on the outer ring (`radialScale = 1.07`).
 - **Stable Sector Assignment**: Each neighbour's compass sector is persisted in `assignedSectorsByProfileId` for the current viewer persona so clicking **Follow / Following** in the inspector never causes islands to jump to a different sector on the map.
-- **Collision-Free Island Clusters**: Within each neighbour's cluster (`450 × 310`), up to 3 public islands are positioned in non-overlapping slots using each island's actual visual stage (`getStage(xp)`) and artwork (`islandArt(island)`), with a `+N more` pill when a user has more than 3 public islands.
+- **Adaptive Island Clusters & Bounded Containers**: Within each neighbour's cluster, public islands are laid out cleanly with adaptive scale tiers (`data-island-count`). Clusters with 3+ or 5+ islands scale down their footprints and pins, and the cluster container enforces a bounded max-height with scroll containment so clusters never overflow when explorers publish many islands.
+- **Clean Wayfinding**: Wayfinding is handled seamlessly through the map camera, cluster badges, and inspector jump links without redundant compass labels or map beacons.
 - **Drag-to-Pan & Quick-Jump Controls**: Users can click-and-drag (or touch-drag) anywhere on the ocean, click any neighbour cluster to pan smoothly to it and open the bottom-right **Selected Archipelago Inspector**, or use the top overlay pills (`Home Waters` + neighbour pills with relationship badges) to jump directly to any cluster.
 
 ---
 
 ### 3. Dummy Account Switcher (`src/social/fixtures.mjs`, `src/social/explore.mjs`)
 
-- **No Login Required**: **Explore controls** lets you switch between My world and seven demo personas. Explore uses 35 labelled sample profiles, including driving, Python, and cooking accounts with distinct sets of shared-skill recommendations. [Demo fixtures](src/social/fixtures.mjs)
+- **No Login Required & 64 Sample Profiles**: **Explore controls** lets you switch between My world and 13 demo personas. Explore features 64 labelled sample profiles spanning 28 diverse skills and topics (including Driving, Python, Cooking, Bouldering, Running, Origami, Urban Sketching, Ceramics, Music Production, Gardening, Astronomy, Italian, Creative Writing, Coffee Brewing, Swimming, Woodworking, and Chess), each with distinct shared-skill recommendations and adoptable roadmaps. [Demo fixtures](src/social/fixtures.mjs)
 - **Live Persona Switching**: Clicking any dummy persona:
   1. Places that persona's islands at the center of the ocean (`Home Waters`),
   2. Excludes that persona from the candidate pool (`viewerId`),

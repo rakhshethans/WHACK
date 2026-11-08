@@ -68,7 +68,7 @@ function renderHomeCluster(viewerWorld, activePersona, activeCluster, selectedHo
       <span class="cluster-banner-title"><span>✦</span> ${bannerLabel}</span>
       <span class="cluster-banner-meta">${islands.length} ${islands.length === 1 ? 'island' : 'islands'} · Drag map in any direction to explore neighbours</span>
     </button>
-    <div class="cluster-islands${islands.length <= 1 ? ' single-cluster-island' : ''}">
+    <div class="cluster-islands${islands.length <= 1 ? ' single-cluster-island' : ''}" data-island-count="${islands.length}">
       ${islands.length > 0 ? islands.map(island => {
         const { level } = getStage(island.xp ?? 0);
         const selected = isHomeSelected && island.id === selectedHomeIslandId;
@@ -109,10 +109,10 @@ function renderNeighborClusters(neighborEntries, activeCluster, selectedIslandId
         </span>
         <span class="cluster-affinity-badge">${escapeHtml(reasonLabel)}</span>
         <span class="cluster-banner-meta">
-          ${escapeHtml(sector.compass)} · ${islands.length} ${islands.length === 1 ? 'island' : 'islands'} · ${profile.followerCount} ${profile.followerCount === 1 ? 'follower' : 'followers'}${profile.isFollowing ? ' · Following ✓' : ''}
+          ${islands.length} ${islands.length === 1 ? 'island' : 'islands'} · ${profile.followerCount} ${profile.followerCount === 1 ? 'follower' : 'followers'}${profile.isFollowing ? ' · Following ✓' : ''}
         </span>
       </button>
-      <div class="cluster-islands${islands.length === 1 ? ' single-cluster-island' : ''}">
+      <div class="cluster-islands${islands.length === 1 ? ' single-cluster-island' : ''}" data-island-count="${islands.length}">
         ${islands.map(island => {
           const selected = isClusterSelected && island.id === selectedIslandId;
           const level = island.level ?? 1;
@@ -132,19 +132,6 @@ function renderNeighborClusters(neighborEntries, activeCluster, selectedIslandId
         }).join('')}
       </div>
     </div>`;
-  }).join('');
-}
-
-function renderDirectionalBeacons(neighborEntries, activeCluster) {
-  return neighborEntries.map(({ profile, sector, reasonLabel }) => {
-    const active = activeCluster === profile.id;
-    return `<button type="button" class="ocean-wayfinder${active ? ' is-active' : ''}"
-      style="left:${sector.beaconX}px;top:${sector.beaconY}px;"
-      data-social-action="open-profile"
-      data-profile-id="${escapeHtml(profile.id)}"
-      title="${escapeHtml(profile.displayName)} (${escapeHtml(sector.compass)}) — ${escapeHtml(reasonLabel)}">
-      <span>${escapeHtml(sector.compass)}</span> <strong>${escapeHtml(profile.displayName)}</strong>
-    </button>`;
   }).join('');
 }
 
@@ -174,7 +161,6 @@ function renderNeighborhoodOceanMap({
         <div class="map-water">${renderOcean(true)}</div>
         <div class="island-water social-cluster-water" style="width:${OCEAN_WIDTH}px;height:${OCEAN_HEIGHT}px;">
           ${renderHomeCluster(viewerWorld, activePersona, activeCluster, selectedHomeIslandId)}
-          ${renderDirectionalBeacons(neighborEntries, activeCluster)}
           ${renderNeighborClusters(neighborEntries, activeCluster, selectedIsland?.id)}
         </div>
       </div>

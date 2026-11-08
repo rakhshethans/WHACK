@@ -380,8 +380,8 @@ function render() {
   mapResize.disconnect();
   worldTab.setAttribute('aria-pressed', String(activeView === 'world'));
   exploreTab.setAttribute('aria-pressed', String(activeView === 'explore'));
-  const resetControl = testingMode && activeView === 'world' && world.islands.length
-    ? '<button type="button" class="testing-reset" data-action="reset-islands">Reset islands</button>' : '';
+  const resetControl = world.islands?.length
+    ? '<button type="button" class="testing-reset reset-islands-btn" data-action="reset-islands" title="Remove personal islands and reset your world">Reset personal islands</button>' : '';
   app.innerHTML = (activeView === 'world' ? currentWorld() : '<div class="explore-mount"></div>') +
     (storageUnavailable ? '<p class="storage-note">This browser blocked storage. Progress is available until you close or reload the page.</p>' : '') +
     `<footer><span>WORLDHOPPER</span>${resetControl}<span>WARWICKHACK 2026 / NEW WORLDS</span></footer>`;
@@ -499,8 +499,8 @@ function scheduleMaintenance() {
 }
 
 function resetIslandsForTesting() {
-  if (!testingMode || activeView !== 'world' || !world.islands.length) return;
-  if (!window.confirm('Remove all your islands and progress from this browser? This cannot be undone.')) return;
+  if (!world.islands?.length) return;
+  if (!window.confirm('Remove all your personal islands and progress from this browser? This cannot be undone.')) return;
 
   discardGoalRevision();
   for (const id of adaptationDrafts.keys()) discardDraft(id);

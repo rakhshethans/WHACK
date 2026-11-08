@@ -379,8 +379,9 @@ test('normalizeIslandSkill keeps exact skills distinct from broad themes and ran
     objective: 'Fold a paper crane',
   });
 
+  // Default maxPerPrimarySkill = 2 caps candidates for any single primary skill (e.g. at most 2 Origami explorers)
   const jpRanked = rankNeighborsByGraph(jpWorld, candidates, { limit: 8 });
-  assert.deepEqual(jpRanked.map(e => e.profile.id).sort(), ['user-aisha-nordin', 'user-hana', 'user-leo-martin', 'user-mei-lam', 'user-sora']);
+  assert.deepEqual(jpRanked.map(e => e.profile.id).sort(), ['user-hana', 'user-leo-martin', 'user-sora']);
   assert.equal(jpRanked[0].profile.id, 'user-hana', 'Hana shares both Origami and Japanese');
   assert.equal(jpRanked[0].matchType, 'mentor');
   assert.match(jpRanked[0].reasonLabel, /^Mentor · Origami Lv 4 \(you Lv 1\)$/);
@@ -389,6 +390,16 @@ test('normalizeIslandSkill keeps exact skills distinct from broad themes and ran
     assert.ok(entry.sharedSkills.length > 0, 'every recommendation shares an interest');
     assert.equal(/%/.test(entry.reasonLabel), false, 'labels are evidence-based, not uncalibrated percentages');
   }
+
+  // Diversity verification: with multiple explorers sharing the same skill, limits specific focus to 2 before other skills
+  const origamiCounts = jpRanked.filter(e => e.primarySkillKey === 'origami').length;
+  assert.equal(origamiCounts, 2, 'Origami is capped at 2 candidates even though 4 Origami candidates exist');
+  const jpCounts = jpRanked.filter(e => e.primarySkillKey === 'japanese').length;
+  assert.equal(jpCounts, 1, 'Japanese candidate is preserved alongside Origami');
+
+  // When uncapped (maxPerPrimarySkill: Infinity), all candidates sharing an interest are returned up to limit
+  const uncappedRanked = rankNeighborsByGraph(jpWorld, candidates, { limit: 8, maxPerPrimarySkill: Infinity });
+  assert.deepEqual(uncappedRanked.map(e => e.profile.id).sort(), ['user-aisha-nordin', 'user-hana', 'user-leo-martin', 'user-mei-lam', 'user-sora']);
 
   // Case 2: Viewer learning Guitar & Songwriting -> Maya Chen and Noah Silva rank at the top
   let musicWorld = createIsland(createWorld(), {

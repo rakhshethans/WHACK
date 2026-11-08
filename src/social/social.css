@@ -131,6 +131,10 @@
 .archipelago-cluster {
   position: absolute;
   padding: 14px 16px 18px;
+  max-height: 480px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   border: 1.5px dashed #a7d1d559;
   border-radius: 28px;
   background: radial-gradient(ellipse at center, #1d5d9f48 0%, #11386b24 58%, transparent 82%);
@@ -219,22 +223,74 @@
 
 .cluster-islands {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
   align-items: end;
   justify-items: center;
   margin-top: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 400px;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #a7d1d540 transparent;
 }
 
 .cluster-islands.single-cluster-island {
-  grid-template-columns: minmax(215px, 310px);
+  grid-template-columns: minmax(180px, 280px);
   justify-content: center;
 }
 
 .map-island.cluster-island-btn {
   position: relative;
   width: 100%;
-  max-width: 270px;
+  max-width: 250px;
+}
+
+/* Scaling down islands when there are 3+ or 5+ islands to keep the cluster compact */
+.cluster-islands[data-island-count="3"],
+.cluster-islands[data-island-count="4"] {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.cluster-islands[data-island-count="3"] .map-island.cluster-island-btn,
+.cluster-islands[data-island-count="4"] .map-island.cluster-island-btn {
+  max-width: 175px;
+}
+
+.cluster-islands[data-island-count="3"] .island-pin,
+.cluster-islands[data-island-count="4"] .island-pin {
+  padding: 3px 6px;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.cluster-islands[data-island-count="3"] .island-pin small,
+.cluster-islands[data-island-count="4"] .island-pin small {
+  font-size: 10px;
+  line-height: 12px;
+}
+
+/* For 5 or more islands, scale down further to fit comfortably */
+.cluster-islands:is([data-island-count="5"], [data-island-count="6"], [data-island-count="7"], [data-island-count="8"], [data-island-count="9"], [data-island-count="10"]) {
+  grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+  gap: 6px;
+}
+
+.cluster-islands:is([data-island-count="5"], [data-island-count="6"], [data-island-count="7"], [data-island-count="8"], [data-island-count="9"], [data-island-count="10"]) .map-island.cluster-island-btn {
+  max-width: 135px;
+}
+
+.cluster-islands:is([data-island-count="5"], [data-island-count="6"], [data-island-count="7"], [data-island-count="8"], [data-island-count="9"], [data-island-count="10"]) .island-pin {
+  padding: 2px 5px;
+  font-size: 10px;
+  line-height: 13px;
+}
+
+.cluster-islands:is([data-island-count="5"], [data-island-count="6"], [data-island-count="7"], [data-island-count="8"], [data-island-count="9"], [data-island-count="10"]) .island-pin small {
+  font-size: 9px;
+  line-height: 11px;
 }
 
 /* Directional Wayfinder Beacons around Home Waters */

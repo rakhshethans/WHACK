@@ -69,6 +69,9 @@
   <div id="adopted-banner" class="harness-adopted-toast" hidden role="status"></div>
   <main id="social-root"></main>
   <p class="sr-only" id="announcement" role="status"></p>
+  <footer style="display:flex;justify-content:center;margin:24px 0 16px;border-top:1px dashed var(--line);padding-top:14px;">
+    <button type="button" class="small-action" id="reset-personal-islands-bottom" style="font-size:11px;min-height:26px;">Reset personal islands</button>
+  </footer>
 
   <script type="module">
     import { adoptIsland, createIsland, createWorld, getStage } from '../world.mjs';
@@ -195,6 +198,13 @@
     });
 
     mountWithClient(createFixtureSocialClient());
+
+    document.querySelector('#reset-personal-islands-bottom')?.addEventListener('click', () => {
+      viewerWorld = createWorld();
+      if (activeController) activeController.updateViewerWorld(viewerWorld);
+      adoptedBanner.hidden = false;
+      adoptedBanner.textContent = 'Personal islands have been reset.';
+    });
   </script>
 </body>
 </html>

@@ -6,19 +6,31 @@ import { getStage } from '../world.mjs';
  * Keys are canonical skill keys produced by `normalizeSkill`.
  */
 export const RELATED_SKILLS = {
-  guitar: ['songwriting', 'public-speaking', 'meeting-people'],
-  songwriting: ['guitar', 'public-speaking', 'photography'],
-  photography: ['visual-storytelling', 'songwriting', 'urban-sketching'],
-  'visual-storytelling': ['photography', 'origami', 'public-speaking'],
+  guitar: ['songwriting', 'public-speaking', 'meeting-people', 'music-production'],
+  songwriting: ['guitar', 'public-speaking', 'photography', 'creative-writing', 'music-production'],
+  photography: ['visual-storytelling', 'songwriting', 'urban-sketching', 'astronomy'],
+  'visual-storytelling': ['photography', 'origami', 'public-speaking', 'creative-writing', 'urban-sketching'],
   'public-speaking': ['meeting-people', 'songwriting', 'chess'],
-  'meeting-people': ['public-speaking', 'japanese', 'spanish', 'french'],
-  japanese: ['origami', 'spanish', 'french', 'meeting-people'],
-  spanish: ['japanese', 'french', 'meeting-people', 'guitar'],
-  french: ['spanish', 'japanese', 'photography'],
-  chess: ['shogi', 'public-speaking', 'origami'],
+  'meeting-people': ['public-speaking', 'japanese', 'spanish', 'french', 'italian'],
+  japanese: ['origami', 'spanish', 'french', 'meeting-people', 'italian'],
+  spanish: ['japanese', 'french', 'meeting-people', 'guitar', 'italian'],
+  french: ['spanish', 'japanese', 'photography', 'italian'],
+  italian: ['spanish', 'french', 'cooking', 'meeting-people'],
+  chess: ['shogi', 'public-speaking', 'origami', 'astronomy'],
   shogi: ['chess', 'japanese'],
-  origami: ['japanese', 'visual-storytelling', 'chess'],
-  'urban-sketching': ['photography', 'visual-storytelling', 'origami'],
+  origami: ['japanese', 'visual-storytelling', 'chess', 'ceramics'],
+  'urban-sketching': ['photography', 'visual-storytelling', 'origami', 'ceramics'],
+  ceramics: ['urban-sketching', 'origami', 'woodworking'],
+  gardening: ['cooking', 'ceramics', 'coffee-brewing'],
+  cooking: ['gardening', 'coffee-brewing', 'italian'],
+  'coffee-brewing': ['cooking', 'gardening'],
+  astronomy: ['photography', 'chess'],
+  'creative-writing': ['songwriting', 'visual-storytelling', 'public-speaking'],
+  'music-production': ['songwriting', 'guitar'],
+  running: ['bouldering', 'swimming'],
+  swimming: ['running', 'bouldering'],
+  bouldering: ['running', 'swimming'],
+  woodworking: ['ceramics', 'urban-sketching'],
 };
 
 const TOPIC_PATTERNS = [
@@ -43,7 +55,15 @@ const TOPIC_PATTERNS = [
   { pattern: /\bpublic speaking|debate|give a (?:short )?(?:talk|speech)|present(?:ation)?\b/i, skillKey: 'public-speaking', skillLabel: 'Public speaking', themeKey: 'speaking', themeLabel: 'Speaking' },
   { pattern: /\bvisual storytelling|photo essay|photo story|documentary\b/i, skillKey: 'visual-storytelling', skillLabel: 'Visual storytelling', themeKey: 'visual', themeLabel: 'Visual arts' },
   { pattern: /\bmeet(?:ing)? (?:new )?people|make friends|social confidence|networking\b/i, skillKey: 'meeting-people', skillLabel: 'Meeting new people', themeKey: 'people', themeLabel: 'Community' },
-  { pattern: /\bsketch(?:ing)?|drawing\b/i, skillKey: 'urban-sketching', skillLabel: 'Urban sketching', themeKey: 'visual', themeLabel: 'Visual arts' },
+  { pattern: /\b(?:urban sketching|sketch(?:ing)?|drawing|plein air)\b/i, skillKey: 'urban-sketching', skillLabel: 'Urban sketching', themeKey: 'visual', themeLabel: 'Visual arts' },
+  { pattern: /\bceramics\b/i, skillKey: 'ceramics', skillLabel: 'Ceramics', themeKey: 'craft', themeLabel: 'Crafts' },
+  { pattern: /\b(?:music production|beatmaking|synthesizer|daw)\b/i, skillKey: 'music-production', skillLabel: 'Music production', themeKey: 'music', themeLabel: 'Music' },
+  { pattern: /\b(?:gardening|plants|urban botany)\b/i, skillKey: 'gardening', skillLabel: 'Gardening', themeKey: 'nature', themeLabel: 'Nature & Lifestyle' },
+  { pattern: /\b(?:astronomy|stargazing|telescope)\b/i, skillKey: 'astronomy', skillLabel: 'Astronomy', themeKey: 'science', themeLabel: 'Science' },
+  { pattern: /\b(?:creative writing|story craft|fiction)\b/i, skillKey: 'creative-writing', skillLabel: 'Creative writing', themeKey: 'writing', themeLabel: 'Writing' },
+  { pattern: /\b(?:coffee brewing|barista|latte art|espresso|pour-over)\b/i, skillKey: 'coffee-brewing', skillLabel: 'Coffee brewing', themeKey: 'lifestyle', themeLabel: 'Lifestyle' },
+  { pattern: /\b(?:swimming|freestyle swimming|open water)\b/i, skillKey: 'swimming', skillLabel: 'Swimming', themeKey: 'fitness', themeLabel: 'Fitness & Sport' },
+  { pattern: /\b(?:woodworking|carpentry|joinery)\b/i, skillKey: 'woodworking', skillLabel: 'Woodworking', themeKey: 'craft', themeLabel: 'Crafts' },
   { pattern: /\bguitar\b/i, skillKey: 'guitar', skillLabel: 'Guitar', themeKey: 'music', themeLabel: 'Music' },
   { pattern: /\bsongwriting\b/i, skillKey: 'songwriting', skillLabel: 'Songwriting', themeKey: 'music', themeLabel: 'Music' },
   { pattern: /\bphotograph(?:y|er)?\b/i, skillKey: 'photography', skillLabel: 'Photography', themeKey: 'visual', themeLabel: 'Visual arts' },
@@ -102,7 +122,13 @@ export function normalizeIslandSkill(island) {
     visual: 'Visual arts',
     people: 'Community',
     origami: 'Paper craft',
+    craft: 'Crafts',
     music: 'Music',
+    nature: 'Nature & Lifestyle',
+    science: 'Science',
+    writing: 'Writing',
+    lifestyle: 'Lifestyle',
+    fitness: 'Fitness & Sport',
   };
 
   return {
@@ -322,6 +348,7 @@ export function rankNeighborsByGraph(
     viewerId = null,
     blockedIds = new Set(),
     limit = 8,
+    maxPerPrimarySkill = 2,
   } = {},
 ) {
   const maxCount = Math.max(1, Math.min(10, Number(limit) || 8));
@@ -448,6 +475,7 @@ export function rankNeighborsByGraph(
 
     evaluated.push({
       profile,
+      primarySkillKey: top.skillKey,
       score,
       baselineScore: Number(baselineScore.toFixed(4)),
       pprScore: Number(pprScore.toFixed(4)),
@@ -462,7 +490,26 @@ export function rankNeighborsByGraph(
 
   evaluated.sort((a, b) => b.score - a.score || a.profile.id.localeCompare(b.profile.id));
 
-  return evaluated.slice(0, maxCount).map((entry, idx) => ({
+  // Diversify recommendations: limit profiles with the exact same primary shared skill (default max 2)
+  // to avoid over-concentrating recommendations on a single skill when multiple candidates share it.
+  const cap = Number(maxPerPrimarySkill);
+  let selected = [];
+  if (Number.isFinite(cap) && cap > 0) {
+    const primarySkillCounts = new Map();
+    for (const entry of evaluated) {
+      const key = entry.primarySkillKey || 'default';
+      const count = primarySkillCounts.get(key) ?? 0;
+      if (count < cap) {
+        selected.push(entry);
+        primarySkillCounts.set(key, count + 1);
+        if (selected.length === maxCount) break;
+      }
+    }
+  } else {
+    selected = evaluated.slice(0, maxCount);
+  }
+
+  return selected.map((entry, idx) => ({
     ...entry,
     rank: idx + 1,
     ring: idx < 4 ? 'inner' : 'outer',
