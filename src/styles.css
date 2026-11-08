@@ -164,7 +164,7 @@ p { color: var(--muted); }
   display: grid;
   place-items: center;
   overflow: hidden;
-  cursor: grab;
+  cursor: default;
   background: radial-gradient(ellipse, #2063a9 0%, var(--sea) 80%);
 }
 .map-water {
@@ -177,7 +177,6 @@ p { color: var(--muted); }
 }
 .map-viewport:focus-visible { outline-offset: -5px; }
 .map-viewport.is-panning, .map-viewport.is-panning * { cursor: grabbing; }
-.map-pan-area { width: max-content; }
 .map-scene { position: relative; display: flow-root; width: max(720px, 115cqw); min-height: 800px; }
 .map-water svg { display: block; width: 100%; height: 100%; }
 .map-water svg { object-fit: cover; }

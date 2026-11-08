@@ -14,17 +14,8 @@ export function zoomAround(camera, requested, width, height, minimum = 0.7, anch
 
 export function connectMap(viewport, camera) {
   const scene = viewport.querySelector('.map-scene');
-  let panArea = scene.parentElement;
-  if (panArea === viewport) {
-    panArea = document.createElement('div');
-    panArea.className = 'map-pan-area';
-    scene.replaceWith(panArea);
-    panArea.append(scene);
-  }
   const frame = viewport.closest('.map-frame');
   const mouseHelp = matchMedia('(any-pointer: fine)').matches;
-  let insetX = 0;
-  let insetY = 0;
   const overviewZoom = () => fitMapZoom(viewport.offsetWidth - 12, Math.max(1, viewport.offsetHeight - 116),
     scene.offsetWidth, scene.offsetHeight);
   const apply = () => {
@@ -34,14 +25,12 @@ export function connectMap(viewport, camera) {
     } else {
       camera.zoom = Math.max(camera.zoom, minimum);
     }
-    insetX = camera.overview ? 0 : Math.round(viewport.clientWidth * 0.6);
-    insetY = camera.overview ? 0 : Math.round(viewport.clientHeight * 0.6);
-    panArea.style.padding = `${insetY}px ${insetX}px`;
     viewport.classList.toggle('is-overview', camera.overview);
     scene.style.zoom = camera.zoom;
-    viewport.scrollTo(camera.left + insetX, camera.top + insetY);
-    frame.querySelector('.map-pan-hint').textContent = mouseHelp ? 'Scroll to zoom · Drag to pan'
-      : camera.overview ? 'Zoom in to explore' : 'Drag to pan';
+    viewport.scrollTo(camera.left, camera.top);
+    frame.querySelector('.map-pan-hint').textContent = camera.overview
+      ? (mouseHelp ? 'Scroll to zoom' : 'Zoom in to explore')
+      : (mouseHelp ? 'Scroll to zoom · Drag to pan' : 'Drag to pan');
     frame.querySelector('[data-zoom="in"]').disabled = camera.zoom >= 1.8;
     frame.querySelector('[data-zoom="out"]').disabled = camera.overview;
   };
@@ -51,7 +40,7 @@ export function connectMap(viewport, camera) {
       const sceneBounds = scene.getBoundingClientRect();
       return { left: viewBounds.left - sceneBounds.left, top: viewBounds.top - sceneBounds.top };
     }
-    return { left: viewport.scrollLeft - insetX, top: viewport.scrollTop - insetY };
+    return { left: viewport.scrollLeft, top: viewport.scrollTop };
   }
 
   function changeZoom(multiplier, anchor) {
@@ -96,8 +85,8 @@ export function connectMap(viewport, camera) {
   let drag;
   let dragged = false;
   viewport.addEventListener('pointerdown', event => {
-    if (event.pointerType === 'touch' || event.button !== 0) return;
     dragged = false;
+    if (camera.overview || event.pointerType === 'touch' || event.button !== 0) return;
     drag = { id: event.pointerId, x: event.clientX, y: event.clientY,
       left: viewport.scrollLeft, top: viewport.scrollTop };
   });
@@ -110,12 +99,6 @@ export function connectMap(viewport, camera) {
       dragged = true;
       viewport.setPointerCapture(event.pointerId);
       viewport.classList.add('is-panning');
-      if (camera.overview) {
-        Object.assign(camera, readPosition(), { overview: false });
-        apply();
-        drag.left = viewport.scrollLeft;
-        drag.top = viewport.scrollTop;
-      }
     }
     viewport.scrollTo(drag.left - x, drag.top - y);
   });

@@ -3,7 +3,7 @@
 ## Available in the preview
 
 - One map for all personal islands, with distinct themed art for Guitar, Songwriting, Photography, and custom goals.
-- On desktop, the mouse wheel zooms around the pointer and dragging pans the map directly from the overview. All three maps have more ocean around the edges, and Reset returns to the fitted view. Zoom buttons, touch panning, and arrow keys are also available.
+- On desktop, the mouse wheel zooms around the pointer. Once zoomed in, dragging pans within the charted map area. Reset returns to the fitted view. Zoom buttons, touch panning, and arrow keys are also available.
 - My world shows faint dotted sea routes between related skills. Selecting an island highlights its routes. Each island has at most two, and routes that cannot pass around other islands are omitted.
 - Generated islands use six hand-drawn landforms and eight muted terrain palettes. The 61 illustrated themes cover skills from gaming and sports to crafts, science, and everyday hobbies. Related skills share a landmark, and unmatched skills use an initials badge.
 - Personalised practice paths, one active goal at a time, and continuing goals beyond the first roadmap. The ten-level XP curve reaches Mastery at 36,000 XP. Completing a goal resets the seven-day grace period even at Mastery. Inactive islands lose 10–400 XP per day depending on their level. The island log shows the next deduction, and demotion changes the artwork and next exercise. Older saves keep their XP and start with a fresh grace period.
@@ -24,7 +24,7 @@ Desktop and mobile Chrome verified the simplified island form and confirmed the 
 
 Desktop and mobile Chrome verified adoption, cancellation, failed generation and retry, personalised goal completion, and persistence with a simulated model. Native Gemini Nano personalisation still needs a run on the judging device.
 
-Desktop Chrome verified the wider drag range, dragging from the overview, position after opening the island log, Reset, and wheel zoom on all three maps. Mobile Chrome verified touch panning and the zoom and reset buttons.
+Desktop Chrome verified the restored pan boundaries, wheel zoom on all three maps, drag and keyboard panning after zoom, and island log scrolling. Mobile Chrome verified touch panning and the zoom and reset buttons.
 
 The full browser flow was verified locally. The social access-control tests use a simulated Supabase backend. Real account sign-in and publishing need an authenticated test project before activation.
 
