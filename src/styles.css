@@ -83,12 +83,22 @@ button, a, input, select, summary { outline-offset: 3px; }
   line-height: 1;
 }
 
-.edition, .eyebrow, .map-coordinates, .map-footer, .goal-meta, footer {
+.eyebrow, .map-coordinates, .map-footer, .goal-meta, footer {
   font: 650 11px/1.5 var(--mono);
   letter-spacing: .1em;
 }
-.edition { justify-self: end; color: var(--muted); white-space: nowrap; }
-.edition span { color: var(--focus); }
+.user-icon {
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--focus);
+}
+.user-icon svg { width: 62%; }
 nav { display: flex; gap: 3px; padding: 4px; border-radius: 12px; background: #e9ede6; }
 nav button {
   padding: 8px 15px;
@@ -483,15 +493,14 @@ form .primary:disabled { cursor: wait; opacity: .75; }
   .brand { gap: 6px; font-size: 12px; }
   .brand span { width: 26px; }
   nav button { padding-inline: 10px; }
-  .edition { font-size: 9px; }
 }
 @media (max-width: 500px) {
-  .masthead { grid-template-columns: minmax(0, 1fr) auto; min-height: 54px; gap: 4px; padding: 6px 8px; border-radius: 14px; }
+  .masthead { grid-template-columns: minmax(0, 1fr) auto auto; min-height: 54px; gap: 4px; padding: 6px 8px; border-radius: 14px; }
   .brand { gap: 5px; font-size: 11px; }
   .brand span { width: 25px; border-radius: 7px; font-size: 16px; }
   nav { gap: 1px; padding: 2px; }
   nav button { padding: 5px 7px; min-height: 34px; font-size: 12px; }
-  .edition { display: none; }
+  .user-icon { width: 26px; }
   .intro { gap: 4px 8px; }
   .intro .primary { min-height: 40px; padding-inline: 10px; font-size: 12px; }
   .lede { font-size: 13px; }
@@ -505,6 +514,10 @@ form .primary:disabled { cursor: wait; opacity: .75; }
   .island-water { margin-block: 37px; }
   .island-pin { font-size: 12px; padding-inline: 5px; }
   footer { font-size: 9px; }
+}
+
+@media (max-width: 350px) {
+  .brand span { display: none; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
