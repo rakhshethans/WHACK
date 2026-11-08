@@ -118,7 +118,7 @@ Each recommended neighbour receives an explicit, human-readable relationship bad
 
 ### 4. Following & Followers Network + Solo Archipelago Map View (`data-map-mode="solo"`)
 
-- **Dedicated Network Panel (`listNetworkProfiles`)**: Below the ocean map, the **Following & Followers** section displays two columns (**Following** and **Followers**) sourced from the full profile dataset (`listNetworkProfiles()`), completely independent of which `0..8` profiles are currently shown as surrounding neighbours on the map.
+- **Dedicated Network Sections (`listNetworkProfiles`)**: **Following** and **Followers** in Explore controls open separate sections in the Explorer log. Both lists use the full profile dataset, independently of the neighbours shown on the map.
 - **Zero-Island Follower Support**: Followers who have `0` public islands (such as `Lin Zhou`) still appear in **Followers** with a clear `No public islands shared yet` note, while remaining excluded from the ocean map clusters.
 - **Individual (Solo) Archipelago Map View**: Clicking **View archipelago ↗** on any profile card in Following/Followers (or **Solo archipelago view ↗** in the map inspector) fetches that explorer's world via `getPublicWorld(profileId)` and switches the canvas to `data-map-mode="solo"`.
   - In solo mode, the canvas renders **only** that explorer's public islands laid out cleanly via [`layoutIslands`](src/map-layout.mjs), along with a banner (`Viewing <Name>'s Archipelago (Solo Map View)`), a **Follow / Following** toggle, an **Adopt starter roadmap** action for any selected island, and a **← Back to neighbourhood** button that restores the shared ocean view and camera focus.
@@ -129,7 +129,7 @@ Each recommended neighbour receives an explicit, human-readable relationship bad
 
 - **Social Compass Drawer**: **Social Compass** opens explainable recommendations for the active map neighbours. The map filters control which neighbours are shown, and each recommendation can jump to that explorer’s cluster.
 - **Adopt Starter Roadmap**: Selecting any neighbour's island lets the viewer click **Adopt starter roadmap**, which clones a fresh Lv 1 (`xp: 0`) starter island with that skill's roadmap into the viewer's own world without copying private state.
-- **Sample roadmaps**: The Chord Coast, Verse Dunes, and Silver Lens remain directly browsable when Home Waters has no matches.
+- **Sample roadmaps**: Open **Connections & matches** from Home Waters to browse The Chord Coast, Verse Dunes, and Silver Lens, even when the map has no matches.
 
 ---
 

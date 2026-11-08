@@ -3,7 +3,7 @@
 ## Available in the preview
 
 - One map for all personal islands, with distinct themed art for Guitar, Songwriting, Photography, and custom goals.
-- Explore and My world share the same map frame size. Explore controls opens a panel with demo accounts, filters, Social Compass, the network and sample roadmaps.
+- Explore and My world share the same map frame size. Explore controls contains the demo account switcher, All worlds, Following and Followers. The Explorer log has separate Following and Followers sections, Social Compass, and sample roadmaps.
 - On desktop, the mouse wheel zooms around the pointer. Once zoomed in, dragging pans within the charted map area. Reset returns to the fitted view. Zoom buttons, touch panning, and arrow keys are also available.
 - My world shows faint dotted sea routes between related skills. Selecting an island highlights its routes. Each island has at most two, and routes that cannot pass around other islands are omitted.
 - Generated islands use six hand-drawn landforms and eight muted terrain palettes. The 63 illustrated themes include a car for driving skills and a plane for aviation or fear of flying. Related skills share a landmark, and unmatched skills use an initials badge.
@@ -25,7 +25,7 @@ Desktop and mobile Chrome verified reuse of a simulated Nano session after closi
 
 Desktop and mobile Chrome verified car and plane landmarks on new islands and existing saves, including after reload.
 
-Chrome verified matching Explore, solo and My world map frames at seven widths from 320px to 1366px, including filter use, keyboard dismissal, sample navigation and adoption.
+Chrome verified matching Explore, solo and My world map frames at seven widths from 320px to 1366px. Desktop and mobile checks verified the simplified Explore controls, separate network sections, persona switching, solo views, and sample adoption from the Explorer log.
 
 Desktop and mobile Chrome verified the simplified island form and confirmed the practice budgets for new and updated roadmaps with a simulated model.
 

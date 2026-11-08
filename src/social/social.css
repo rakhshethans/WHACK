@@ -314,13 +314,6 @@
   margin-top: 12px;
 }
 
-.social-network-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 8px 0 10px;
-}
-
 .social-network-list {
   display: grid;
   gap: 8px;

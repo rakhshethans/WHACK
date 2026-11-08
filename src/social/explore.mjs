@@ -276,30 +276,20 @@ function renderGoalRoadmapList(goals = []) {
   </ol>`;
 }
 
-function renderFollowingFollowersSection({
-  network,
-  networkTab = 'following',
+function renderNetworkSection({
+  people,
+  section,
   selectedProfileId,
   mapMode,
-  openByDefault = true,
+  open,
 }) {
-  const followingList = network?.following ?? [];
-  const followersList = network?.followers ?? [];
-  const activeList = networkTab === 'followers' ? followersList : followingList;
+  const label = section === 'followers' ? 'Followers' : 'Following';
 
-  return `<details class="roadmap-summary social-network-panel" ${openByDefault ? 'open' : ''}>
-    <summary>Following (${followingList.length}) &amp; Followers (${followersList.length})</summary>
+  return `<details class="roadmap-summary social-network-panel" data-network-section="${section}"${open ? ' open' : ''}>
+    <summary>${label} (${people.length})</summary>
     <p class="caption">Click any explorer below to open their individual archipelago on the map.</p>
-    <div class="social-network-tabs" role="tablist" aria-label="Following and followers">
-      <button type="button" class="social-filter-chip" role="tab" data-social-action="network-tab" data-network-tab="following" aria-selected="${networkTab === 'following'}" aria-pressed="${networkTab === 'following'}">
-        Following (${followingList.length})
-      </button>
-      <button type="button" class="social-filter-chip" role="tab" data-social-action="network-tab" data-network-tab="followers" aria-selected="${networkTab === 'followers'}" aria-pressed="${networkTab === 'followers'}">
-        Followers (${followersList.length})
-      </button>
-    </div>
-    ${activeList.length > 0 ? `<div class="social-network-list" role="list">
-      ${activeList.map(person => {
+    ${people.length > 0 ? `<div class="social-network-list" role="list">
+      ${people.map(person => {
         const isViewingSolo = mapMode === 'solo' && selectedProfileId === person.id;
         const relationLabel = person.isFollowing && person.followsViewer
           ? 'Mutual'
@@ -328,7 +318,7 @@ function renderFollowingFollowersSection({
           </div>
         </div>`;
       }).join('')}
-    </div>` : `<p class="caption">${networkTab === 'followers' ? 'No followers yet.' : 'You are not following anyone yet. Follow any explorer to bookmark their archipelago here.'}</p>`}
+    </div>` : `<p class="caption">${section === 'followers' ? 'No followers yet.' : 'You are not following anyone yet. Follow any explorer to bookmark their archipelago here.'}</p>`}
   </details>`;
 }
 
@@ -589,43 +579,40 @@ export function mountSocialExplore(container, {
     const controlsOpen = container.querySelector?.('.social-controls')?.open ?? false;
     cleanupMapBindings();
 
-    const followingCount = state.network.following.length;
-    const followersCount = state.network.followers.length;
     const activeViewerWorld = getActiveViewerWorld();
     const demoSharing = client.mode === 'fixture' && Boolean(onTogglePublish) && activePersona.isLocalViewer;
+    const viewingNetwork = state.mapMode === 'neighborhood' && state.logOpen && state.activeCluster === 'home';
+    const networkOptions = [['following', 'Following'], ['followers', 'Followers']];
+    const networkSections = (expandActive = true) => networkOptions.map(([section]) => renderNetworkSection({
+      people: state.network[section],
+      section,
+      selectedProfileId: state.selectedProfileId,
+      mapMode: state.mapMode,
+      open: expandActive && state.networkTab === section,
+    })).join('');
 
-    const filterButtons = [
-      ['all', 'All worlds'],
-      ['following', 'Following on map'],
-      ['guitar', 'Guitar'],
-      ['songwriting', 'Songwriting'],
-      ['photography', 'Photography'],
-      ['custom', 'Custom skills'],
-    ];
-
-    const filterNav = `<div class="social-toolbar-stack">
+    const exploreViews = `<div class="social-toolbar-stack">
       ${renderPersonaSwitcher()}
-      <div class="social-filter-bar" role="toolbar" aria-label="Filter nearby archipelagos">
-        ${filterButtons.map(([value, label]) => (
-          `<button type="button" class="social-filter-chip" data-social-action="filter" data-filter="${value}" aria-pressed="${state.mapMode === 'neighborhood' && state.filter === value}">${escapeHtml(label)}</button>`
+      <div class="social-filter-bar" role="group" aria-label="Explore views">
+        <button type="button" class="social-filter-chip" data-social-action="filter" data-filter="all"
+          aria-pressed="${state.mapMode === 'neighborhood' && state.filter === 'all' && !viewingNetwork}">All worlds</button>
+        ${networkOptions.map(([section, label]) => (
+          `<button type="button" class="social-filter-chip social-network-trigger" data-social-action="open-network" data-network-tab="${section}"
+            aria-pressed="${viewingNetwork && state.networkTab === section}">${label} (${state.network[section].length})</button>`
         )).join('')}
-        <button type="button" class="social-filter-chip social-network-trigger" data-social-action="open-network" data-network-tab="following" aria-pressed="${state.logOpen && state.activeCluster === 'home'}">
-          Following (${followingCount}) · Followers (${followersCount})
-        </button>
-        <button type="button" class="social-filter-chip" data-social-action="open-compass">Social Compass</button>
       </div>
-      ${client.mode === 'fixture' ? `<details class="social-samples"${samplesOpen ? ' open' : ''}><summary>Sample roadmaps</summary>
+    </div>`;
+    const sampleRoadmaps = client.mode === 'fixture' ? `<details class="roadmap-summary social-samples"${samplesOpen ? ' open' : ''}><summary>Sample roadmaps</summary>
         <div class="social-filter-bar">${SAMPLE_ROADMAPS.map(([profileId, islandId, title]) =>
           `<button type="button" class="social-filter-chip" data-social-action="view-solo-archipelago"
             data-profile-id="${profileId}" data-island-id="${islandId}">${title}</button>`).join('')}</div>
-      </details>` : ''}
-    </div>`;
+      </details>` : '';
 
     const introHeader = `<div class="intro social-intro">
       <h1>Beyond your shore<span>.</span></h1>
       <details class="intro-action social-controls"${controlsOpen ? ' open' : ''}>
         <summary class="primary">Explore controls</summary>
-        <div class="social-controls-panel">${filterNav}</div>
+        <div class="social-controls-panel">${exploreViews}</div>
       </details>
       <p class="lede">Find nearby islands with shared skills or switch demo accounts.</p>
     </div>`;
@@ -674,13 +661,8 @@ export function mountSocialExplore(container, {
             <h2>No public worlds in sight</h2>
             <p>${escapeHtml(emptyReason)}</p>
             ${state.filter !== 'all' ? '<button type="button" class="small-action" data-social-action="filter" data-filter="all">Show all public worlds ↗</button>' : ''}
-            ${renderFollowingFollowersSection({
-              network: state.network,
-              networkTab: state.networkTab,
-              selectedProfileId: state.selectedProfileId,
-              mapMode: state.mapMode,
-              openByDefault: true,
-            })}
+            ${sampleRoadmaps}
+            ${networkSections()}
             ${renderViewerSharingSection(activeViewerWorld, state.publishedIslands, onTogglePublish, true, demoSharing)}
           </section>
         </div>
@@ -700,13 +682,8 @@ export function mountSocialExplore(container, {
       ${state.neighborEntries.length > 0
         ? `<p>Surrounded by ${state.neighborEntries.length} ${state.neighborEntries.length === 1 ? 'explorer who shares' : 'explorers who share'} your interests, ranked to favour mentor-style level gaps (${state.neighborEntries.slice(0, 3).map(e => `${escapeHtml(e.profile.displayName)}: ${escapeHtml(e.reasonLabel)}`).join(' · ')}).</p>`
         : '<p class="social-no-neighbours">No explorers share your interests yet. Create or adopt an island in My world and matching neighbours will appear around your home waters.</p>'}
-      ${renderFollowingFollowersSection({
-        network: state.network,
-        networkTab: state.networkTab,
-        selectedProfileId: state.selectedProfileId,
-        mapMode: state.mapMode,
-        openByDefault: true,
-      })}
+      ${sampleRoadmaps}
+      ${networkSections()}
       ${renderRecommendationsSection(state.matches, null)}
       ${renderViewerSharingSection(activeViewerWorld, state.publishedIslands, onTogglePublish, sharingOpen, demoSharing)}
     ` : activeProfile ? `
@@ -768,13 +745,7 @@ export function mountSocialExplore(container, {
         </section>
       `}
 
-      ${renderFollowingFollowersSection({
-        network: state.network,
-        networkTab: state.networkTab,
-        selectedProfileId: activeProfile.id,
-        mapMode: state.mapMode,
-        openByDefault: false,
-      })}
+      ${networkSections(false)}
     ` : `<p class="eyebrow">PUBLIC ATLAS</p><h2>Select an island group</h2><p>Click any group of islands on the ocean map to inspect the user and their roadmaps.</p>`;
 
     const logDrawer = `<aside class="field-notes map-log" id="social-island-log" aria-label="Explorer and island details" ${state.logOpen ? '' : 'hidden'}>
@@ -960,11 +931,15 @@ export function mountSocialExplore(container, {
     const controls = container.querySelector?.('.social-controls[open]');
     const fromControls = controls?.contains(event.target);
     if (controls && !fromControls) controls.open = false;
+    const networkSummary = event.target.closest('.social-network-panel > summary');
+    if (networkSummary && !networkSummary.parentElement.open) {
+      state.networkTab = networkSummary.parentElement.dataset.networkSection;
+    }
     const button = event.target.closest('button[data-social-action]');
     if (!button) return;
 
     const action = button.dataset.socialAction;
-    if (fromControls && action !== 'filter') controls.open = false;
+    if (fromControls) controls.open = false;
     const profileId = button.dataset.profileId;
     const islandId = button.dataset.islandId || button.dataset.id;
 
@@ -1004,34 +979,21 @@ export function mountSocialExplore(container, {
     if (action === 'open-network') {
       state.networkTab = button.dataset.networkTab || 'following';
       state.mapMode = 'neighborhood';
+      state.soloWorld = null;
       state.activeCluster = 'home';
       state.logOpen = true;
       render();
-      container.querySelector?.('.social-network-panel summary')?.focus({ preventScroll: true });
-      return;
-    }
-
-    if (action === 'open-compass') {
-      state.mapMode = 'neighborhood';
-      state.activeCluster = 'home';
-      state.logOpen = true;
-      render();
-      container.querySelector?.('.social-compass-details summary')?.focus();
-      return;
-    }
-
-    if (action === 'network-tab') {
-      state.networkTab = button.dataset.networkTab || 'following';
-      state.logOpen = true;
-      render();
+      container.querySelector?.('.social-network-panel[open] > summary')?.focus();
       return;
     }
 
     if (action === 'view-solo-archipelago') {
+      const section = button.closest('.social-network-panel')?.dataset.networkSection;
+      const sectionSelector = section ? `[data-network-section="${section}"] ` : '';
       await openSoloArchipelago(
         profileId,
-        fromControls ? '.social-controls > summary' :
-          `[data-social-action="view-solo-archipelago"][data-profile-id="${profileId}"]`,
+        button.closest('.social-samples') ? '.social-samples > summary' :
+          `${sectionSelector}[data-social-action="view-solo-archipelago"][data-profile-id="${profileId}"]`,
         islandId,
       );
       return;
@@ -1072,9 +1034,10 @@ export function mountSocialExplore(container, {
     if (action === 'filter') {
       state.mapMode = 'neighborhood';
       state.soloWorld = null;
+      if (fromControls) state.logOpen = false;
       const nextFilter = button.dataset.filter || 'all';
       await load({ filter: nextFilter, preserveSelection: true });
-      if (fromControls) container.querySelector?.('.social-controls [aria-pressed="true"][data-filter]')?.focus({ preventScroll: true });
+      if (fromControls) container.querySelector?.('.social-controls > summary')?.focus({ preventScroll: true });
       return;
     }
 

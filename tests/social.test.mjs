@@ -535,7 +535,7 @@ test('mountSocialExplore exercises loading, ready, empty, and error states with 
   assert.match(container.innerHTML, /data-social-state="ready"/);
 
   // Filter by "following" when following nobody -> empty state
-  await container.clickButton({ socialAction: 'filter', filter: 'following' });
+  await controller.refresh({ filter: 'following' });
   assert.equal(controller.getState().status, 'empty');
   assert.match(container.innerHTML, /data-social-state="empty"/);
   assert.match(container.innerHTML, /not following any explorers with public islands yet/);
@@ -587,14 +587,18 @@ test('mountSocialExplore renders graph-ranked neighbour clusters, Following & Fo
   const initialSectorForNoah = controller.getState().neighborEntries.find(e => e.profile.id === 'user-noah')?.sector.index;
   assert.equal(typeof initialSectorForNoah, 'number');
 
-  // 2. Open the Following & Followers network panel
+  // 2. Open the Following and Followers sections from their separate controls
   await container.clickButton({ socialAction: 'open-network', networkTab: 'following' });
   assert.equal(controller.getState().logOpen, true);
   assert.equal(controller.getState().network.following.length, 2);
   assert.equal(controller.getState().network.followers.length, 4);
+  assert.match(container.innerHTML, /data-network-section="following" open/);
+  assert.doesNotMatch(container.innerHTML, /data-network-section="followers" open/);
 
-  // Switch to Followers tab -> includes Lin Zhou (who has 0 public islands) and Elena Rostova
-  await container.clickButton({ socialAction: 'network-tab', networkTab: 'followers' });
+  // Followers includes Lin Zhou, who has no public islands
+  await container.clickButton({ socialAction: 'open-network', networkTab: 'followers' });
+  assert.match(container.innerHTML, /data-network-section="followers" open/);
+  assert.doesNotMatch(container.innerHTML, /data-network-section="following" open/);
   assert.match(container.innerHTML, /Lin Zhou/);
   assert.match(container.innerHTML, /No public islands yet/);
 
