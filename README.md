@@ -141,3 +141,12 @@ Each recommended neighbour receives an explicit, human-readable relationship bad
 - **Strict Public/Private Separation**:
   - `public.profiles`, `public.islands` (`is_public` defaults to `false`), `public.island_private_state` (owner-only RLS), and `public.follows`.
   - `follows_select_public` RLS requires both `follower_id` and `following_id` to belong to public profiles unless `auth.uid()` is a participant in the follow row.
+
+---
+
+### 7. On-Device Gemini Nano Planning & Asynchronous Background Generation
+
+To eliminate blocking latency when charting new islands or updating roadmaps:
+- **Instant First Milestone (generateStarterRoadmap)**: When a user creates or updates a custom island, Gemini Nano generates the initial milestone goal immediately. The onboarding dialog closes instantly, and the island is rendered with Goal 1 active and ready for practice.
+- **Asynchronous Background Roadmap Queue (generateRemainingRoadmapTasks)**: The remaining 7 intermediary tasks (XP_AWARDS.length = 8) are generated sequentially in the background via [generateContinuation](src/local-planner.mjs) and chained with proper prerequisites via [ppendRoadmapGoal](src/world.mjs).
+- **Non-blocking Reactive UI**: The Long-term plan summary displays milestone generation progress (✦ Generating remaining exercises in background…) and milestone completion indicators without interrupting learner practice. Background generation gracefully halts if an island is reset, demoted, or revised.

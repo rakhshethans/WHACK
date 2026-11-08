@@ -8,7 +8,7 @@ import { knownLandmark, readIslandIcon, validLandmark } from './island-art.mjs';
 export { getStage } from './progression.mjs';
 export const GOAL_FEEDBACK_LIMIT = 500;
 
-const XP_AWARDS = [40, 60, 65, 85, 110, 140, 175, 225];
+export const XP_AWARDS = [40, 60, 65, 85, 110, 140, 175, 225];
 const POST_CHECKPOINT_XP = [150, 175, 175];
 
 export function createWorld() {
@@ -107,6 +107,25 @@ export function canQueueGeneratedPractice(island) {
 
 function replaceIsland(world, island) {
   return { ...world, islands: world.islands.map(item => item.id === island.id ? island : item) };
+}
+
+export function canQueueRoadmapGoal(island) {
+  return Boolean(island?.roadmap?.onDevice && !needsRoadmapRevision(island) && island.goals.length < XP_AWARDS.length);
+}
+
+export function projectedRoadmapLevel(island) {
+  let xp = island.xp;
+  for (const goal of island.goals) {
+    if (!goal.completed) xp = practiceXp(xp, goal.xp);
+  }
+  return getStage(xp).level;
+}
+
+export function appendRoadmapGoal(world, islandId, goal) {
+  const island = world.islands.find(item => item.id === islandId);
+  if (!island || !canQueueRoadmapGoal(island) || !goal || isBoilerplateGoal(goal)) return world;
+  const practiceLevel = projectedRoadmapLevel(island);
+  return replaceIsland(world, { ...island, goals: [...island.goals, { ...generatedPracticeGoal(island, goal), practiceLevel }] });
 }
 
 export function setIslandIcon(world, islandId, choice) {

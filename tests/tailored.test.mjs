@@ -3,7 +3,7 @@ import test from 'node:test';
 import { generateContinuation, generateCustomRoadmap, generateStarterRoadmap, generateGoalRevision, warmPlannerModel } from '../src/local-planner.mjs';
 import { renderIsland } from '../src/scene.mjs';
 import { adoptIsland, appendGeneratedPractice, canPersonaliseAdoptedRoadmap, completeGoal, createGeneratedIsland, createWorld, getActiveGoal,
-  canQueueGeneratedPractice, needsGeneratedPractice, needsRoadmapRevision, reviseActiveGoal, reviseIslandRoadmap, setDifficulty } from '../src/world.mjs';
+  canQueueGeneratedPractice, needsGeneratedPractice, needsRoadmapRevision, reviseActiveGoal, reviseIslandRoadmap, setDifficulty, canQueueRoadmapGoal, appendRoadmapGoal, projectedRoadmapLevel, XP_AWARDS } from '../src/world.mjs';
 
 const input = { topic: 'Learn Python', objective: 'Summarise monthly expenses from CSV', experience: 'beginner', minutes: 10 };
 const goals = [
@@ -190,6 +190,59 @@ test('one exercise starts the island, and a queued exercise unlocks only after c
   }
   world = completeGoal(world, island.id, getActiveGoal(world.islands[0]).id);
   assert.equal(world.islands[0].xp, 900);
+});
+
+test('starter roadmap generates first goal immediately and background queue populates remaining intermediary tasks', async () => {
+  let requestedCount;
+  const model = {
+    ...mockModel(response),
+    create: async () => ({
+      prompt: async (prompt, { responseConstraint }) => {
+        requestedCount = responseConstraint.properties.goals.maxItems;
+        return JSON.stringify({ ...response, goals: goals.slice(0, requestedCount) });
+      }, destroy() {},
+    }),
+  };
+  const { plan } = await generateStarterRoadmap(input, { model });
+  assert.equal(requestedCount, 1);
+  let world = createGeneratedIsland(createWorld(), { ...input, localRoadmap: plan });
+  let [island] = world.islands;
+  assert.equal(island.goals.length, 1);
+  assert.equal(getActiveGoal(island).title, goals[0].title);
+  assert.ok(canQueueRoadmapGoal(island));
+
+  // Sequentially append remaining goals 2 through 8 in background
+  for (let i = 1; i < goals.length; i++) {
+    const { title, practice: description, finish } = goals[i];
+    assert.ok(canQueueRoadmapGoal(island));
+    const previousGoal = island.goals.at(-1);
+    const expectedLevel = projectedRoadmapLevel(island);
+    world = appendRoadmapGoal(world, island.id, { title, description, finish });
+    [island] = world.islands;
+    assert.equal(island.goals.length, i + 1);
+    const queuedGoal = island.goals.at(-1);
+    assert.equal(queuedGoal.title, title);
+    assert.equal(queuedGoal.xp, XP_AWARDS[i]);
+    assert.deepEqual(queuedGoal.prerequisites, [previousGoal.id]);
+    assert.equal(queuedGoal.practiceLevel, expectedLevel);
+    // Active goal remains goal 1 until completed
+    assert.equal(getActiveGoal(island).title, goals[0].title);
+  }
+
+  // Once 8 goals are queued, canQueueRoadmapGoal is false and further appends are ignored
+  assert.equal(island.goals.length, 8);
+  assert.equal(canQueueRoadmapGoal(island), false);
+  assert.equal(appendRoadmapGoal(world, island.id, { title: 'Extra', description: 'Extra', finish: 'Extra' }), world);
+
+  // Unlocking and completing each goal in sequence
+  for (let i = 0; i < goals.length; i++) {
+    const active = getActiveGoal(island);
+    assert.equal(active.title, goals[i].title);
+    world = completeGoal(world, island.id, active.id);
+    [island] = world.islands;
+  }
+  assert.equal(island.xp, 900);
+  assert.equal(island.goals.every(g => g.completed), true);
 });
 
 test('Chrome can generate validated JSON when native response constraints are unavailable', async () => {

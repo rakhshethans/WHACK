@@ -1,4 +1,4 @@
-import { createWorld, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, canPersonaliseAdoptedRoadmap, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice, applyInactivity, plannedPracticeLevel, reviseActiveGoal, setIslandIcon, GOAL_FEEDBACK_LIMIT } from './world.mjs';
+import { createWorld, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, canPersonaliseAdoptedRoadmap, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice, applyInactivity, plannedPracticeLevel, reviseActiveGoal, setIslandIcon, GOAL_FEEDBACK_LIMIT, canQueueRoadmapGoal, appendRoadmapGoal, projectedRoadmapLevel, XP_AWARDS } from './world.mjs';
 import { DAY_MS, PRACTICE_GRACE_DAYS, maintenanceStatus, practiceXp } from './progression.mjs';
 import { renderOcean, renderIsland, renderIconPreview } from './scene.mjs';
 import { CUSTOM_ICON_LIMIT, LANDMARKS, knownLandmark, readIslandIcon } from './island-art.mjs';
@@ -32,6 +32,7 @@ let revisingId;
 let personalisingRoadmap = false;
 const adaptationDrafts = new Map();
 const pendingPractice = new Map();
+const pendingRoadmap = new Map();
 const practiceErrors = new Map();
 
 const PLAN_ERRORS = {
@@ -162,12 +163,27 @@ function logPanel(content) {
 
 function roadmapSummary(island) {
   if (!island.roadmap) return '';
+  const isGenerating = pendingRoadmap.has(island.id);
+  const remainingCount = XP_AWARDS.length - island.goals.length;
   return `<details class="roadmap-summary"><summary>Long-term plan</summary>
     ${island.objective ? `<p><strong>Your ambition</strong><span>${escapeHtml(island.objective)}</span></p>` : ''}
     <p><strong>Focus</strong><span>${escapeHtml(island.roadmap.focus)}</span></p>
     ${island.roadmap.onDevice ? '<p class="caption">Initial plan generated on this device.</p>' : ''}
     ${island.roadmap.checkpoint ? `<p><strong>Roadmap checkpoint</strong><span>${escapeHtml(island.roadmap.checkpoint)}</span></p>` : ''}
     ${island.roadmap.next ? `<p><strong>Beyond this roadmap</strong><span>${escapeHtml(island.roadmap.next)}</span></p>` : ''}
+    ${island.goals.length > 1 ? `
+      <div class="roadmap-milestones">
+        <p><strong>Milestones (${island.goals.length}/${XP_AWARDS.length})</strong></p>
+        <ol class="milestone-list">
+          ${island.goals.map(g => `
+            <li class="${g.completed ? 'completed' : 'upcoming'}">
+              <span>${escapeHtml(g.title)}</span>
+              ${g.completed ? ' <span aria-label="Completed">✓</span>' : ''}
+            </li>
+          `).join('')}
+        </ol>
+      </div>` : ''}
+    ${isGenerating ? `<p class="caption roadmap-generating">✦ Generating ${remainingCount} remaining ${remainingCount === 1 ? 'exercise' : 'exercises'} in background…</p>` : ''}
   </details>`;
 }
 
@@ -467,6 +483,8 @@ function syncProgress(now = Date.now()) {
     discardDraft(id);
     pendingPractice.get(id)?.controller.abort();
     pendingPractice.delete(id);
+    pendingRoadmap.get(id)?.controller.abort();
+    pendingRoadmap.delete(id);
     practiceErrors.delete(id);
     const { level } = getStage(island.xp);
     if (id === selectedId && activeView === 'world' && logOpen) {
@@ -506,6 +524,8 @@ function resetIslandsForTesting() {
   for (const id of adaptationDrafts.keys()) discardDraft(id);
   for (const task of pendingPractice.values()) task.controller.abort();
   pendingPractice.clear();
+  for (const task of pendingRoadmap.values()) task.controller.abort();
+  pendingRoadmap.clear();
   practiceErrors.clear();
   pendingCreation?.abort();
   pendingCreation = undefined;
@@ -716,7 +736,11 @@ app.addEventListener('submit', async event => {
 
 async function preparePractice(id, ahead = false) {
   const island = world.islands.find(item => item.id === id);
-  if (!island || pendingPractice.has(id) || dialog.open || goalRevision?.controller) return;
+  if (!island || pendingPractice.has(id) || pendingRoadmap.has(id) || dialog.open || goalRevision?.controller) return;
+  if (canQueueRoadmapGoal(island)) {
+    void generateRemainingRoadmapTasks(id);
+    return;
+  }
   const waiting = needsGeneratedPractice(island);
   if (ahead ? !canQueueGeneratedPractice(island) || pendingPractice.size : !waiting) return;
   const controller = new AbortController();
@@ -753,6 +777,56 @@ async function preparePractice(id, ahead = false) {
   }
 }
 
+async function generateRemainingRoadmapTasks(id) {
+  const island = world.islands.find(item => item.id === id);
+  if (!island || !canQueueRoadmapGoal(island) || pendingRoadmap.has(id)) return;
+  pendingPractice.get(id)?.controller.abort();
+  pendingPractice.delete(id);
+  const controller = new AbortController();
+  pendingRoadmap.set(id, { controller });
+  if (selectedId === id && activeView === 'world' && logOpen && !dialog.open) {
+    render();
+  }
+  let retries = 0;
+  try {
+    while (!controller.signal.aborted) {
+      const current = world.islands.find(item => item.id === id);
+      if (!current || !canQueueRoadmapGoal(current)) break;
+      const skillLevel = projectedRoadmapLevel(current);
+      const result = await generateContinuation(current, {
+        signal: controller.signal,
+        allowDownload: false,
+        skillLevel,
+        warmup: plannerWarmup,
+      }).catch(() => ({ status: 'retry' }));
+      if (controller.signal.aborted) break;
+      if (result.status === 'ready') {
+        retries = 0;
+        const updated = appendRoadmapGoal(world, id, result.goal);
+        if (updated !== world) {
+          world = updated;
+          persist(world);
+          if (selectedId === id && activeView === 'world' && logOpen && !dialog.open) {
+            render();
+          }
+        } else {
+          break;
+        }
+      } else {
+        retries++;
+        if (retries >= 3) break;
+      }
+    }
+  } finally {
+    if (pendingRoadmap.get(id)?.controller === controller) {
+      pendingRoadmap.delete(id);
+      if (selectedId === id && activeView === 'world' && logOpen && !dialog.open) {
+        render();
+      }
+    }
+  }
+}
+
 function setPlanMessage(message = '', error = false) {
   planMessage.textContent = message;
   planMessage.toggleAttribute('data-error', error);
@@ -763,6 +837,10 @@ function setPlanMessage(message = '', error = false) {
 function openOnboarding(topic = '', objective = '', island) {
   let refreshWaitingGoal = Boolean(goalRevision);
   discardGoalRevision();
+  if (island?.id) {
+    pendingRoadmap.get(island.id)?.controller.abort();
+    pendingRoadmap.delete(island.id);
+  }
   for (const [id, task] of pendingPractice) {
     if (!task.ahead) continue;
     pendingPractice.delete(id);
@@ -865,6 +943,8 @@ form.addEventListener('submit', async event => {
     discardDraft(previous.id);
     pendingPractice.get(previous.id)?.controller.abort();
     pendingPractice.delete(previous.id);
+    pendingRoadmap.get(previous.id)?.controller.abort();
+    pendingRoadmap.delete(previous.id);
     practiceErrors.delete(previous.id);
   }
   persist(next);
@@ -877,7 +957,7 @@ form.addEventListener('submit', async event => {
   render();
   focusLog();
   announce(personalisingRoadmap ? 'Your personalised roadmap is ready.' : revisingId ? 'Your updated roadmap is ready.' : 'Your island is ready.');
-  void preparePractice(selectedId, true);
+  void generateRemainingRoadmapTasks(selectedId);
 });
 
 syncProgress();

@@ -422,6 +422,13 @@ progress::-moz-progress-bar { background: var(--focus); }
 .roadmap-summary strong { color: var(--ink); }
 .roadmap-summary summary { font-size: 13px; font-weight: 650; }
 .roadmap-summary[open] summary { margin-bottom: 9px; }
+.roadmap-milestones { margin-top: 8px; }
+.roadmap-milestones p { margin-bottom: 4px; }
+.milestone-list { margin: 0 0 8px 18px; padding: 0; font-size: 12px; }
+.milestone-list li { margin-bottom: 4px; line-height: 1.35; }
+.milestone-list li.completed { color: var(--muted); text-decoration: line-through; }
+.milestone-list li.upcoming { color: var(--ink); }
+.roadmap-generating { font-style: italic; color: var(--muted); margin-top: 6px; }
 .skill-connection .eyebrow { margin-bottom: 4px; }
 .skill-connection h3 { margin: 0; font-size: 16px; }
 .skill-connection p:not(.eyebrow) { margin: 4px 0; font-size: 13px; }
