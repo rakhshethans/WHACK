@@ -1,6 +1,7 @@
-import { createWorld, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, canPersonaliseAdoptedRoadmap, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice, applyInactivity, plannedPracticeLevel, reviseActiveGoal, GOAL_FEEDBACK_LIMIT } from './world.mjs';
+import { createWorld, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, canPersonaliseAdoptedRoadmap, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice, applyInactivity, plannedPracticeLevel, reviseActiveGoal, setIslandIcon, GOAL_FEEDBACK_LIMIT } from './world.mjs';
 import { DAY_MS, PRACTICE_GRACE_DAYS, maintenanceStatus, practiceXp } from './progression.mjs';
-import { renderOcean, renderIsland } from './scene.mjs';
+import { renderOcean, renderIsland, renderIconPreview } from './scene.mjs';
+import { CUSTOM_ICON_LIMIT, LANDMARKS, knownLandmark, readIslandIcon } from './island-art.mjs';
 import { SKILLS } from './roadmaps.mjs';
 import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation, generateGoalRevision, warmPlannerModel } from './local-planner.mjs';
 import { DIFFICULTIES } from './difficulty.mjs';
@@ -276,6 +277,7 @@ function currentWorld() {
             <progress value="${levelXp}" max="${levelTarget}" aria-label="XP toward Level ${stage.level + 1}"></progress>
             <p class="caption">${levelXp} / ${levelTarget} XP toward Level ${stage.level + 1}</p>`}
           <p class="xp-maintenance" data-maintenance>${maintenanceMessage(island)}</p>
+          ${iconPickerMarkup(island)}
           ${island.xp ? `<p class="caption">Completing a goal gives you ${PRACTICE_GRACE_DAYS} days before XP starts dropping daily.</p>` : ''}
           ${canPersonaliseAdoptedRoadmap(island) && !needsRoadmapRevision(island) ? '<button type="button" class="small-action" data-action="revise-plan">Personalise roadmap</button>' : ''}
           ${currentPracticeMarkup(island, activeGoal, goalsCompleted + 1)}
@@ -286,6 +288,52 @@ function currentWorld() {
           <button class="small-action" data-action="new">Chart your first island ↗</button>`}
       `)}</div>`;
 }
+
+const ICON_OPTIONS = LANDMARKS.filter(symbol => symbol !== 'compass').sort();
+const ICON_LABELS = { driving: 'Car (driving)', aviation: 'Plane (aviation)' };
+function iconPickerMarkup(island) {
+  const saved = readIslandIcon(island.iconOverride);
+  if (!saved && (island.category !== 'custom' || knownLandmark(island))) return '';
+  const current = saved?.symbol ?? (saved?.text ? 'label' : '');
+  return `<details class="roadmap-summary island-icon-picker">
+    <summary>${saved ? 'Change island icon' : 'Choose an island icon'}</summary>
+    <form data-icon-picker data-island-id="${escapeHtml(island.id)}">
+      <div class="island-icon-preview">${renderIconPreview(island)}</div>
+      <div>
+        <label>Icon<select name="symbol">
+          <option value="">Automatic</option>
+          <option value="label"${current === 'label' ? ' selected' : ''}>Custom label</option>
+          ${ICON_OPTIONS.map(symbol => `<option value="${symbol}"${current === symbol ? ' selected' : ''}>${ICON_LABELS[symbol] ?? symbol[0].toUpperCase() + symbol.slice(1).replaceAll('-', ' ')}</option>`).join('')}
+        </select></label>
+        <div data-icon-label${current === 'label' ? '' : ' hidden'}>
+          <label>Custom label <small>(up to ${CUSTOM_ICON_LIMIT} characters)</small>
+            <input name="label" maxlength="${CUSTOM_ICON_LIMIT * 2}" value="${escapeHtml(saved?.text ?? '')}" required${current === 'label' ? '' : ' disabled'} placeholder="e.g. KNOT">
+          </label>
+        </div>
+        <button type="submit" class="small-action">Save icon</button>
+      </div>
+    </form>
+  </details>`;
+}
+
+function iconChoice(picker) {
+  const symbol = picker.elements.symbol.value;
+  return symbol === 'label' ? { text: picker.elements.label.value } : symbol ? { symbol } : undefined;
+}
+
+app.addEventListener('input', event => {
+  const picker = event.target.closest('[data-icon-picker]');
+  if (!picker) return;
+  const island = world.islands.find(item => item.id === picker.dataset.islandId);
+  if (!island) return;
+  const choice = iconChoice(picker);
+  const valid = readIslandIcon(choice);
+  const label = picker.elements.label;
+  label.disabled = picker.elements.symbol.value !== 'label';
+  picker.querySelector('[data-icon-label]').hidden = label.disabled;
+  label.setCustomValidity(!label.disabled && label.value && !valid ? `Enter 1–${CUSTOM_ICON_LIMIT} characters.` : '');
+  picker.querySelector('.island-icon-preview').innerHTML = renderIconPreview({ ...island, iconOverride: valid });
+});
 
 function adoptRoadmap(template) {
   if (!validateAdoptableRoadmap(template).valid) return false;
@@ -603,6 +651,17 @@ app.addEventListener('click', event => {
 });
 
 app.addEventListener('submit', async event => {
+  const picker = event.target.closest('[data-icon-picker]');
+  if (picker) {
+    event.preventDefault();
+    const updated = setIslandIcon(world, picker.dataset.islandId, iconChoice(picker));
+    if (updated === world) return;
+    persist(updated);
+    render();
+    app.querySelector('.island-icon-picker > summary')?.focus({ preventScroll: true });
+    announce('Island icon saved.');
+    return;
+  }
   const editor = event.target.closest('[data-goal-revision]');
   if (!editor) return;
   event.preventDefault();

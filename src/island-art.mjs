@@ -87,3 +87,11 @@ export function knownLandmark({ topic, objective }) {
 export function validLandmark(value) {
   return LANDMARKS.includes(value);
 }
+
+export const CUSTOM_ICON_LIMIT = 4;
+
+export function readIslandIcon(icon) {
+  if (icon?.symbol !== 'compass' && validLandmark(icon?.symbol)) return { symbol: icon.symbol };
+  const text = typeof icon?.text === 'string' ? icon.text.trim() : '';
+  if (text && [...text].length <= CUSTOM_ICON_LIMIT && !/[\p{Cc}\u202a-\u202e\u2066-\u2069]/u.test(text)) return { text };
+}

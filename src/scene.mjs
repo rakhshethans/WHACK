@@ -1,4 +1,4 @@
-import { knownLandmark } from './island-art.mjs';
+import { knownLandmark, readIslandIcon } from './island-art.mjs';
 
 const trees = [[314,335,.8],[345,309,1],[383,292,.7],[405,290,.9],[426,277,.7],[570,292,.85],[601,307,1],[620,325,.8],[644,340,.72],[346,367,.7],[367,378,.92],[575,379,.7],[600,369,.88],[630,357,.68]];
 
@@ -289,6 +289,9 @@ function topicSeal(island) {
     ? words.slice(0, 2).map(word => [...word][0]).join('')
     : [...(words[0] ?? '')].slice(0, 2).join('');
   const letters = (initials.toUpperCase().match(/[\p{L}\p{N}]/gu) ?? []).slice(0, 2).join('');
+  const label = readIslandIcon(island.iconOverride)?.text || letters || '✦';
+  const fontSize = [...label].length > 2 ? 13 : 22;
+  const escapedLabel = label.replace(/[&<>]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[char]);
   const seed = stableHash(words.join(' ') || topic);
   const engraving = Array.from({ length: 5 }, (_, index) => {
     const point = (seed >>> (index * 5)) & 31;
@@ -297,13 +300,22 @@ function topicSeal(island) {
   }).join('');
   return `<g class="topic-seal">
     <circle r="31" fill="#ebcf9e"/><circle r="26" fill="#f9e8bb" stroke-width="1.5"/>
-    <g fill="#31595a" stroke="none">${engraving}<text text-anchor="middle" y="8" font-size="22" font-family="system-ui, sans-serif" font-weight="800">${letters || '✦'}</text></g>
+    <g fill="#31595a" stroke="none">${engraving}<text text-anchor="middle" y="${fontSize === 22 ? 8 : 5}" font-size="${fontSize}" font-family="system-ui, sans-serif" font-weight="800">${escapedLabel}</text></g>
   </g>`;
 }
 
 function landmarkArt(island, landmark) {
   if (!landmark || landmark === 'compass') return topicSeal(island);
   return LANDMARK_ART[landmark];
+}
+
+function islandLandmark(island) {
+  const icon = readIslandIcon(island.iconOverride);
+  return icon?.symbol ?? (icon?.text ? 'compass' : knownLandmark(island) ?? 'compass');
+}
+
+export function renderIconPreview(island) {
+  return `<svg viewBox="-52 -48 104 96" aria-hidden="true" focusable="false"><g fill="#fff0cc" stroke="#31595a" stroke-width="3" stroke-linejoin="round">${landmarkArt(island, islandLandmark(island))}</g></svg>`;
 }
 
 function themedTerrain(island, stage, palette, landmark, development) {
@@ -467,7 +479,7 @@ function laterBuildings(stage) {
 
 export function renderIsland(island, stage) {
   const buildings = laterBuildings(stage);
-  const landmark = knownLandmark(island) ?? 'compass';
+  const landmark = islandLandmark(island);
   const seed = stableHash(`${island.id || ''}|${island.category || ''}|${island.topic || island.title || ''}`);
   const development = islandDevelopment(stage, seed);
   const palette = PALETTES[(stableHash(`palette|${seed}`) >>> 16) % PALETTES.length];

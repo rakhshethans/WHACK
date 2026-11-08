@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { knownLandmark } from '../src/island-art.mjs';
 import { renderIsland } from '../src/scene.mjs';
+import { setIslandIcon } from '../src/world.mjs';
 
 test('landscapes stay stable across stages while infrastructure follows island level', () => {
   const islands = [
@@ -72,4 +73,18 @@ test('unmatched skills use initials even when a saved island has an older landma
   assert.match(art, />BO<\/text>/);
   assert.equal(renderIsland(JSON.parse(JSON.stringify(island)), 1), art);
   assert.match(renderIsland({ ...island, landmark: undefined, theme: 'guitar' }, 1), /class="topic-seal"/);
+});
+
+test('an island can save a symbol or an escaped short label and return to automatic initials', () => {
+  const island = { id: 'island-1', category: 'custom', topic: 'Bookbinding', landmark: 'compass', xp: 120 };
+  const world = { islands: [island] };
+  const withSymbol = setIslandIcon(world, island.id, { symbol: 'driving' });
+  assert.match(renderIsland(withSymbol.islands[0], 1), /data-landmark="driving"/);
+  const withLabel = setIslandIcon(withSymbol, island.id, { text: '<&>' });
+  const saved = JSON.parse(JSON.stringify(withLabel.islands[0]));
+  assert.equal(saved.xp, 120);
+  assert.match(renderIsland(saved, 1), /&lt;&amp;&gt;<\/text>/);
+  assert.equal(setIslandIcon(withLabel, island.id, { text: 'ABCDE' }), withLabel);
+  assert.equal(setIslandIcon(withLabel, island.id, { symbol: 'unknown' }), withLabel);
+  assert.match(renderIsland(setIslandIcon(withLabel, island.id).islands[0], 1), />BO<\/text>/);
 });

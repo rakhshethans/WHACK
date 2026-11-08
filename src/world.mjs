@@ -3,7 +3,7 @@ import { buildCustomRoadmap, customArtworkTheme, nextCustomPractice } from './cu
 import { coachGoal, DIFFICULTIES, guidedNextGoal } from './difficulty.mjs';
 import { isBoilerplateGoal, unclearTopic } from './local-planner.mjs';
 import { applyIslandInactivity, getStage, levelChallenge, practiceDeadline, practiceXp } from './progression.mjs';
-import { knownLandmark, validLandmark } from './island-art.mjs';
+import { knownLandmark, readIslandIcon, validLandmark } from './island-art.mjs';
 
 export { getStage } from './progression.mjs';
 export const GOAL_FEEDBACK_LIMIT = 500;
@@ -77,9 +77,9 @@ export function reviseIslandRoadmap(world, islandId, input) {
   if (personalising ? input.localRoadmap?.steps?.length !== 1 : !needsRoadmapRevision(island)) return world;
   const [replacement] = createGeneratedIsland(createWorld(), input).islands;
   if (!replacement) return world;
-  const { id, xp, attribution, nextXpLossAt, practicePreference } = island;
+  const { id, xp, attribution, nextXpLossAt, practicePreference, iconOverride } = island;
   if (replacement.goals.length === 1) {
-    const revised = { ...replacement, id, xp, attribution, nextXpLossAt, practicePreference, difficulty: island.difficulty,
+    const revised = { ...replacement, id, xp, attribution, nextXpLossAt, practicePreference, iconOverride, difficulty: island.difficulty,
       goals: island.goals.filter(goal => goal.completed) };
     if (personalising) {
       Object.assign(revised, { title: island.title, category: island.category, landmark: island.landmark, theme: island.theme });
@@ -94,7 +94,7 @@ export function reviseIslandRoadmap(world, islandId, input) {
     return previous?.completed ? previous : previous ? { ...goal, id: previous.id, xp: previous.xp, prerequisites: previous.prerequisites } : goal;
   });
   goals.push(...island.goals.filter(goal => goal.continuation && goal.completed));
-  return replaceIsland(world, { ...replacement, id, xp, attribution, nextXpLossAt, practicePreference, goals });
+  return replaceIsland(world, { ...replacement, id, xp, attribution, nextXpLossAt, practicePreference, iconOverride, goals });
 }
 
 export function needsGeneratedPractice(island) {
@@ -107,6 +107,13 @@ export function canQueueGeneratedPractice(island) {
 
 function replaceIsland(world, island) {
   return { ...world, islands: world.islands.map(item => item.id === island.id ? island : item) };
+}
+
+export function setIslandIcon(world, islandId, choice) {
+  const island = world.islands.find(item => item.id === islandId);
+  const iconOverride = readIslandIcon(choice);
+  if (!island || (choice && !iconOverride)) return world;
+  return replaceIsland(world, { ...island, iconOverride });
 }
 
 function generatedPracticeGoal(island, goal) {

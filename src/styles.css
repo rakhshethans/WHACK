@@ -314,6 +314,9 @@ progress::-webkit-progress-bar { background: #dce5da; }
 progress::-webkit-progress-value { background: var(--focus); }
 progress::-moz-progress-bar { background: var(--focus); }
 .caption { margin: 5px 0 0; font-size: 12px; }
+.island-icon-picker form { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 12px; align-items: start; }
+.island-icon-preview { margin-top: 12px; border-radius: 10px; background: #e7ede1; }
+.island-icon-preview svg { display: block; width: 100%; }
 .small-action {
   display: block;
   min-height: 40px;
