@@ -11,12 +11,19 @@
 </head>
 <body>
   <header class="masthead">
-    <a class="brand" href="./"><span aria-hidden="true">◈</span> WORLDHOPPER</a>
+    <a class="brand" href="./" aria-label="WorldHopper">
+      <span class="masthead-icon map-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+          <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15"/>
+        </svg>
+      </span>
+      <span class="brand-wordmark">WORLDHOPPER</span>
+    </a>
     <nav aria-label="Main navigation">
       <button id="world-tab" type="button" aria-pressed="true">My world</button>
       <button id="explore-tab" type="button" aria-pressed="false">Explore</button>
     </nav>
-    <span class="user-icon" aria-hidden="true">
+    <span class="masthead-icon user-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" focusable="false">
         <circle cx="12" cy="8" r="3.2"/>
         <path d="M5.5 19v-1a6.5 6.5 0 0 1 13 0v1"/>
