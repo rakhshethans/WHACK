@@ -9,7 +9,7 @@
 - Generated islands use six hand-drawn landforms and eight muted terrain palettes. The 61 illustrated themes cover skills from gaming and sports to crafts, science, and everyday hobbies. Related skills share a landmark, and unmatched skills use an initials badge.
 - Personalised practice paths, one active goal at a time, and continuing goals beyond the first roadmap. The ten-level XP curve reaches Mastery at 36,000 XP. Completing a goal resets the seven-day grace period even at Mastery. Inactive islands lose 10–400 XP per day depending on their level. The island log shows the next deduction, and demotion changes the artwork and next exercise. Older saves keep their XP and start with a fresh grace period.
 - Crossing an XP threshold shows a gold pulse and a level-up banner. On mobile, the banner shows the upgraded island above the log. Reduced motion uses a static cue. Terrain develops from trails to lakes or rivers, docks or bridges, boats, roads with cars, parks and streetlights.
-- New personal islands open as soon as the browser model returns the first tailored exercise. The app starts loading an installed Nano model when the island form opens and releases unused warmup after 45 seconds. A checkpoint is optional. The next exercise is prepared while the current one is open. Saved generic plans can be rebuilt while keeping earned XP.
+- New personal islands open as soon as the browser model returns the first tailored exercise. An installed Nano model warms when the page loads, and WorldHopper keeps one base session while the page is open. Each request uses a separate copy. A checkpoint is optional. The next exercise is prepared while the current one is open. Saved generic plans can be rebuilt while keeping earned XP.
 - Island creation uses a 20-minute practice budget automatically. Updating an older roadmap keeps its saved budget.
 - Per-island difficulty feedback that persists and adjusts later practice. Related-skill suggestions explain the connection and can open or create the suggested island.
 - Generated exercises have a written feedback form. A successful rewrite replaces the current exercise, preserves its XP reward, and uses the latest note to guide future exercises on that island.
@@ -19,7 +19,9 @@
 
 ## Verified current state
 
-All 67 Node tests pass. Desktop and mobile Chrome verified sea routes, selection by keyboard or touch, zoom and stability after reload. Earlier browser checks covered level-up cues and reduced motion, theme selection, adoption, creation, written feedback, XP and decay, mentor matching, Compass, following, solo views, persona switching, and demo sharing.
+All 68 Node tests pass. Desktop and mobile Chrome verified sea routes, selection by keyboard or touch, zoom and stability after reload. Earlier browser checks covered level-up cues and reduced motion, theme selection, adoption, creation, written feedback, XP and decay, mentor matching, Compass, following, solo views, persona switching, and demo sharing.
+
+Desktop and mobile Chrome verified reuse of a simulated Nano session after closing onboarding and advancing the clock by 65 seconds. Native Nano was unavailable in the isolated test profile.
 
 Chrome verified matching Explore, solo and My world map frames at seven widths from 320px to 1366px, including filter use, keyboard dismissal, sample navigation and adoption.
 

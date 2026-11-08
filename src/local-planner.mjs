@@ -73,31 +73,50 @@ function validPlan(raw, count) {
   return { checkpoint, steps };
 }
 
-export function warmStarterModel(model = globalThis.LanguageModel) {
+export function warmPlannerModel(model = globalThis.LanguageModel) {
   if (!model) return;
-  const controller = new AbortController();
-  let claimed = false;
-  let transferred = false;
-  const cancel = () => {
-    clearTimeout(timer);
-    if (!transferred) controller.abort();
-  };
-  const timer = setTimeout(cancel, 45000);
-  const started = (async () => {
-    if (await model.availability(modelOptions) !== 'available' || controller.signal.aborted) return null;
-    return model.create({ ...modelOptions, signal: controller.signal });
-  })().catch(() => null);
-  const cancelled = new Promise(resolve => controller.signal.addEventListener('abort', () => resolve(null), { once: true }));
-  return {
-    cancel,
-    async take() {
-      if (claimed || controller.signal.aborted) return null;
-      claimed = true;
-      const session = await Promise.race([started, cancelled]);
+  let base;
+  const warming = (async () => {
+    if (await model.availability(modelOptions) !== 'available') return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    try {
+      base = await model.create({ ...modelOptions, signal: controller.signal });
+    } finally {
       clearTimeout(timer);
-      if (controller.signal.aborted) return null;
-      transferred = Boolean(session);
-      return session;
+    }
+  })().catch(() => {});
+
+  return {
+    async take(signal) {
+      await warming;
+      if (!base || signal?.aborted) return null;
+      const session = base;
+      if (typeof session.clone !== 'function') {
+        base = undefined;
+        return session;
+      }
+      try {
+        return await session.clone({ signal });
+      } catch {
+        // If Chrome has reclaimed the base, the request can open a new session.
+        if (!signal?.aborted && base === session) {
+          base = undefined;
+          session.destroy();
+        }
+        return null;
+      }
+    },
+    async retain(session) {
+      // A session opened after a user-triggered download is still pristine here.
+      if (base || typeof session.clone !== 'function') return;
+      try {
+        const pristine = await session.clone();
+        if (base) pristine.destroy();
+        else base = pristine;
+      } catch {
+        // The original session can still serve this request.
+      }
     },
   };
 }
@@ -113,7 +132,7 @@ async function promptLocally(prompt, schema, {
   try {
     if (warmup) {
       onStatus?.('starting');
-      session = await warmup.take();
+      session = await warmup.take(signal);
     }
     if (signal?.aborted) return { status: 'cancelled' };
     if (!session) {
@@ -136,6 +155,8 @@ async function promptLocally(prompt, schema, {
       });
       clearTimeout(setupTimer);
       if (setupSignal.aborted) return { status: signal?.aborted ? 'cancelled' : phase + '-timeout' };
+      if (warmup) await warmup.retain(session);
+      if (signal?.aborted) return { status: 'cancelled' };
     }
     phase = 'generation';
     deadline = AbortSignal.timeout(timeout);

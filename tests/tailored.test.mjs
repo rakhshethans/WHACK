@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { generateContinuation, generateCustomRoadmap, generateStarterRoadmap, generateGoalRevision, warmStarterModel } from '../src/local-planner.mjs';
+import { generateContinuation, generateCustomRoadmap, generateStarterRoadmap, generateGoalRevision, warmPlannerModel } from '../src/local-planner.mjs';
 import { renderIsland } from '../src/scene.mjs';
 import { adoptIsland, appendGeneratedPractice, canPersonaliseAdoptedRoadmap, completeGoal, createGeneratedIsland, createWorld, getActiveGoal,
   canQueueGeneratedPractice, needsGeneratedPractice, needsRoadmapRevision, reviseActiveGoal, reviseIslandRoadmap, setDifficulty } from '../src/world.mjs';
@@ -243,32 +243,67 @@ test('the first goal contains no icon request and familiar skills keep their lan
   assert.doesNotMatch(renderIsland(unsafe, 1), /<script>/);
 });
 
-test('starter warmup reuses the session and skips models that need a download', async () => {
+test('the warm model survives idle time and keeps separate contexts for consecutive exercises', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   let created = 0;
-  let destroyed = 0;
-  let warmSignal;
-  const model = { availability: async () => 'available', create: async ({ signal }) => {
+  let cloned = 0;
+  let clonesDestroyed = 0;
+  let baseDestroyed = 0;
+  const model = { availability: async () => 'available', create: async () => {
     created++;
-    warmSignal = signal;
     return {
-      prompt: async () => JSON.stringify({ ...response, goals: [goals[0]] }),
-      destroy() { destroyed++; },
+      async clone() {
+        cloned++;
+        return {
+          prompt: async () => JSON.stringify({ ...response, goals: [goals[0]] }),
+          destroy() { clonesDestroyed++; },
+        };
+      },
+      destroy() { baseDestroyed++; },
     };
   } };
-  const warmup = warmStarterModel(model);
+  const warmup = warmPlannerModel(model);
+  assert.equal((await generateStarterRoadmap(input, { model, warmup })).status, 'ready');
+  t.mock.timers.tick(60_000);
+  const cancelled = AbortSignal.abort();
+  assert.equal((await generateStarterRoadmap(input, { model, warmup, signal: cancelled })).status, 'cancelled');
   assert.equal((await generateStarterRoadmap(input, { model, warmup })).status, 'ready');
   assert.equal(created, 1);
-  assert.equal(destroyed, 1);
-  assert.equal(await warmup.take(), null);
+  assert.equal(cloned, 2);
+  assert.equal(clonesDestroyed, 2);
+  assert.equal(baseDestroyed, 0);
 
-  const unused = warmStarterModel(model);
-  await Promise.resolve();
-  unused.cancel();
-  assert.ok(warmSignal.aborted);
-  assert.equal(await unused.take(), null);
-
-  const downloadable = warmStarterModel({ ...model, availability: async () => 'downloadable' });
+  const downloadable = warmPlannerModel({ ...model, availability: async () => 'downloadable' });
   assert.equal(await downloadable.take(), null);
+  assert.equal(created, 1);
+});
+
+test('the first user-triggered download leaves a warm session and a stale base is replaced', async () => {
+  let availability = 'downloadable';
+  let created = 0;
+  let reclaimed = false;
+  const newSession = () => ({
+    async clone() {
+      if (reclaimed) throw new DOMException('Session lost', 'InvalidStateError');
+      return newSession();
+    },
+    async prompt() { return JSON.stringify({ ...response, goals: [goals[0]] }); },
+    destroy() {},
+  });
+  const model = { availability: async () => availability, async create() {
+    created++;
+    availability = 'available';
+    reclaimed = false;
+    return newSession();
+  } };
+  const warmup = warmPlannerModel(model);
+  assert.equal((await generateStarterRoadmap(input, { model, warmup })).status, 'unavailable');
+  assert.equal(created, 0);
+  assert.equal((await generateStarterRoadmap(input, { model, warmup, allowDownload: true })).status, 'ready');
+  assert.equal((await generateStarterRoadmap(input, { model, warmup })).status, 'ready');
+  assert.equal(created, 1);
+  reclaimed = true;
+  assert.equal((await generateStarterRoadmap(input, { model, warmup })).status, 'ready');
   assert.equal(created, 2);
 });
 

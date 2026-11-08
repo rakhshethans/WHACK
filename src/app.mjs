@@ -2,7 +2,7 @@ import { createWorld, createGeneratedIsland, completeGoal, getActiveGoal, getSta
 import { DAY_MS, PRACTICE_GRACE_DAYS, maintenanceStatus, practiceXp } from './progression.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
-import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation, generateGoalRevision, warmStarterModel } from './local-planner.mjs';
+import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation, generateGoalRevision, warmPlannerModel } from './local-planner.mjs';
 import { DIFFICULTIES } from './difficulty.mjs';
 import { relatedIslandPairs, relatedSkill } from './skill-connections.mjs';
 import { layoutIslands, layoutSeaRoutes } from './map-layout.mjs';
@@ -26,7 +26,7 @@ const onboardingTitle = document.querySelector('#onboarding-title');
 const nameOption = form.querySelector('.name-option');
 let pendingCreation;
 let goalRevision;
-let starterWarmup;
+const plannerWarmup = warmPlannerModel();
 let revisingId;
 let personalisingRoadmap = false;
 const adaptationDrafts = new Map();
@@ -461,8 +461,6 @@ function resetIslandsForTesting() {
   practiceErrors.clear();
   pendingCreation?.abort();
   pendingCreation = undefined;
-  starterWarmup?.cancel();
-  starterWarmup = undefined;
   selectedId = undefined;
   revisingId = undefined;
   logOpen = false;
@@ -483,7 +481,7 @@ function draftNextGoal(island, goalId) {
   const controller = new AbortController();
   const draft = { goalId, controller, candidate: null };
   adaptationDrafts.set(island.id, draft);
-  generateAdaptiveGoal(request, { signal: controller.signal }).then(candidate => {
+  generateAdaptiveGoal(request, { signal: controller.signal, warmup: plannerWarmup }).then(candidate => {
     if (!controller.signal.aborted) draft.candidate = candidate;
   }).catch(() => {
     if (adaptationDrafts.get(island.id) === draft) discardDraft(island.id);
@@ -632,6 +630,7 @@ app.addEventListener('submit', async event => {
   render();
   app.querySelector('[data-action="cancel-goal-revision"]')?.focus({ preventScroll: true });
   const result = await generateGoalRevision(island, goal, note, {
+    warmup: plannerWarmup,
     skillLevel: getStage(island.xp).level, signal: controller.signal, allowDownload: true,
   }).catch(() => ({ status: 'retry' }));
   if (goalRevision !== task) return;
@@ -671,7 +670,9 @@ async function preparePractice(id, ahead = false) {
   const activeGoal = getActiveGoal(island);
   const context = activeGoal?.adapted ? { ...island, goals: [...island.goals.slice(0, -1), activeGoal] } : island;
   const practiceLevel = plannedPracticeLevel(island, ahead);
-  const result = await generateContinuation(context, { signal: controller.signal, allowDownload: !ahead, skillLevel: practiceLevel });
+  const result = await generateContinuation(context, {
+    signal: controller.signal, allowDownload: !ahead, skillLevel: practiceLevel, warmup: plannerWarmup,
+  });
   refreshMaintenance();
   if (pendingPractice.get(id)?.controller !== controller) return;
   pendingPractice.delete(id);
@@ -728,8 +729,6 @@ function openOnboarding(topic = '', objective = '', island) {
   setCreating(false);
   dialog.showModal();
   if (personalisingRoadmap) form.elements.experience.focus();
-  starterWarmup?.cancel();
-  starterWarmup = warmStarterModel();
 }
 
 function setCreating(creating) {
@@ -743,8 +742,6 @@ form.addEventListener('input', () => setPlanMessage());
 
 dialog.addEventListener('close', () => {
   if (dialog.open) return;
-  starterWarmup?.cancel();
-  starterWarmup = undefined;
   pendingCreation?.abort();
   pendingCreation = undefined;
   setCreating(false);
@@ -776,7 +773,7 @@ form.addEventListener('submit', async event => {
   setCreating(true);
   setPlanMessage('Preparing your tailored plan on this device…');
   const result = await generateStarterRoadmap(planInput, {
-    signal: controller.signal, allowDownload: true, warmup: starterWarmup,
+    signal: controller.signal, allowDownload: true, warmup: plannerWarmup,
     onStatus(status, progress) {
       if (status === 'downloading') setPlanMessage('Downloading this browser’s AI model' + (progress === undefined ? '…' : ' (' + progress + '%)…'));
       else if (status === 'starting') setPlanMessage('Starting Gemini Nano in Chrome…');
