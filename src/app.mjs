@@ -1,4 +1,4 @@
-import { createWorld, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice, applyInactivity, plannedPracticeLevel, reviseActiveGoal, GOAL_FEEDBACK_LIMIT } from './world.mjs';
+import { createWorld, createGeneratedIsland, completeGoal, getActiveGoal, getStage, adoptIsland, setDifficulty, getAdaptationRequest, needsRoadmapRevision, canPersonaliseAdoptedRoadmap, reviseIslandRoadmap, needsGeneratedPractice, canQueueGeneratedPractice, appendGeneratedPractice, applyInactivity, plannedPracticeLevel, reviseActiveGoal, GOAL_FEEDBACK_LIMIT } from './world.mjs';
 import { DAY_MS, PRACTICE_GRACE_DAYS, maintenanceStatus, practiceXp } from './progression.mjs';
 import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
@@ -23,10 +23,12 @@ const createLabel = document.querySelector('#create-island-label');
 const createButton = form.querySelector('button[type="submit"]');
 const planMessage = document.querySelector('#plan-message');
 const onboardingTitle = document.querySelector('#onboarding-title');
+const nameOption = form.querySelector('.name-option');
 let pendingCreation;
 let goalRevision;
 let starterWarmup;
 let revisingId;
+let personalisingRoadmap = false;
 const adaptationDrafts = new Map();
 const pendingPractice = new Map();
 const practiceErrors = new Map();
@@ -223,7 +225,8 @@ function currentPracticeMarkup(island, goal, number) {
     <button class="primary" data-action="generate-practice" data-id="${escapeHtml(island.id)}" ${pendingPractice.has(island.id) ? 'disabled' : ''}>${pendingPractice.has(island.id) ? 'Preparing your next goal…' : 'Generate next goal'}</button>
     ${practiceErrors.has(island.id) ? `<p role="status">${escapeHtml(practiceErrors.get(island.id))}</p>` : ''}</section>`;
   const reward = goal ? practiceXp(island.xp, goal.xp) - island.xp : 0;
-  return goalMarkup(island, goal, number, island.category === 'custom' ? island.goalFeedback?.rating : island.difficulty ?? 'standard', reward);
+  return goalMarkup(island, goal, number, island.category === 'custom' || island.roadmap?.onDevice
+    ? island.goalFeedback?.rating : island.difficulty ?? 'standard', reward);
 }
 
 function maintenanceMessage(island, now = Date.now()) {
@@ -260,11 +263,12 @@ function currentWorld() {
             <p class="caption">${levelXp} / ${levelTarget} XP toward Level ${stage.level + 1}</p>`}
           <p class="xp-maintenance" data-maintenance>${maintenanceMessage(island)}</p>
           ${island.xp ? `<p class="caption">Completing a goal gives you ${PRACTICE_GRACE_DAYS} days before XP starts dropping daily.</p>` : ''}
+          ${canPersonaliseAdoptedRoadmap(island) && !needsRoadmapRevision(island) ? '<button type="button" class="small-action" data-action="revise-plan">Personalise roadmap</button>' : ''}
           ${currentPracticeMarkup(island, activeGoal, goalsCompleted + 1)}
           ${roadmapSummary(island)}
           ${connectionMarkup(island)}` :
           `<p class="eyebrow">ISLAND LOG / 00</p><h2>Open waters</h2>
-          <p>Choose a skill, an objective and how much practice time you have.</p>
+          <p>Choose a skill and tell us what you’d like to achieve.</p>
           <button class="small-action" data-action="new">Chart your first island ↗</button>`}
       `)}</div>`;
 }
@@ -507,7 +511,10 @@ app.addEventListener('click', event => {
   }
   if (action === 'revise-plan') {
     const island = world.islands.find(item => item.id === selectedId);
-    if (island) openOnboarding(island.topic, island.objective === island.topic ? '' : island.objective, island);
+    if (island) {
+      const topic = island.topic || SKILLS[island.category]?.label || island.title;
+      openOnboarding(topic, island.objective === topic ? '' : island.objective, island);
+    }
     return;
   }
   if (action === 'generate-practice') {
@@ -682,8 +689,11 @@ function openOnboarding(topic = '', objective = '', island) {
   form.reset();
   setPlanMessage();
   revisingId = island?.id;
-  onboardingTitle.textContent = island ? 'Update your roadmap' : 'Chart a new island';
-  form.querySelector('.name-option').open = false;
+  personalisingRoadmap = canPersonaliseAdoptedRoadmap(island);
+  onboardingTitle.textContent = personalisingRoadmap ? 'Personalise your roadmap' : island ? 'Update your roadmap' : 'Chart a new island';
+  nameOption.open = false;
+  nameOption.hidden = personalisingRoadmap;
+  topicField.readOnly = personalisingRoadmap;
   topicField.value = topic;
   objectiveField.value = objective;
   if (island) {
@@ -692,6 +702,7 @@ function openOnboarding(topic = '', objective = '', island) {
   }
   setCreating(false);
   dialog.showModal();
+  if (personalisingRoadmap) form.elements.experience.focus();
   starterWarmup?.cancel();
   starterWarmup = warmStarterModel();
 }
@@ -699,7 +710,8 @@ function openOnboarding(topic = '', objective = '', island) {
 function setCreating(creating) {
   createButton.disabled = creating;
   for (const field of form.querySelectorAll('input, select')) field.disabled = creating;
-  createLabel.textContent = creating ? 'Building your practice plan…' : revisingId ? 'Update my roadmap' : 'Create my island';
+  createLabel.textContent = creating ? 'Building your practice plan…' :
+    personalisingRoadmap ? 'Personalise my roadmap' : revisingId ? 'Update my roadmap' : 'Create my island';
 }
 
 form.addEventListener('input', () => setPlanMessage());
@@ -727,7 +739,13 @@ form.addEventListener('submit', async event => {
   const previous = world.islands.find(item => item.id === revisingId);
   const recent = previous?.goals.filter(goal => goal.completed).slice(-3).map(({ title, description }) => ({ title, description }));
   const skillLevel = getStage(previous?.xp ?? 0).level;
-  const planInput = { ...input, topic, objective: input.objective.trim() || topic, minutes: previous?.sessionMinutes ?? 20, recent, skillLevel };
+  const sourceGoal = personalisingRoadmap && previous?.goals.find(goal => !goal.completed);
+  const adoptedRoadmap = personalisingRoadmap ? {
+    objective: previous.objective,
+    checkpoint: previous.roadmap?.checkpoint,
+    exercise: sourceGoal ? { title: sourceGoal.title, practice: sourceGoal.description, finish: sourceGoal.finish } : undefined,
+  } : undefined;
+  const planInput = { ...input, topic, objective: input.objective.trim() || topic, minutes: previous?.sessionMinutes ?? 20, recent, adoptedRoadmap, skillLevel };
   const controller = new AbortController();
   pendingCreation = controller;
   setCreating(true);
@@ -762,6 +780,12 @@ form.addEventListener('submit', async event => {
     setPlanMessage(PLAN_ERRORS.retry, true);
     return;
   }
+  if (previous) {
+    discardDraft(previous.id);
+    pendingPractice.get(previous.id)?.controller.abort();
+    pendingPractice.delete(previous.id);
+    practiceErrors.delete(previous.id);
+  }
   persist(next);
   selectedId = revisingId ?? world.islands.at(-1).id;
   dialog.close();
@@ -771,7 +795,7 @@ form.addEventListener('submit', async event => {
   logOpen = true;
   render();
   focusLog();
-  announce(revisingId ? 'Your updated roadmap is ready.' : 'Your island is ready.');
+  announce(personalisingRoadmap ? 'Your personalised roadmap is ready.' : revisingId ? 'Your updated roadmap is ready.' : 'Your island is ready.');
   void preparePractice(selectedId, true);
 });
 

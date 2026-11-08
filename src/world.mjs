@@ -66,15 +66,25 @@ export function needsRoadmapRevision(island) {
   );
 }
 
+export function canPersonaliseAdoptedRoadmap(island) {
+  return Boolean(island?.attribution && !island.roadmap?.personalised);
+}
+
 export function reviseIslandRoadmap(world, islandId, input) {
   const island = world.islands.find(item => item.id === islandId);
-  if (!island || !needsRoadmapRevision(island)) return world;
+  if (!island) return world;
+  const personalising = canPersonaliseAdoptedRoadmap(island);
+  if (personalising ? input.localRoadmap?.steps?.length !== 1 : !needsRoadmapRevision(island)) return world;
   const [replacement] = createGeneratedIsland(createWorld(), input).islands;
   if (!replacement) return world;
   const { id, xp, attribution, nextXpLossAt, practicePreference } = island;
   if (replacement.goals.length === 1) {
     const revised = { ...replacement, id, xp, attribution, nextXpLossAt, practicePreference, difficulty: island.difficulty,
       goals: island.goals.filter(goal => goal.completed) };
+    if (personalising) {
+      Object.assign(revised, { title: island.title, category: island.category, landmark: island.landmark, theme: island.theme });
+      revised.roadmap.personalised = true;
+    }
     revised.goals.push({ ...generatedPracticeGoal(revised, replacement.goals[0]), practiceLevel: getStage(xp).level });
     return replaceIsland(world, revised);
   }
@@ -101,10 +111,14 @@ function replaceIsland(world, island) {
 
 function generatedPracticeGoal(island, goal) {
   const index = island.goals.length;
-  if (index < XP_AWARDS.length) {
-    return starterGoal([goal.title, goal.description, goal.finish], index, island.sessionMinutes, island.goals.at(-1)?.id);
-  }
-  return continuationGoal(island, goal, island.goals.filter(item => item.continuation).length);
+  const practice = index < XP_AWARDS.length
+    ? starterGoal([goal.title, goal.description, goal.finish], index, island.sessionMinutes, island.goals.at(-1)?.id)
+    : continuationGoal(island, goal, island.goals.filter(item => item.continuation).length);
+  // An adopted roadmap can have completed goals out of order.
+  let number = index + 1;
+  const usedIds = new Set(island.goals.map(item => item.id));
+  while (usedIds.has(practice.id)) practice.id = 'goal-' + ++number;
+  return practice;
 }
 
 export function plannedPracticeLevel(island, ahead = false) {
@@ -210,7 +224,7 @@ export function setDifficulty(world, islandId, goalId, rating) {
   const island = world.islands.find(({ id }) => id === islandId);
   if (!island || availableGoal(island)?.id !== goalId) return world;
   if (island.goalFeedback?.id === goalId && island.goalFeedback.rating === rating) return world;
-  if (island.category !== 'custom' && (island.difficulty ?? 'standard') === rating) return world;
+  if (island.category !== 'custom' && !island.roadmap?.onDevice && (island.difficulty ?? 'standard') === rating) return world;
   return {
     ...world, islands: world.islands.map(item => item.id === islandId
       ? { ...item, difficulty: rating, goalFeedback: { id: goalId, rating } } : item),
@@ -227,7 +241,7 @@ function withGoalCompleted(island, goal) {
 
 function adaptationRequest(island, completed, plannedGoal) {
   const feedback = island.goalFeedback?.rating;
-  if (island.category !== 'custom' || island.goalFeedback?.id !== completed.id || !plannedGoal
+  if ((island.category !== 'custom' && !island.roadmap?.onDevice) || island.goalFeedback?.id !== completed.id || !plannedGoal
       || (feedback !== 'support' && feedback !== 'stretch')) return null;
   return {
     topic: island.topic,

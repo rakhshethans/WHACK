@@ -11,13 +11,16 @@
 - Per-island difficulty feedback that persists and adjusts later practice. Related-skill suggestions explain the connection and can open or create the suggested island.
 - Generated exercises have a written feedback form. A successful rewrite replaces the current exercise, preserves its XP reward, and uses the latest note to guide future exercises on that island.
 - Browser-local saves and attributed roadmap adoption with fresh XP. Explore combines a shared ocean, exact-interest mentor matching, demo personas, Social Compass, Following and Followers, and solo archipelagos. The three original sample roadmaps have a direct browse entry.
+- Adopted islands can use the original roadmap immediately. The island log also lets learners personalise it for their experience and outcome with Gemini Nano, keeping creator credit, XP and completed goals.
 - Explore demonstrates opt-in roadmap sharing across sample personas in this browser. Public projections exclude private notes, completion history, and inactivity deadlines. The Supabase client and schema are available for a configured authenticated deployment.
 
 ## Verified current state
 
-All 63 Node tests pass. Desktop and mobile Chrome verified theme selection and initials on new and saved islands, including Home Waters in Explore. Earlier checks with a simulated model covered adoption, creation, written feedback, XP and decay, mentor matching, Compass, following, solo views, persona switching, and demo sharing.
+All 64 Node tests pass. Desktop and mobile Chrome verified theme selection and initials on new and saved islands, including Home Waters in Explore. Earlier checks with a simulated model covered adoption, creation, written feedback, XP and decay, mentor matching, Compass, following, solo views, persona switching, and demo sharing.
 
 Desktop and mobile Chrome verified the simplified island form and confirmed the practice budgets for new and updated roadmaps with a simulated model.
+
+Desktop and mobile Chrome verified adoption, cancellation, failed generation and retry, personalised goal completion, and persistence with a simulated model. Native Gemini Nano personalisation still needs a run on the judging device.
 
 Desktop Chrome verified the wider drag range, dragging from the overview, position after opening the island log, Reset, and wheel zoom on all three maps. Mobile Chrome verified touch panning and the zoom and reset buttons.
 
@@ -25,4 +28,4 @@ The full browser flow was verified locally. The social access-control tests use 
 
 ## Next workstream
 
-Review the integration preview before merging into the shared branch. Verify real Supabase authentication and row-level security before enabling live social data. Benchmark native goal generation and improve recovery for browsers without built-in AI.
+Use the integration preview and labelled sample profiles for panel judging. Verify access and native Gemini Nano generation on the judging device. Live accounts and public sharing can follow the panel demo, after authenticated Supabase and row-level security checks.

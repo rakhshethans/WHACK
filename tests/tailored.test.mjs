@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { generateContinuation, generateCustomRoadmap, generateStarterRoadmap, generateGoalRevision, warmStarterModel } from '../src/local-planner.mjs';
 import { renderIsland } from '../src/scene.mjs';
-import { appendGeneratedPractice, completeGoal, createGeneratedIsland, createWorld, getActiveGoal,
+import { adoptIsland, appendGeneratedPractice, canPersonaliseAdoptedRoadmap, completeGoal, createGeneratedIsland, createWorld, getActiveGoal,
   canQueueGeneratedPractice, needsGeneratedPractice, needsRoadmapRevision, reviseActiveGoal, reviseIslandRoadmap, setDifficulty } from '../src/world.mjs';
 
 const input = { topic: 'Learn Python', objective: 'Summarise monthly expenses from CSV', experience: 'beginner', minutes: 10 };
@@ -20,6 +20,50 @@ const response = { decision: 'ready', checkpoint: 'Print a Python summary of exp
 const mockModel = (data, inspect = () => {}) => ({
   availability: async () => 'available',
   create: async () => ({ prompt: async (prompt, options) => { inspect(prompt, options); return JSON.stringify(data); }, destroy() {} }),
+});
+
+test('personalising an adopted roadmap uses its direction and keeps credit and earned progress', async () => {
+  const source = { title: 'Python Harbour', topic: input.topic, category: 'custom', attribution: 'Sam',
+    objective: input.objective, sessionMinutes: 20, landmark: 'code', roadmap: { checkpoint: response.checkpoint },
+    goals: goals.slice(0, 3).map(({ title, practice, finish }, index) => ({
+      id: 'goal-' + (index + 1), title, description: practice, finish, xp: 40, minutes: 20,
+      prerequisites: index === 0 ? ['goal-3'] : [], completed: true,
+    })),
+  };
+  const adopted = adoptIsland(createWorld(), source);
+  const { id } = adopted.islands[0];
+  assert.equal(adopted.islands[0].xp, 0);
+  assert.ok(adopted.islands[0].goals.every(goal => !goal.completed));
+  const started = completeGoal(completeGoal(adopted, id, 'goal-2'), id, 'goal-3');
+  const before = started.islands[0];
+  assert.equal(canPersonaliseAdoptedRoadmap(before), true);
+  const settings = { ...input, experience: 'intermediate', objective: 'Summarise travel costs from a CSV',
+    minutes: before.sessionMinutes, adoptedRoadmap: { checkpoint: response.checkpoint, exercise: goals[0] } };
+  const goal = { title: 'Filter travel expenses from CSV',
+    practice: 'Use Python to read a CSV and print the rows whose category is travel.',
+    finish: 'The output includes two travel rows and excludes the food row.' };
+  const result = await generateStarterRoadmap(settings, {
+    model: mockModel({ decision: 'ready', goals: [goal] }, prompt => {
+      const data = JSON.parse(prompt.split('\n').at(-1));
+      assert.deepEqual(data.adoptedRoadmap, settings.adoptedRoadmap);
+      assert.equal(data.experience, settings.experience);
+      assert.equal(data.objective, settings.objective);
+    }),
+  });
+  assert.equal(result.status, 'ready');
+  const revised = reviseIslandRoadmap(started, id, { ...settings, localRoadmap: result.plan });
+  const island = revised.islands[0];
+  assert.equal(island.id, id);
+  assert.equal(island.title, source.title);
+  assert.equal(island.attribution, source.attribution);
+  assert.equal(island.xp, before.xp);
+  assert.equal(island.nextXpLossAt, before.nextXpLossAt);
+  assert.deepEqual(island.goals.filter(goal => goal.completed), before.goals.filter(goal => goal.completed));
+  assert.equal(canPersonaliseAdoptedRoadmap(island), false);
+  const active = getActiveGoal(island);
+  assert.equal(active.title, goal.title);
+  assert.equal(new Set(island.goals.map(goal => goal.id)).size, island.goals.length);
+  assert.ok(needsGeneratedPractice(completeGoal(revised, id, active.id).islands[0]));
 });
 
 test('written feedback rewrites only the active exercise and refreshes the queued plan without awarding XP', async () => {
