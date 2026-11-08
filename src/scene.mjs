@@ -174,6 +174,8 @@ const LANDMARK_ART = {
   chess: '<path d="M-25 25h50v-8H-25zm6-8C-19 1 9-8 4-15l-19 8-9-8 23-18 14 3c9 9 12 22 7 47Z"/><circle cx="-5" cy="-20" r="2" fill="#31595a"/>',
   shooter: '<path d="M-40-8h18l6-9h32v7h14v4h13v7H19L9 7l7 16H5L-2 8h-10l-5 11h-10l5-18-18 7Z" fill="#f2d39a"/><path d="M-10-17v-6H8v6M-13-7h23M-8 2h10" fill="none" stroke="#31595a" stroke-linecap="round"/><path d="m29-6 1 7" fill="none" stroke="#d58759"/>',
   racing: '<path d="M-29 27v-54" fill="none" stroke="#fff0cc" stroke-width="5" stroke-linecap="round"/><path d="M-27-24q14-7 30 0t30 0v32Q18 15 3 8t-30 0Z" fill="#fff0cc"/><path d="M-12-26v16l15 4v-18m0 18v14l15 4V-3m0 0 15-5v-16M-27-8l15-2V7l-15 1" fill="#31595a" stroke-width="1"/>',
+  driving: '<path d="M-38 15V1l10-7 9-15h33L25-6l12 6v15Z" fill="#75b9ac"/><path d="m-23-6 7-11h13v11Zm25 0v-11h10l8 11Z" fill="#e1ece4" stroke-width="2"/><path d="M-37 3h8m60 0h5" fill="none" stroke="#fff0cc" stroke-width="3"/><circle cx="-23" cy="15" r="9" fill="#31595a"/><circle cx="23" cy="15" r="9" fill="#31595a"/><path d="M-25 15h4m42 0h4" stroke="#fff0cc" stroke-width="2.5" stroke-linecap="round"/>',
+  aviation: '<g transform="rotate(24)"><path d="M0-36q5 0 6 12v13L33 7v7L6 7v17l10 7v5L0 31l-16 5v-5l10-7V7l-27 7V7l27-18v-13q1-12 6-12Z" fill="#f3e6c3"/><path d="M-3-23q3-4 6 0m-2 7v35" fill="none" stroke="#6d9ea8" stroke-width="3" stroke-linecap="round"/></g>',
   'building-game': '<path d="m-30-13 30-16 30 16v32L0 34l-30-15Z" fill="#d0a273"/><path d="m-30-13 30 15 30-15L0-29Z" fill="#a8c982"/><path d="M0 2v32m-30-38 11 6v6l10 4V6L0 11 10 6v7l9-5V2l11-6" fill="none"/>',
   controller: '<path d="M-18-18h36q13 0 17 17l4 15q2 12-10 11l-16-12h-26l-16 12q-12 1-10-11l4-15q4-17 17-17Z" fill="#aed5c7"/><path d="M-20-8V8m-8-8h16" fill="none" stroke-width="4" stroke-linecap="round"/><circle cx="16" cy="-3" r="3"/><circle cx="25" cy="4" r="3"/>',
   football: '<circle r="28"/><path d="m0-10 10 7-4 12H-6l-4-12Z" fill="#31595a"/><path d="M0-10v-18M10-3l16-8M6 9l10 14M-6 9l-10 14M-10-3l-16-8" fill="none"/>',
@@ -252,6 +254,7 @@ const THEMED_LANDFORMS = {
   breakdance: ['dunes', 'cove'], pottery: ['mesa', 'dunes'], woodwork: ['forest', 'cove'],
   textiles: ['cove', 'forest'], running: ['alpine', 'forest'], swimming: ['archipelago', 'cove'], chess: ['mesa', 'archipelago'],
   shooter: ['mesa', 'dunes'], racing: ['mesa', 'alpine'], 'building-game': ['forest', 'mesa'], controller: ['cove', 'archipelago'],
+  driving: ['mesa', 'forest'], aviation: ['alpine', 'archipelago'],
 };
 
 const PALETTES = [

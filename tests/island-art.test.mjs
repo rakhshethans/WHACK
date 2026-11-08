@@ -35,6 +35,7 @@ test('the expanded themes match common skills and draw a distinct symbol for eac
     design: 'Learn Figma', maths: 'Algebra', science: 'Chemistry', astronomy: 'Stargazing',
     finance: 'Personal budgeting', business: 'Leadership', organisation: 'Time management',
     travel: 'Travel planning', animals: 'Dog training', beauty: 'Nail art', magic: 'Sleight of hand',
+    driving: 'Learn to drive', aviation: 'Get over my fear of flying',
   };
   const symbols = new Set();
   for (const [landmark, topic] of Object.entries(examples)) {
@@ -54,6 +55,13 @@ test('related skills share a theme and specific topics take precedence over the 
   assert.equal(knownLandmark({ topic: 'Spanish guitar' }), 'guitar');
   assert.equal(knownLandmark({ topic: 'Polish my chess opening' }), 'chess');
   assert.equal(knownLandmark({ topic: 'Learn Polish' }), 'language');
+  assert.equal(knownLandmark({ topic: 'Pass my driving test' }), 'driving');
+  assert.equal(knownLandmark({ topic: 'Practise parallel parking' }), 'driving');
+  assert.equal(knownLandmark({ topic: 'Work on flight anxiety' }), 'aviation');
+  assert.equal(knownLandmark({ topic: 'Learn to fly a plane' }), 'aviation');
+  assert.equal(knownLandmark({ topic: 'Learn to fly fish' }), undefined);
+  assert.equal(knownLandmark({ topic: 'Organise Google Drive' }), 'organisation');
+  assert.equal(knownLandmark({ topic: 'Learn car repair' }), 'repair');
 });
 
 test('unmatched skills use initials even when a saved island has an older landmark', () => {

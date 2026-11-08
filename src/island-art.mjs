@@ -1,6 +1,8 @@
 const SUBJECTS = [
   ['shooter', /\b(?:valorant|counter[- ]?strike|cs2|cs[: ]?go|overwatch(?: 2)?|apex legends|rainbow six siege|call of duty|fortnite|first[- ]person shooters?|shooter games?)\b/i],
   ['racing', /\b(?:mario kart|gran turismo|forza|iracing|sim racing|racing games?)\b/i],
+  ['driving', /\b(?:learn(?:ing)? to drive(?=\s*(?:$|[.!?])|\s+(?:safely|confidently|in|on|again)\b)|driv(?:e|ing) (?:an? |my )?(?:car|truck|van|manual|automatic|stick shift)|driving (?:lessons?|tests?|licen[cs]es?|skills?)|manual driving|driver(?:['’]s|s)? licen[cs]e|parallel parking)\b|^\s*driving\s*$/i],
+  ['aviation', /\b(?:fear of flying|(?:flight|flying) (?:anxiety|lessons?|training|school)|aviation|plane spotting|pilot (?:training|licen[cs]e)|(?:fly|flying) (?:an? |my )?(?:plane|airplane|aeroplane|aircraft|helicopter)|learn(?:ing)? to fly(?=\s*(?:$|[.!?])))\b/i],
   ['building-game', /\b(?:minecraft|block[- ]building games?)\b/i],
   ['football', /\b(?:football|soccer|futsal|penalty kicks?)\b/i],
   ['basketball', /\b(?:basketball|free throws?|layups?)\b/i],
