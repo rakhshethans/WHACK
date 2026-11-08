@@ -42,7 +42,7 @@ function tower(x, y, scale) {
   </g>`;
 }
 
-function guitarTerrain(stage, [sand, ground, cliff]) {
+function guitarTerrain(stage, [sand, ground, cliff], development) {
   const buildings = [
     stage >= 4 ? lodge(536,300,.88,'#7ba9a3') : '',
     stage >= 5 ? tower(495,303,1.12) : '',
@@ -64,6 +64,7 @@ function guitarTerrain(stage, [sand, ground, cliff]) {
     <path d="m482 406 13 1 10 22-13 4Z" fill="#785b45" stroke="#b38f64" stroke-width="2"/>
     <path d="m485 413 13-1m-10 7 13-2m-11 7 13-2" stroke="#c2a378" stroke-width="1.5"/>
     <path d="m495 440 14-5 10 9-13 8-9-3Z" fill="#cb895b"/><path d="m506 437-1 9m-6-4 11-3" stroke="#f6ddaa"/>
+    ${development}
     ${trees.map(([x, y, scale]) => tree(x, y, scale)).join('')}
     ${buildings.join('')}
     ${guitarLandmark(stage)}
@@ -83,7 +84,7 @@ function guitarLandmark(stage) {
   </g>`;
 }
 
-function songwritingTerrain(stage, [sand, ground, cliff]) {
+function songwritingTerrain(stage, [sand, ground, cliff], development) {
   return `<g class="wh-island songwriting-terrain">
     <ellipse cx="483" cy="416" rx="210" ry="33" fill="#121e32" opacity=".45"/>
     <path d="m270 358 45-46 83-35 73-35 103 14 92 41 45 48-40 47-114 36-117 9-118-29Z" fill="#b5cad1" opacity=".29"/>
@@ -93,6 +94,7 @@ function songwritingTerrain(stage, [sand, ground, cliff]) {
     <path d="m320 337 65-47 129-36 85 25 64 45-31 34-77 38-101 11-89-25Z" fill="${ground}"/>
     <path d="m356 333 60-37 93-24 82 21 43 31-35 34-64 21-73 6-73-19Z" fill="#d69baa"/>
     <path d="m372 346 31 17 42 13 58 3 59-13 49-30m-221-20 35 24 63 17 63-9 38-20" fill="none" stroke="#f8bf9f" stroke-width="3"/>
+    ${development}
     <g transform="translate(488 309)">
       <ellipse cy="28" rx="75" ry="21" fill="#71485c" opacity=".43"/>
       <path d="m-64 0 32-17 32 8 30-13 37 11v34L30 13 0 24l-31-9-33 10Z" fill="#673a57"/>
@@ -108,7 +110,7 @@ function songwritingTerrain(stage, [sand, ground, cliff]) {
   </g>`;
 }
 
-function photographyTerrain(stage, [sand, ground, cliff]) {
+function photographyTerrain(stage, [sand, ground, cliff], development) {
   return `<g class="wh-island photography-terrain">
     <ellipse cx="482" cy="408" rx="206" ry="38" fill="#0c233b" opacity=".4"/>
     <path d="m269 350 66-63 130-44 96 17 86 33 64 62-67 46-115 38-117-6-96-33Z" fill="#bbd9de" opacity=".28"/>
@@ -120,6 +122,7 @@ function photographyTerrain(stage, [sand, ground, cliff]) {
     <path d="m390 267 27-42 20 28-14 13-9-10-11 14Zm80-35 30-56 36 50-22-3-10 11-13-12-14 17Zm95 42 20-54 27 46-16-3-10 12-10-8Z" fill="#e9eef0"/>
     <path d="m555 345 47-12 19 12-51 20-55 16-32 10" stroke="#ccdce2" stroke-width="4" fill="none" stroke-linecap="round"/>
     <path d="m325 351 36-19 55 8 17 13-37 17-50-5Z" fill="#4c9eaa" stroke="#b3e4e2" stroke-width="2"/>
+    ${development}
     <g transform="translate(510 363)">
       <ellipse cy="12" rx="58" ry="14" fill="#1e3b55" opacity=".47"/>
       <path d="m-46-23 58-15 43 10v26L0 17l-46-13Z" fill="#26394d" stroke="#dae5e5" stroke-width="2"/>
@@ -300,7 +303,7 @@ function landmarkArt(island, landmark) {
   return LANDMARK_ART[landmark];
 }
 
-function themedTerrain(island, stage, palette, landmark) {
+function themedTerrain(island, stage, palette, landmark, development) {
   const { landmark: savedLandmark } = island;
   const choices = Object.hasOwn(THEMED_LANDFORMS, savedLandmark) ? THEMED_LANDFORMS[savedLandmark] : Object.keys(LANDFORMS);
   const seed = stableHash(`${island.id}|${island.topic ?? island.title}`);
@@ -313,6 +316,7 @@ function themedTerrain(island, stage, palette, landmark) {
     <path d="${coast}" fill="${sand}" stroke="#e6ecc6" stroke-width="3"/>
     <path d="${coast}" transform="translate(484 342) scale(.9 .8) translate(-484 -342)" fill="${ground}"/>
     ${feature}
+    ${development}
     ${stage >= 2 ? lodge(388,357,.68) : ''}
     ${stage >= 3 ? lodge(560,363,.7,'#8ab3ac') : ''}
     ${stage >= 4 ? lodge(415,395,.6,'#d4aa68') : ''}
@@ -383,7 +387,7 @@ function islandBiomeDetails(island) {
   return `<g class="biome-details" aria-hidden="true">${details}</g>`;
 }
 
-function customTerrain(island, stage, [, sand, ground, cliff], landmark) {
+function customTerrain(island, stage, [, sand, ground, cliff], landmark, development) {
   const seed = stableHash((island.topic + ' ' + island.objective).toLowerCase());
   const alternate = (seed & 1) === 1;
   const coast = alternate
@@ -397,6 +401,7 @@ function customTerrain(island, stage, [, sand, ground, cliff], landmark) {
     <path d="${coast}" fill="${sand}" stroke="#e6ecc6" stroke-width="2"/>
     <path d="${inset}" fill="${ground}"/>
     <path d="M349 353q83 44 153 29t119-46M378 319q66-45 127-38t79 31" fill="none" stroke="${sand}" stroke-width="3" opacity=".67"/>
+    ${development}
     <ellipse cx="484" cy="341" rx="67" ry="24" fill="${cliff}" opacity=".5"/>
     <ellipse cx="484" cy="332" rx="61" ry="22" fill="${sand}" stroke="#ffdeb0" stroke-width="2"/>
     <g transform="translate(484 311)" fill="#fff0cc" stroke="#31595a" stroke-width="3" stroke-linejoin="round">${icon}</g>
@@ -407,13 +412,43 @@ function customTerrain(island, stage, [, sand, ground, cliff], landmark) {
   </g>`;
 }
 
-function islandTerrain(island, stage, palette, landmark) {
+function islandTerrain(island, stage, palette, landmark, development) {
   const originalIcon = { guitar: 'guitar', songwriting: 'music', photography: 'camera' };
   const track = island.category === 'custom' && originalIcon[island.theme] === landmark ? island.theme : island.category;
-  if (track === 'songwriting') return songwritingTerrain(stage, blendTerrain(['#e7a687', '#ae7497', '#724e64'], palette));
-  if (track === 'photography') return photographyTerrain(stage, blendTerrain(['#a7c6d3', '#6d8ca9', '#4f637e'], palette));
-  if (track === 'custom') return customTerrain(island, stage, palette, landmark);
-  return guitarTerrain(stage, blendTerrain(['#d3ae74', '#92ac72', '#615947'], palette));
+  if (track === 'songwriting') return songwritingTerrain(stage, blendTerrain(['#e7a687', '#ae7497', '#724e64'], palette), development);
+  if (track === 'photography') return photographyTerrain(stage, blendTerrain(['#a7c6d3', '#6d8ca9', '#4f637e'], palette), development);
+  if (track === 'custom') return customTerrain(island, stage, palette, landmark, development);
+  return guitarTerrain(stage, blendTerrain(['#d3ae74', '#92ac72', '#615947'], palette), development);
+}
+
+function islandDevelopment(stage, seed) {
+  if (stage < 2) return '';
+  const river = ((seed >>> 12) & 1) === 1;
+  const road = 'M425 390Q470 408 519 395Q549 388 571 373';
+  return `<g class="island-development" aria-hidden="true">
+    ${stage < 3 ? '' : river ? `<g data-feature="river">
+      <path d="M538 349q-20 15-9 26t-8 22q-7 4-11 12" fill="none" stroke="#c6e4c6" stroke-width="15"/>
+      <path d="M538 349q-20 15-9 26t-8 22q-7 4-11 12" fill="none" stroke="#4a9eac" stroke-width="11"/>
+      <path d="m530 356-5 7m4 13 3 6m-14 21-4 4" fill="none" stroke="#d1f2e5" stroke-width="2" stroke-linecap="round"/>
+    </g>` : `<g data-feature="lake">
+      <path d="M428 370q15-17 40-11 22 5 19 14-4 13-35 13-29-1-24-16Z" fill="#4b9da9" stroke="#c6e4c6" stroke-width="3"/>
+      <path d="M435 373q8-5 18-4m4 11q9-1 13-3" fill="none" stroke="#c5efdd" stroke-width="2" stroke-linecap="round"/>
+    </g>`}
+    <path data-feature="${stage >= 6 ? 'road' : 'trail'}" d="${road}" fill="none" stroke="${stage >= 6 ? '#465e62' : '#dfc694'}" stroke-width="${stage >= 6 ? 12 : 6}" stroke-linecap="round"/>
+    ${stage >= 6 ? `<path d="${road}" fill="none" stroke="#f0d8a1" stroke-width="1.5" stroke-dasharray="5 6"/>` : ''}
+    ${stage < 4 ? '' : river
+      ? '<g data-feature="bridge" transform="translate(525 393) rotate(-15)"><rect x="-12" y="-7" width="24" height="14" rx="2" fill="#9b6a4e" stroke="#f0c995" stroke-width="2"/><path d="M-6-6V6M0-6V6M6-6V6" stroke="#e0b47b" stroke-width="1.5"/></g>'
+      : '<g data-feature="dock" transform="translate(474 380) rotate(26)"><rect x="-4" y="-7" width="8" height="14" fill="#9b6a4e" stroke="#f0c995" stroke-width="2"/><path d="M-3-2h6m-6 4h6" stroke="#e0b47b"/></g>'}
+    ${stage >= 5 ? `<g data-feature="boat" transform="translate(${river ? '527 371' : '453 370'})">
+      <path d="m-8 2 15-1-4 5H-4Z" fill="#815940" stroke="#edcc95" stroke-width="1.5"/><path d="m0 1v-12l6 11Z" fill="#fff0c9"/>
+    </g>` : ''}
+    ${stage >= 6 ? `<g data-feature="car" transform="translate(551 383) rotate(-15)">
+      <path d="M-8 1v-4l4-1 3-4h6l4 5v4Z" fill="${river ? '#e1aa58' : '#d78166'}" stroke="#f9d7a4" stroke-width="1.3"/>
+      <path d="m0-7-2 4h8L4-7Z" fill="#c6e1de"/><circle cx="-4" cy="1" r="2.1" fill="#233f47"/><circle cx="6" cy="1" r="2.1" fill="#233f47"/>
+    </g>` : ''}
+    ${stage >= 7 ? '<g data-feature="park"><path d="m540 363 18-7 12 5-17 9Z" fill="#94af75" stroke="#d2dbaa" stroke-width="2"/><path d="m546 362 8 4 9-4" fill="none" stroke="#f3d6a4" stroke-width="2"/></g>' : ''}
+    ${stage >= 8 ? '<g data-feature="streetlights" stroke="#465e62" stroke-width="2"><path d="M454 396v-10m49 12v-10m60-3v-10"/><g fill="#ffe7a2" stroke="none"><circle cx="454" cy="386" r="3"/><circle cx="503" cy="388" r="3"/><circle cx="563" cy="375" r="3"/></g></g>' : ''}
+  </g>`;
 }
 
 function laterBuildings(stage) {
@@ -431,14 +466,15 @@ export function renderIsland(island, stage) {
   const buildings = laterBuildings(stage);
   const landmark = knownLandmark(island) ?? 'compass';
   const seed = stableHash(`${island.id || ''}|${island.category || ''}|${island.topic || island.title || ''}`);
+  const development = islandDevelopment(stage, seed);
   const palette = PALETTES[(stableHash(`palette|${seed}`) >>> 16) % PALETTES.length];
   const open = `<svg viewBox="222 165 525 296" aria-hidden="true" focusable="false" data-palette="${palette[0]}">`;
   if (typeof island.landmark === 'string' && Object.hasOwn(LANDMARK_ART, island.landmark)) {
-    return `${open}${themedTerrain(island, stage, palette, landmark)}${buildings}</svg>`;
+    return `${open}${themedTerrain(island, stage, palette, landmark, development)}${buildings}</svg>`;
   }
   const biome = BIOMES[(seed >>> 8) % BIOMES.length];
   const coast = seed % COASTLINES.length;
-  return `${open}<g class="island-biome" data-biome="${biome.name}" data-coast="${coast}">${islandScenery(island, palette)}${islandTerrain(island, stage, palette, landmark)}${islandBiomeDetails(island)}${buildings}</g></svg>`;
+  return `${open}<g class="island-biome" data-biome="${biome.name}" data-coast="${coast}">${islandScenery(island, palette)}${islandTerrain(island, stage, palette, landmark, development)}${islandBiomeDetails(island)}${buildings}</g></svg>`;
 }
 
 const waves = [[114,167],[198,293],[282,203],[359,121],[537,161],[671,224],[813,173],[771,302],[124,424],[227,465],[330,510],[596,484],[720,438],[836,401],[785,511],[413,466],[195,208],[755,115]];

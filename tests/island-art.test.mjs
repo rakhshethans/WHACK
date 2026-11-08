@@ -3,6 +3,28 @@ import test from 'node:test';
 import { knownLandmark } from '../src/island-art.mjs';
 import { renderIsland } from '../src/scene.mjs';
 
+test('landscapes stay stable across stages while infrastructure follows island level', () => {
+  const islands = [
+    { id: 'island-1', title: 'The Chord Coast', category: 'guitar' },
+    { id: 'island-4', title: 'Origami', topic: 'Origami', category: 'custom', landmark: 'origami' },
+  ];
+  const variants = new Set();
+  for (const island of islands) {
+    const village = renderIsland(island, 3);
+    const city = renderIsland(island, 6);
+    const landscape = village.match(/data-feature="(river|lake)"/)?.[0];
+    assert.ok(landscape);
+    variants.add(landscape);
+    assert.ok(city.includes(landscape));
+    assert.match(city, /data-feature="(bridge|dock)"/);
+    assert.match(city, /data-feature="road"/);
+    assert.match(city, /data-feature="car"/);
+    assert.doesNotMatch(village, /data-feature="(?:road|car)"/);
+    assert.doesNotMatch(renderIsland(island, 1), /data-feature=/);
+  }
+  assert.equal(variants.size, 2);
+});
+
 test('the expanded themes match common skills and draw a distinct symbol for each theme', () => {
   const examples = {
     football: 'Futsal', basketball: 'Free throws', racket: 'Learn pickleball', golf: 'Golf swing',

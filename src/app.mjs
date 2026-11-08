@@ -83,6 +83,7 @@ let socialController;
 let disconnectMap;
 let storageUnavailable = false;
 let animateIsland = false;
+let levelUp;
 let maintenanceTimer;
 
 function escapeHtml(value) {
@@ -126,7 +127,7 @@ function archipelagoMap(islands, selection) {
         const selected = island.id === selection;
         const { level } = getStage(island.xp);
         const skill = island.topic || (Object.hasOwn(SKILLS, island.category) ? SKILLS[island.category].label : 'Skill');
-        return `<button type="button" class="map-island${selected && animateIsland ? ' animate-island' : ''}"
+        return `<button type="button" class="map-island${selected && animateIsland ? ' animate-island' : ''}${island.id === levelUp?.islandId ? ' level-up-island' : ''}"
           data-action="select" data-id="${escapeHtml(island.id)}" aria-pressed="${selected}">
           <span class="island-art">${renderIsland(island, level)}</span>
           <span class="island-pin" title="${escapeHtml(island.title)}"><strong>${escapeHtml(island.title)}</strong><small>${skill === island.title ? '' : escapeHtml(skill) + ' · '}Lv ${level}</small></span>
@@ -255,6 +256,10 @@ function currentWorld() {
   return `<div class="intro"><div><h1>Your archipelago<span>.</span></h1><p class="lede">${subheading}</p></div>
     <button class="primary" data-action="new">+ New island</button></div>
     <div class="workspace">${archipelagoMap(world.islands, island?.id)}
+      ${levelUp && island?.id === levelUp.islandId ? `<div class="level-up-banner" aria-hidden="true">
+        <span class="level-up-preview island-art">${renderIsland(island, stage.level)}</span>
+        <div><strong>✦ Level up</strong> Level ${stage.level} · ${escapeHtml(stage.name)}</div>
+      </div>` : ''}
       ${logPanel(`
         ${island ? `<p class="eyebrow">ISLAND LOG / LEVEL ${stage.level}</p>
           <h2>${escapeHtml(island.title)}</h2>${island.attribution ? `<p class="caption">Roadmap by ${escapeHtml(island.attribution)}</p>` : ''}<p class="stage-name">${escapeHtml(stage.name)} · ${island.xp} XP</p>
@@ -453,6 +458,7 @@ function resetIslandsForTesting() {
   revisingId = undefined;
   logOpen = false;
   animateIsland = false;
+  levelUp = undefined;
   worldCamera.overview = true;
   persist(createWorld());
   render();
@@ -564,10 +570,20 @@ app.addEventListener('click', event => {
     const updated = next.islands.find(item => item.id === island.id);
     const newLevel = getStage(updated.xp).level;
     persist(next);
-    animateIsland = newLevel > getStage(island.xp).level;
+    const levelIncreased = newLevel > getStage(island.xp).level;
+    if (levelIncreased) {
+      const celebration = { islandId: island.id };
+      levelUp = celebration;
+      setTimeout(() => {
+        if (levelUp !== celebration) return;
+        levelUp = undefined;
+        app.querySelector('.level-up-banner')?.remove();
+        app.querySelector('.level-up-island')?.classList.remove('level-up-island');
+      }, 2400);
+    }
     const reward = updated.xp > island.xp ? (updated.xp - island.xp) + ' XP earned. ' : 'Mastery maintained. ';
     const nextGoal = getActiveGoal(updated);
-    announce(reward + (animateIsland ? 'Island advanced to Level ' + newLevel + '. ' : '')
+    announce(reward + (levelIncreased ? 'Island advanced to Level ' + newLevel + '. ' : '')
       + (nextGoal?.adapted ? 'Next goal adapted to your feedback.' : nextGoal ? 'Next goal ready.' : 'Generate your next goal when you’re ready.'));
   }
   render();

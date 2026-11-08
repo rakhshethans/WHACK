@@ -6,6 +6,7 @@
 - On desktop, the mouse wheel zooms around the pointer and dragging pans the map directly from the overview. All three maps have more ocean around the edges, and Reset returns to the fitted view. Zoom buttons, touch panning, and arrow keys are also available.
 - Generated islands use six hand-drawn landforms and eight muted terrain palettes. The 61 illustrated themes cover skills from gaming and sports to crafts, science, and everyday hobbies. Related skills share a landmark, and unmatched skills use an initials badge.
 - Personalised practice paths, one active goal at a time, and continuing goals beyond the first roadmap. The ten-level XP curve reaches Mastery at 36,000 XP. Completing a goal resets the seven-day grace period even at Mastery. Inactive islands lose 10–400 XP per day depending on their level. The island log shows the next deduction, and demotion changes the artwork and next exercise. Older saves keep their XP and start with a fresh grace period.
+- Crossing an XP threshold shows a gold pulse and a level-up banner. On mobile, the banner shows the upgraded island above the log. Reduced motion uses a static cue. Terrain develops from trails to lakes or rivers, docks or bridges, boats, roads with cars, parks and streetlights.
 - New personal islands open as soon as the browser model returns the first tailored exercise. The app starts loading an installed Nano model when the island form opens and releases unused warmup after 45 seconds. A checkpoint is optional. The next exercise is prepared while the current one is open. Saved generic plans can be rebuilt while keeping earned XP.
 - Island creation uses a 20-minute practice budget automatically. Updating an older roadmap keeps its saved budget.
 - Per-island difficulty feedback that persists and adjusts later practice. Related-skill suggestions explain the connection and can open or create the suggested island.
@@ -16,7 +17,7 @@
 
 ## Verified current state
 
-All 64 Node tests pass. Desktop and mobile Chrome verified theme selection and initials on new and saved islands, including Home Waters in Explore. Earlier checks with a simulated model covered adoption, creation, written feedback, XP and decay, mentor matching, Compass, following, solo views, persona switching, and demo sharing.
+All 65 Node tests pass. Desktop and mobile Chrome verified level-up cues, staged landscape changes, and ordinary XP completion. Mobile also verified the static reduced-motion banner. Earlier browser checks covered theme selection, adoption, creation, written feedback, XP and decay, mentor matching, Compass, following, solo views, persona switching, and demo sharing.
 
 Desktop and mobile Chrome verified the simplified island form and confirmed the practice budgets for new and updated roadmaps with a simulated model.
 
