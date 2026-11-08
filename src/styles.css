@@ -111,13 +111,13 @@ nav [aria-pressed="true"], nav [aria-pressed="true"]:hover {
 
 main { width: var(--frame); margin-inline: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .intro {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 7px 16px;
   margin-block: 10px;
 }
-.intro > div { min-width: 0; }
+.intro-action { grid-area: 1 / 2 / span 2; }
 .eyebrow { color: var(--focus); margin: 0 0 10px; }
 h1, h2 { margin: 0; font-weight: 650; letter-spacing: -.065em; line-height: 1.02; }
 h1 { font-size: clamp(26px, 3.3vw, 46px); }
@@ -125,6 +125,7 @@ h1 span { color: var(--focus); }
 h2 { font-size: clamp(31px, 3vw, 39px); }
 p { color: var(--muted); }
 .lede { margin: 7px 0 0; font-size: 14px; }
+.intro .lede { margin: 0; }
 .primary {
   min-height: 46px;
   padding: 10px 19px;
@@ -464,10 +465,15 @@ form .primary:disabled { cursor: wait; opacity: .75; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 @media (max-width: 790px) {
+  .intro-action { grid-row: 1; }
+  .intro .lede { grid-column: 1 / -1; }
   .map-log { inset: auto 10px 62px; width: auto; max-height: calc(100% - 115px); }
   .level-up-banner { display: flex; align-items: center; gap: 8px; padding-block: 3px; }
   .level-up-banner strong { display: block; }
   .level-up-preview { display: block; width: 88px; flex: none; }
+}
+@media (max-width: 640px) {
+  .intro .lede { min-height: 2lh; }
 }
 @media (min-width: 501px) and (max-width: 640px) {
   .masthead { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; padding-inline: 10px; }
@@ -483,7 +489,7 @@ form .primary:disabled { cursor: wait; opacity: .75; }
   nav { gap: 1px; padding: 2px; }
   nav button { padding: 5px 7px; min-height: 34px; font-size: 12px; }
   .edition { display: none; }
-  .intro { align-items: start; gap: 8px; }
+  .intro { gap: 4px 8px; }
   .intro .primary { min-height: 40px; padding-inline: 10px; font-size: 12px; }
   .lede { font-size: 13px; }
   .workspace, .map-frame, .field-notes { border-radius: 17px; }

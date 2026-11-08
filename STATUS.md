@@ -3,6 +3,7 @@
 ## Available in the preview
 
 - One map for all personal islands, with distinct themed art for Guitar, Songwriting, Photography, and custom goals.
+- Explore and My world share the same map frame size. Explore controls opens a panel with demo accounts, filters, Social Compass, the network and sample roadmaps.
 - On desktop, the mouse wheel zooms around the pointer. Once zoomed in, dragging pans within the charted map area. Reset returns to the fitted view. Zoom buttons, touch panning, and arrow keys are also available.
 - My world shows faint dotted sea routes between related skills. Selecting an island highlights its routes. Each island has at most two, and routes that cannot pass around other islands are omitted.
 - Generated islands use six hand-drawn landforms and eight muted terrain palettes. The 61 illustrated themes cover skills from gaming and sports to crafts, science, and everyday hobbies. Related skills share a landmark, and unmatched skills use an initials badge.
@@ -19,6 +20,8 @@
 ## Verified current state
 
 All 67 Node tests pass. Desktop and mobile Chrome verified sea routes, selection by keyboard or touch, zoom and stability after reload. Earlier browser checks covered level-up cues and reduced motion, theme selection, adoption, creation, written feedback, XP and decay, mentor matching, Compass, following, solo views, persona switching, and demo sharing.
+
+Chrome verified matching Explore, solo and My world map frames at seven widths from 320px to 1366px, including filter use, keyboard dismissal, sample navigation and adoption.
 
 Desktop and mobile Chrome verified the simplified island form and confirmed the practice budgets for new and updated roadmaps with a simulated model.
 

@@ -586,6 +586,7 @@ export function mountSocialExplore(container, {
   function render() {
     const sharingOpen = container.querySelector?.('.social-sharing-details')?.open ?? false;
     const samplesOpen = container.querySelector?.('.social-samples')?.open ?? false;
+    const controlsOpen = container.querySelector?.('.social-controls')?.open ?? false;
     cleanupMapBindings();
 
     const followingCount = state.network.following.length;
@@ -621,11 +622,12 @@ export function mountSocialExplore(container, {
     </div>`;
 
     const introHeader = `<div class="intro social-intro">
-      <div>
-        <h1>Beyond your shore<span>.</span></h1>
-        <p class="lede">Pan to explore nearby islands with shared skills, or switch demo accounts to see other matches.</p>
-      </div>
-      ${filterNav}
+      <h1>Beyond your shore<span>.</span></h1>
+      <details class="intro-action social-controls"${controlsOpen ? ' open' : ''}>
+        <summary class="primary">Explore controls</summary>
+        <div class="social-controls-panel">${filterNav}</div>
+      </details>
+      <p class="lede">Find nearby islands with shared skills or switch demo accounts.</p>
     </div>`;
 
     if (state.status === 'loading') {
@@ -955,10 +957,14 @@ export function mountSocialExplore(container, {
   }
 
   async function handleAction(event) {
+    const controls = container.querySelector?.('.social-controls[open]');
+    const fromControls = controls?.contains(event.target);
+    if (controls && !fromControls) controls.open = false;
     const button = event.target.closest('button[data-social-action]');
     if (!button) return;
 
     const action = button.dataset.socialAction;
+    if (fromControls && action !== 'filter') controls.open = false;
     const profileId = button.dataset.profileId;
     const islandId = button.dataset.islandId || button.dataset.id;
 
@@ -978,6 +984,7 @@ export function mountSocialExplore(container, {
         state.logOpen = true;
         announce(`Switched dummy account to ${activePersona.displayName}. Neighbours and recommendations updated.`);
         render();
+        if (fromControls) container.querySelector?.('.social-controls > summary')?.focus({ preventScroll: true });
       }
       return;
     }
@@ -1000,6 +1007,7 @@ export function mountSocialExplore(container, {
       state.activeCluster = 'home';
       state.logOpen = true;
       render();
+      container.querySelector?.('.social-network-panel summary')?.focus({ preventScroll: true });
       return;
     }
 
@@ -1022,7 +1030,8 @@ export function mountSocialExplore(container, {
     if (action === 'view-solo-archipelago') {
       await openSoloArchipelago(
         profileId,
-        `[data-social-action="view-solo-archipelago"][data-profile-id="${profileId}"]`,
+        fromControls ? '.social-controls > summary' :
+          `[data-social-action="view-solo-archipelago"][data-profile-id="${profileId}"]`,
         islandId,
       );
       return;
@@ -1065,6 +1074,7 @@ export function mountSocialExplore(container, {
       state.soloWorld = null;
       const nextFilter = button.dataset.filter || 'all';
       await load({ filter: nextFilter, preserveSelection: true });
+      if (fromControls) container.querySelector?.('.social-controls [aria-pressed="true"][data-filter]')?.focus({ preventScroll: true });
       return;
     }
 
@@ -1217,6 +1227,12 @@ export function mountSocialExplore(container, {
 
   function handleKeydown(event) {
     if (event.key === 'Escape') {
+      const controls = container.querySelector?.('.social-controls[open]');
+      if (controls) {
+        controls.open = false;
+        controls.querySelector('summary')?.focus({ preventScroll: true });
+        return;
+      }
       if (state.logOpen) {
         state.logOpen = false;
         render();

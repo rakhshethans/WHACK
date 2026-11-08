@@ -9,7 +9,28 @@
 }
 
 .social-intro {
-  flex-wrap: wrap;
+  position: relative;
+}
+
+.social-controls > summary {
+  display: grid;
+  place-items: center;
+  list-style: none;
+}
+
+.social-controls-panel {
+  position: absolute;
+  z-index: 4;
+  inset: calc(100% + 8px) 0 auto auto;
+  width: min(100%, 44rem);
+  max-height: min(50dvh, 380px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .social-toolbar-stack {

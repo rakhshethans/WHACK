@@ -261,8 +261,9 @@ function currentWorld() {
   const levelTarget = stage.nextThreshold - stage.threshold;
   const subheading = island ? 'Select any island on the map to see its roadmap and progress.' :
     'Choose a skill you want to develop. As you practise, its island grows.';
-  return `<div class="intro"><div><h1>Your archipelago<span>.</span></h1><p class="lede">${subheading}</p></div>
-    <button class="primary" data-action="new">+ New island</button></div>
+  return `<div class="intro"><h1>Your archipelago<span>.</span></h1>
+    <button class="primary intro-action" data-action="new">+ New island</button>
+    <p class="lede">${subheading}</p></div>
     <div class="workspace">${archipelagoMap(world.islands, island?.id)}
       ${levelUp && island?.id === levelUp.islandId ? `<div class="level-up-banner" aria-hidden="true">
         <span class="level-up-preview island-art">${renderIsland(island, stage.level)}</span>
