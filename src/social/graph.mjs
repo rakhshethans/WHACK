@@ -22,6 +22,13 @@ export const RELATED_SKILLS = {
 };
 
 const TOPIC_PATTERNS = [
+  { pattern: /\b(?:fear of flying|(?:flight|flying) anxiety)\b/i, skillKey: 'flight-confidence', skillLabel: 'Fear of flying' },
+  { pattern: /\b(?:learn(?:ing)? to drive|driving (?:lessons?|tests?)|drive a car|parallel parking|driver['’]s licen[cs]e)\b|^driving$/i, skillKey: 'driving', skillLabel: 'Driving' },
+  { pattern: /\bvalorant\b/i, skillKey: 'valorant', skillLabel: 'Valorant' },
+  { pattern: /\b(?:boulder(?:ing)?|indoor climbing)\b/i, skillKey: 'bouldering', skillLabel: 'Bouldering' },
+  { pattern: /\bpython\b/i, skillKey: 'python', skillLabel: 'Python' },
+  { pattern: /\b(?:running|jogging|marathon|run (?:a |my first )?(?:5k|10k))\b/i, skillKey: 'running', skillLabel: 'Running' },
+  { pattern: /\b(?:cooking|learn(?:ing)? to cook|meal prep)\b/i, skillKey: 'cooking', skillLabel: 'Cooking' },
   { pattern: /\bjapanese\b/i, skillKey: 'japanese', skillLabel: 'Japanese', themeKey: 'language', themeLabel: 'Language' },
   { pattern: /\bspanish\b/i, skillKey: 'spanish', skillLabel: 'Spanish', themeKey: 'language', themeLabel: 'Language' },
   { pattern: /\bfrench\b/i, skillKey: 'french', skillLabel: 'French', themeKey: 'language', themeLabel: 'Language' },

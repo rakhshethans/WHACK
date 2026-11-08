@@ -7,19 +7,20 @@
 - On desktop, the mouse wheel zooms around the pointer. Once zoomed in, dragging pans within the charted map area. Reset returns to the fitted view. Zoom buttons, touch panning, and arrow keys are also available.
 - My world shows faint dotted sea routes between related skills. Selecting an island highlights its routes. Each island has at most two, and routes that cannot pass around other islands are omitted.
 - Generated islands use six hand-drawn landforms and eight muted terrain palettes. The 63 illustrated themes include a car for driving skills and a plane for aviation or fear of flying. Related skills share a landmark, and unmatched skills use an initials badge.
+- When no symbol matches, the island log lets you pick a built-in symbol or save a custom label of up to four characters. The choice is saved with the island.
 - Personalised practice paths, one active goal at a time, and continuing goals beyond the first roadmap. The ten-level XP curve reaches Mastery at 36,000 XP. Completing a goal resets the seven-day grace period even at Mastery. Inactive islands lose 10–400 XP per day depending on their level. The island log shows the next deduction, and demotion changes the artwork and next exercise. Older saves keep their XP and start with a fresh grace period.
 - Crossing an XP threshold shows a gold pulse and a level-up banner. On mobile, the banner shows the upgraded island above the log. Reduced motion uses a static cue. Terrain develops from trails to lakes or rivers, docks or bridges, boats, roads with cars, parks and streetlights.
 - New personal islands open as soon as the browser model returns the first tailored exercise. An installed Nano model warms when the page loads, and WorldHopper keeps one base session while the page is open. Each request uses a separate copy. A checkpoint is optional. The next exercise is prepared while the current one is open. Saved generic plans can be rebuilt while keeping earned XP.
 - Island creation uses a 20-minute practice budget automatically. Updating an older roadmap keeps its saved budget.
 - Per-island difficulty feedback that persists and adjusts later practice. Related-skill suggestions explain the connection and can open or create the suggested island.
 - Generated exercises have a written feedback form. A successful rewrite replaces the current exercise, preserves its XP reward, and uses the latest note to guide future exercises on that island.
-- Browser-local saves and attributed roadmap adoption with fresh XP. Explore combines a shared ocean, exact-interest mentor matching, demo personas, Social Compass, Following and Followers, and solo archipelagos. The three original sample roadmaps have a direct browse entry.
+- Browser-local saves and attributed roadmap adoption with fresh XP. Explore has 35 sample profiles, seven switchable demo personas, and six directly browsable sample roadmaps. The new driving, Python and cooking personas have different neighbourhoods.
 - Adopted islands can use the original roadmap immediately. The island log also lets learners personalise it for their experience and outcome with Gemini Nano, keeping creator credit, XP and completed goals.
 - Explore demonstrates opt-in roadmap sharing across sample personas in this browser. Public projections exclude private notes, completion history, and inactivity deadlines. The Supabase client and schema are available for a configured authenticated deployment.
 
 ## Verified current state
 
-All 68 Node tests pass. Desktop and mobile Chrome verified sea routes, selection by keyboard or touch, zoom and stability after reload. Earlier browser checks covered level-up cues and reduced motion, theme selection, adoption, creation, written feedback, XP and decay, mentor matching, Compass, following, solo views, persona switching, and demo sharing.
+All 70 Node tests pass. Desktop and mobile Chrome verified icon selection, the four-character limit, persistence after reload, and distinct recommendations for the driving and Python demo accounts. Earlier browser checks covered sea routes, level-up cues and reduced motion, theme selection, adoption, creation, written feedback, XP and decay, following, solo views, persona switching, and demo sharing.
 
 Desktop and mobile Chrome verified reuse of a simulated Nano session after closing onboarding and advancing the clock by 65 seconds. Native Nano was unavailable in the isolated test profile.
 

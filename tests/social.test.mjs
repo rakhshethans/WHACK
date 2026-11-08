@@ -42,6 +42,29 @@ test('an adopted custom public starter keeps attribution and can continue with a
   assert.equal(getActiveGoal(world.islands[0]).id, 'goal-2');
 });
 
+test('the driving and Python demo personas get distinct, adoptable recommendations', async () => {
+  const client = createFixtureSocialClient();
+  const personas = client.listDummyPersonas();
+  const results = [];
+  for (const [viewerId, skill, expected] of [
+    ['user-nia-brooks', 'Driving', ['user-leon-park', 'user-maya-das']],
+    ['user-ravi-shah', 'Python', ['user-ivy-morgan', 'user-zoe-adele']],
+  ]) {
+    const persona = personas.find(item => item.id === viewerId);
+    assert.ok(persona);
+    await client.switchViewer(viewerId);
+    const matches = await client.rankNeighbors({ viewerWorld: persona.world });
+    assert.deepEqual(matches.map(match => match.profile.id).sort(), expected);
+    for (const { profile, sharedSkills } of matches) {
+      assert.ok(profile.isSample);
+      assert.deepEqual(sharedSkills, [skill]);
+      assert.ok(validateAdoptableRoadmap(toAdoptableRoadmap(profile.publicIslands[0], profile)).valid);
+    }
+    results.push(...matches.map(match => match.profile.id));
+  }
+  assert.equal(new Set(results).size, results.length);
+});
+
 test('demo sharing exposes only opted-in starter data to other personas and can be revoked', async () => {
   const client = createFixtureSocialClient();
   const island = { id: 'local-notebook', title: 'Notebook Cove', category: 'custom', topic: 'Bookbinding',
@@ -357,7 +380,7 @@ test('normalizeIslandSkill keeps exact skills distinct from broad themes and ran
   });
 
   const jpRanked = rankNeighborsByGraph(jpWorld, candidates, { limit: 8 });
-  assert.deepEqual(jpRanked.map(e => e.profile.id).sort(), ['user-hana', 'user-sora']);
+  assert.deepEqual(jpRanked.map(e => e.profile.id).sort(), ['user-aisha-nordin', 'user-hana', 'user-leo-martin', 'user-mei-lam', 'user-sora']);
   assert.equal(jpRanked[0].profile.id, 'user-hana', 'Hana shares both Origami and Japanese');
   assert.equal(jpRanked[0].matchType, 'mentor');
   assert.match(jpRanked[0].reasonLabel, /^Mentor · Origami Lv 4 \(you Lv 1\)$/);

@@ -12,6 +12,9 @@ const SAMPLE_ROADMAPS = [
   ['user-maya', 'island-chord-coast', 'The Chord Coast'],
   ['user-noah', 'island-verse-dunes', 'Verse Dunes'],
   ['user-ari', 'island-silver-lens', 'Silver Lens'],
+  ['user-nia-brooks', 'island-nia-brooks', 'Junction Bay · Nia'],
+  ['user-ravi-shah', 'island-ravi-shah', 'Script Quay · Ravi'],
+  ['user-jo-tan', 'island-jo-tan', 'Copper Kitchen · Jo'],
 ];
 
 export function escapeHtml(value) {
@@ -681,7 +684,7 @@ export function mountSocialExplore(container, {
       <h2>${activePersona.isLocalViewer ? 'Your waters' : escapeHtml(activePersona.displayName) + '’s waters'}</h2>
       ${state.neighborEntries.length > 0
         ? `<p>Surrounded by ${state.neighborEntries.length} ${state.neighborEntries.length === 1 ? 'explorer who shares' : 'explorers who share'} your interests, ranked to favour mentor-style level gaps (${state.neighborEntries.slice(0, 3).map(e => `${escapeHtml(e.profile.displayName)}: ${escapeHtml(e.reasonLabel)}`).join(' · ')}).</p>`
-        : '<p class="social-no-neighbours">No explorers share your interests yet. Create or adopt an island in My world and matching neighbours will appear around your home waters.</p>'}
+        : '<p class="social-no-neighbours">Browse a sample roadmap or switch demo accounts to explore a neighbourhood. Matches in My world appear when you create or adopt an island with a shared skill.</p>'}
       ${sampleRoadmaps}
       ${networkSections()}
       ${renderRecommendationsSection(state.matches, null)}

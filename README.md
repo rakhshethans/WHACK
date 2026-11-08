@@ -107,7 +107,7 @@ Each recommended neighbour receives an explicit, human-readable relationship bad
 
 ### 3. Dummy Account Switcher (`src/social/fixtures.mjs`, `src/social/explore.mjs`)
 
-- **No Login Required**: A **Viewing as dummy account** switcher bar sits at the top of Explore with 5 distinct personas (`You (My world)`, `Maya Chen`, `Sora Takahashi`, `Elena Rostova`, and `Ari Patel`) backed by 11 rich dummy profiles in [`src/social/fixtures.mjs`](src/social/fixtures.mjs).
+- **No Login Required**: **Explore controls** lets you switch between My world and seven demo personas. Explore uses 35 labelled sample profiles, including driving, Python, and cooking accounts with distinct sets of shared-skill recommendations. [Demo fixtures](src/social/fixtures.mjs)
 - **Live Persona Switching**: Clicking any dummy persona:
   1. Places that persona's islands at the center of the ocean (`Home Waters`),
   2. Excludes that persona from the candidate pool (`viewerId`),
@@ -129,7 +129,7 @@ Each recommended neighbour receives an explicit, human-readable relationship bad
 
 - **Social Compass Drawer**: **Social Compass** opens explainable recommendations for the active map neighbours. The map filters control which neighbours are shown, and each recommendation can jump to that explorer’s cluster.
 - **Adopt Starter Roadmap**: Selecting any neighbour's island lets the viewer click **Adopt starter roadmap**, which clones a fresh Lv 1 (`xp: 0`) starter island with that skill's roadmap into the viewer's own world without copying private state.
-- **Sample roadmaps**: Open **Connections & matches** from Home Waters to browse The Chord Coast, Verse Dunes, and Silver Lens, even when the map has no matches.
+- **Sample roadmaps**: Open **Connections & matches** from Home Waters to browse six starter roadmaps, including guitar, driving, Python and cooking, even when the map has no matches.
 
 ---
 

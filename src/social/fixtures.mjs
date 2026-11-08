@@ -3,6 +3,7 @@ import { toPublicIsland, toPublicProfile } from './contracts.mjs';
 import { rankNeighborsByGraph } from './graph.mjs';
 import { recommendExplorers } from './recommendations.mjs';
 import { xpForLevel } from '../progression.mjs';
+import { DEMO_WORLDS, EXTRA_DEMO_PERSONAS } from './demo-worlds.mjs';
 
 const LOCAL_VIEWER_ID = 'user-local-explorer';
 
@@ -20,6 +21,7 @@ function buildFixtureIsland({
   minutes = 20,
   level = 3,
   sharedMilestone,
+  steps,
 }) {
   const created = createIsland(createWorld(), {
     title,
@@ -28,6 +30,7 @@ function buildFixtureIsland({
     objective,
     experience,
     minutes,
+    localRoadmap: steps ? { checkpoint: objective, steps } : undefined,
   }).islands[0];
 
   return {
@@ -491,6 +494,18 @@ export function createDefaultFixtureRecords() {
         }),
       ],
     },
+    ...DEMO_WORLDS.flatMap(({ topic, title, members, goals }) => members.map(([handle, displayName, level, objective]) => {
+      const id = 'user-' + handle;
+      return {
+        id, handle, displayName, interests: [topic], bio: objective + '.',
+        isSample: true, isPublic: true,
+        islands: [buildFixtureIsland({
+          id: 'island-' + handle, ownerId: id, title: title + ' · ' + displayName.split(' ')[0],
+          category: 'custom', topic, objective, level, steps: goals,
+          experience: level < 3 ? 'beginner' : level < 6 ? 'intermediate' : 'advanced',
+        })],
+      };
+    })),
   ];
 }
 
@@ -517,7 +532,7 @@ const DEFAULT_PERSONA_NETWORKS = {
   },
 };
 
-const SWITCHABLE_DUMMY_IDS = ['user-maya', 'user-sora', 'user-elena', 'user-ari'];
+const SWITCHABLE_DUMMY_IDS = ['user-maya', 'user-sora', 'user-elena', 'user-ari', ...EXTRA_DEMO_PERSONAS];
 
 export function createFixtureSocialClient({
   viewerId: initialViewerId = 'user-local-explorer',
