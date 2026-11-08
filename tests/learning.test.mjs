@@ -101,3 +101,19 @@ test('map placement is scattered, stable and collision-free at desktop and mobil
     }
   }
 });
+
+test('sea routes avoid unrelated islands and limit the lines touching each island', async () => {
+  const { layoutSeaRoutes } = await import('../src/map-layout.mjs');
+  const positions = [
+    { left: 10, top: 10, width: 40, height: 60 },
+    { left: 100, top: 10, width: 40, height: 60 },
+    { left: 10, top: 90, width: 40, height: 60 },
+    { left: 100, top: 90, width: 40, height: 60 },
+    { left: 180, top: 10, width: 40, height: 60 },
+  ];
+  const pairs = [[0, 4], [0, 1], [0, 2], [0, 3]];
+  const routes = layoutSeaRoutes(pairs, positions, 230, 160);
+  assert.deepEqual(routes.map(({ from, to }) => [from, to]), [[0, 2], [0, 1]]);
+  const blocked = positions.map((position, index) => index === 1 ? { ...position, top: 0, height: 160 } : position);
+  assert.deepEqual(layoutSeaRoutes([[0, 4]], blocked, 230, 160), []);
+});

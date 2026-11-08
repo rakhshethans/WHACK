@@ -51,13 +51,34 @@ const ROUTES = {
   },
 };
 
+function skillKey(island) {
+  return island.category === 'custom' ? island.theme : island.category;
+}
+
+function routeFor(key) {
+  return Object.hasOwn(ROUTES, key) ? ROUTES[key] : undefined;
+}
+
+function destinationFor(route) {
+  return route?.theme ?? route?.category;
+}
+
 export function relatedSkill(island, islands) {
-  if (island.xp < 100) return null;
-  const from = island.category === 'custom' ? island.theme : island.category;
-  if (!Object.hasOwn(ROUTES, from)) return null;
-  const route = ROUTES[from];
-  const destination = route.theme ?? route.category;
-  const existing = islands.find(other => other.id !== island.id
-    && (other.category === 'custom' ? other.theme : other.category) === destination);
+  const route = routeFor(skillKey(island));
+  if (island.xp < 100 || !route) return null;
+  const existing = islands.find(other => other.id !== island.id && skillKey(other) === destinationFor(route));
   return { ...route, islandId: existing?.id };
+}
+
+export function relatedIslandPairs(islands) {
+  const skills = islands.map(skillKey);
+  const destinations = skills.map(key => destinationFor(routeFor(key)));
+  const pairs = [];
+  for (let from = 0; from < skills.length; from += 1) {
+    for (let to = from + 1; to < skills.length; to += 1) {
+      if ((destinations[from] && destinations[from] === skills[to])
+          || (destinations[to] && destinations[to] === skills[from])) pairs.push([from, to]);
+    }
+  }
+  return pairs;
 }

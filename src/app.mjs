@@ -4,8 +4,8 @@ import { renderOcean, renderIsland } from './scene.mjs';
 import { SKILLS } from './roadmaps.mjs';
 import { generateStarterRoadmap, generateAdaptiveGoal, generateContinuation, generateGoalRevision, warmStarterModel } from './local-planner.mjs';
 import { DIFFICULTIES } from './difficulty.mjs';
-import { relatedSkill } from './skill-connections.mjs';
-import { layoutIslands } from './map-layout.mjs';
+import { relatedIslandPairs, relatedSkill } from './skill-connections.mjs';
+import { layoutIslands, layoutSeaRoutes } from './map-layout.mjs';
 import { connectMap } from './map-camera.mjs';
 import { createFixtureSocialClient, mountSocialExplore, toPublicIsland, toAdoptableRoadmap, validateAdoptableRoadmap } from './social/index.mjs';
 
@@ -48,12 +48,19 @@ const PLAN_ERRORS = {
 
 function positionIslands(map) {
   const buttons = [...map.querySelectorAll('.map-island')];
-  const { height, positions } = layoutIslands(buttons.map(button => button.dataset.id), map.clientWidth);
+  const width = map.clientWidth;
+  const { height, positions } = layoutIslands(buttons.map(button => button.dataset.id), width);
   map.style.height = height + 'px';
   buttons.forEach((button, index) => {
     const { left, top, width } = positions[index];
     Object.assign(button.style, { left: left + 'px', top: top + 'px', width: width + 'px' });
   });
+  const overlay = map.querySelector('.sea-routes');
+  const routes = layoutSeaRoutes(relatedIslandPairs(world.islands), positions, width, height);
+  const selected = buttons.findIndex(button => button.getAttribute('aria-pressed') === 'true');
+  overlay.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  overlay.innerHTML = routes.map(({ from, to, path }) =>
+    `<path d="${path}"${selected === from || selected === to ? ' class="is-selected"' : ''}/>`).join('');
 }
 
 const mapResize = new ResizeObserver(entries => {
@@ -123,6 +130,7 @@ function archipelagoMap(islands, selection) {
     <div class="map-scene">
     <div class="map-water">${renderOcean(true)}</div>
     <div class="island-water">
+      <svg class="sea-routes" aria-hidden="true" focusable="false"></svg>
       ${islands.map(island => {
         const selected = island.id === selection;
         const { level } = getStage(island.xp);

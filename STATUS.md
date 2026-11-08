@@ -4,6 +4,7 @@
 
 - One map for all personal islands, with distinct themed art for Guitar, Songwriting, Photography, and custom goals.
 - On desktop, the mouse wheel zooms around the pointer and dragging pans the map directly from the overview. All three maps have more ocean around the edges, and Reset returns to the fitted view. Zoom buttons, touch panning, and arrow keys are also available.
+- My world shows faint dotted sea routes between related skills. Selecting an island highlights its routes. Each island has at most two, and routes that cannot pass around other islands are omitted.
 - Generated islands use six hand-drawn landforms and eight muted terrain palettes. The 61 illustrated themes cover skills from gaming and sports to crafts, science, and everyday hobbies. Related skills share a landmark, and unmatched skills use an initials badge.
 - Personalised practice paths, one active goal at a time, and continuing goals beyond the first roadmap. The ten-level XP curve reaches Mastery at 36,000 XP. Completing a goal resets the seven-day grace period even at Mastery. Inactive islands lose 10–400 XP per day depending on their level. The island log shows the next deduction, and demotion changes the artwork and next exercise. Older saves keep their XP and start with a fresh grace period.
 - Crossing an XP threshold shows a gold pulse and a level-up banner. On mobile, the banner shows the upgraded island above the log. Reduced motion uses a static cue. Terrain develops from trails to lakes or rivers, docks or bridges, boats, roads with cars, parks and streetlights.
@@ -17,7 +18,7 @@
 
 ## Verified current state
 
-All 65 Node tests pass. Desktop and mobile Chrome verified level-up cues, staged landscape changes, and ordinary XP completion. Mobile also verified the static reduced-motion banner. Earlier browser checks covered theme selection, adoption, creation, written feedback, XP and decay, mentor matching, Compass, following, solo views, persona switching, and demo sharing.
+All 67 Node tests pass. Desktop and mobile Chrome verified sea routes, selection by keyboard or touch, zoom and stability after reload. Earlier browser checks covered level-up cues and reduced motion, theme selection, adoption, creation, written feedback, XP and decay, mentor matching, Compass, following, solo views, persona switching, and demo sharing.
 
 Desktop and mobile Chrome verified the simplified island form and confirmed the practice budgets for new and updated roadmaps with a simulated model.
 

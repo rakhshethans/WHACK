@@ -3,7 +3,7 @@ import test from 'node:test';
 import { adoptIsland, completeGoal, createIsland, createWorld, getActiveGoal, getStage, setDifficulty, getAdaptationRequest } from '../src/world.mjs';
 import { generateCustomRoadmap, generateAdaptiveGoal } from '../src/local-planner.mjs';
 import { renderIsland } from '../src/scene.mjs';
-import { relatedSkill } from '../src/skill-connections.mjs';
+import { relatedIslandPairs, relatedSkill } from '../src/skill-connections.mjs';
 
 const guitar = { title: 'Learn guitar', category: 'guitar', experience: 'intermediate', minutes: 8, objective: 'play at an open mic' };
 
@@ -300,6 +300,19 @@ test('related custom skills start with relevant practice goals', () => {
     const [island] = createIsland(createWorld(), { ...guitar, ...suggestion, title, experience: 'beginner' }).islands;
     assert.equal(getActiveGoal(island).title, first);
   }
+});
+
+test('sea routes show existing skill relationships before XP unlocks recommendations', () => {
+  const islands = [
+    { category: 'custom', theme: 'guitar', xp: 0 },
+    { category: 'songwriting', xp: 0 },
+    { category: 'custom', theme: 'language', xp: 0 },
+    { category: 'custom', theme: 'people', xp: 0 },
+    { category: 'custom', theme: 'speaking', xp: 0 },
+    { category: 'custom', theme: 'compass', xp: 0 },
+  ];
+  assert.deepEqual(relatedIslandPairs(islands), [[0, 1], [2, 3], [3, 4]]);
+  assert.equal(relatedSkill(islands[0], islands), null);
 });
 
 const socialInput = {

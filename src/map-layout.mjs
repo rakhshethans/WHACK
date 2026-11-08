@@ -55,3 +55,46 @@ export function layoutIslands(ids, width) {
   }
   return { height, positions };
 }
+
+export function layoutSeaRoutes(pairs, positions, width, height) {
+  const anchors = positions.map(({ left, top, width }) => ({ x: left + width / 2, y: top + width * 0.41 }));
+  const candidates = pairs.map(([from, to]) => {
+    const start = anchors[from];
+    const end = anchors[to];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    return { from, to, start, end, dx, dy, distance: Math.hypot(dx, dy) };
+  }).sort((a, b) => a.distance - b.distance);
+  const counts = positions.map(() => 0);
+  const routes = [];
+  for (const { from, to, start, end, dx, dy, distance } of candidates) {
+    if (counts[from] >= 2 || counts[to] >= 2) continue;
+    const bend = Math.min(72, distance * 0.22);
+    const obstacles = positions.filter((_, index) => index !== from && index !== to);
+    // Try gentle curves first, then a wider arc if another island is in the way.
+    for (const offset of [bend, -bend, distance * 0.6, -distance * 0.6]) {
+      const control = (point, along) => ({
+        x: Math.min(width, Math.max(0, point.x + dx * along - dy / distance * offset)),
+        y: Math.min(height, Math.max(0, point.y + dy * along + dx / distance * offset)),
+      });
+      const a = control(start, 0.18);
+      const b = control(end, -0.18);
+      const intersects = obstacles.some(rect => {
+        for (let step = 1; step < 24; step += 1) {
+          const t = step / 24;
+          const u = 1 - t;
+          const px = u ** 3 * start.x + 3 * u * u * t * a.x + 3 * u * t * t * b.x + t ** 3 * end.x;
+          const py = u ** 3 * start.y + 3 * u * u * t * a.y + 3 * u * t * t * b.y + t ** 3 * end.y;
+          if (px > rect.left && px < rect.left + rect.width && py > rect.top && py < rect.top + rect.height) return true;
+        }
+        return false;
+      });
+      if (intersects) continue;
+      routes.push({ from, to, path: `M${start.x} ${start.y} C${a.x.toFixed(1)} ${a.y.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)} ${end.x} ${end.y}` });
+      counts[from] += 1;
+      counts[to] += 1;
+      break;
+    }
+  }
+  return routes;
+}
