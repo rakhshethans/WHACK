@@ -495,7 +495,7 @@ export function renderIsland(island, stage) {
 const waves = [[114,167],[198,293],[282,203],[359,121],[537,161],[671,224],[813,173],[771,302],[124,424],[227,465],[330,510],[596,484],[720,438],[836,401],[785,511],[413,466],[195,208],[755,115]];
 
 export function renderOcean(backgroundOnly = false) {
-  return `<svg class="wh-scene" viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" ${backgroundOnly ? 'aria-hidden="true" preserveAspectRatio="xMidYMid slice"' : `role="img" aria-label="An open ocean awaiting your first island"`}>
+  return `<svg class="wh-scene" viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" ${backgroundOnly ? 'aria-hidden="true"' : `role="img" aria-label="An open ocean awaiting your first island"`}>
     <defs>
       <radialGradient id="wh-sea" cx="50%" cy="42%" r="69%"><stop stop-color="#417f7e"/><stop offset=".6" stop-color="#245959"/><stop offset="1" stop-color="#133740"/></radialGradient>
       <pattern id="wh-grid" width="68" height="40" patternUnits="userSpaceOnUse"><path d="m0 20 34-20 34 20-34 20Z" fill="none" stroke="#cae9d6" stroke-width=".6" opacity=".12"/></pattern>
@@ -509,3 +509,4 @@ export function renderOcean(backgroundOnly = false) {
     ${backgroundOnly ? '' : '<g opacity=".35" stroke="#c7e3c6" fill="none"><ellipse cx="481" cy="347" rx="102" ry="44" stroke-dasharray="3 5"/><path d="M466 347h30m-15-15v30" stroke-width="1.5"/></g>'}
   </svg>`;
 }
+

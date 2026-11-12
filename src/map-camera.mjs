@@ -34,22 +34,27 @@ export function connectMap(viewport, camera) {
     frame.querySelector('[data-zoom="in"]').disabled = camera.zoom >= 1.8;
     frame.querySelector('[data-zoom="out"]').disabled = camera.overview;
   };
-  function readPosition() {
-    if (camera.overview) {
-      const viewBounds = viewport.getBoundingClientRect();
-      const sceneBounds = scene.getBoundingClientRect();
-      return { left: viewBounds.left - sceneBounds.left, top: viewBounds.top - sceneBounds.top };
-    }
-    return { left: viewport.scrollLeft, top: viewport.scrollTop };
+  function scenePosition() {
+    const viewBounds = viewport.getBoundingClientRect();
+    const sceneBounds = scene.getBoundingClientRect();
+    return { left: viewBounds.left - sceneBounds.left, top: viewBounds.top - sceneBounds.top };
   }
 
   function changeZoom(multiplier, anchor) {
     const minimum = overviewZoom();
-    const current = { zoom: camera.zoom, ...readPosition() };
+    const current = { zoom: camera.zoom, ...scenePosition() };
     const next = zoomAround(current, camera.zoom * multiplier,
       viewport.clientWidth, viewport.clientHeight, minimum, anchor);
-    Object.assign(camera, next, { overview: next.zoom <= minimum });
+    if (next.zoom === current.zoom) return;
+    Object.assign(camera, { zoom: next.zoom, overview: next.zoom <= minimum });
     apply();
+    if (!camera.overview) {
+      // A scene that still fits on an axis stays centred there. Measure that
+      // inset before translating the requested scene position to scroll offsets.
+      const actual = scenePosition();
+      viewport.scrollBy(next.left - actual.left, next.top - actual.top);
+      savePosition();
+    }
   }
 
   function onWheel(event) {
@@ -67,7 +72,7 @@ export function connectMap(viewport, camera) {
   apply();
   viewport.addEventListener('wheel', onWheel, { passive: false });
   function savePosition() {
-    if (!camera.overview) Object.assign(camera, readPosition());
+    if (!camera.overview) Object.assign(camera, { left: viewport.scrollLeft, top: viewport.scrollTop });
   }
   viewport.addEventListener('scroll', savePosition);
   for (const button of frame.querySelectorAll('[data-zoom]')) {
@@ -126,3 +131,4 @@ export function connectMap(viewport, camera) {
     viewport.removeEventListener('scroll', savePosition);
   };
 }
+

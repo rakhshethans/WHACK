@@ -128,9 +128,9 @@ function changeView(view) {
 function archipelagoMap(islands, selection) {
   const populated = islands.length > 0;
   return `<section class="map-frame archipelago-frame" aria-label="Archipelago map">
+    <div class="map-water">${renderOcean(true)}</div>
     <div class="map-viewport" tabindex="0" role="region" aria-label="Archipelago. Scroll to zoom. Drag or use the arrow keys to pan.">
     <div class="map-scene">
-    <div class="map-water">${renderOcean(true)}</div>
     <div class="island-water">
       <svg class="sea-routes" aria-hidden="true" focusable="false"></svg>
       ${islands.map(island => {
@@ -967,3 +967,4 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) refreshMaintenance();
 });
 scheduleMaintenance();
+

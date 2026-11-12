@@ -156,9 +156,9 @@ function renderNeighborhoodOceanMap({
       : 'SHARED OCEAN ATLAS';
 
   return `<section class="map-frame archipelago-frame social-ocean-frame" data-map-mode="neighborhood" aria-label="Shared ocean archipelago map">
+    <div class="map-water">${renderOcean(true)}</div>
     <div class="map-viewport" tabindex="0" role="region" aria-label="Shared ocean. Scroll to zoom. Drag or use the arrow keys to pan.">
       <div class="map-scene social-ocean-scene" style="width:${OCEAN_WIDTH}px;height:${OCEAN_HEIGHT}px;">
-        <div class="map-water">${renderOcean(true)}</div>
         <div class="island-water social-cluster-water" style="width:${OCEAN_WIDTH}px;height:${OCEAN_HEIGHT}px;">
           ${renderHomeCluster(viewerWorld, activePersona, activeCluster, selectedHomeIslandId)}
           ${renderNeighborClusters(neighborEntries, activeCluster, selectedIsland?.id)}
@@ -199,9 +199,9 @@ function renderSoloArchipelagoMap({
   const coordLabel = `${escapeHtml(profile.displayName.toUpperCase())} (@${escapeHtml(profile.handle)}) · SOLO ARCHIPELAGO VIEW`;
 
   return `<section class="map-frame archipelago-frame social-ocean-frame" data-map-mode="solo" data-solo-profile-id="${escapeHtml(profile.id)}" aria-label="${escapeHtml(profile.displayName)}’s individual archipelago map">
+    <div class="map-water">${renderOcean(safeIslands.length > 0)}</div>
     <div class="map-viewport" tabindex="0" role="region" aria-label="${escapeHtml(profile.displayName)}’s archipelago. Scroll to zoom. Drag or use the arrow keys to pan.">
-      <div class="map-scene" style="min-height:${Math.max(540, height + 120)}px">
-        <div class="map-water">${renderOcean(safeIslands.length > 0)}</div>
+      <div class="map-scene" style="width:${soloWidth}px;min-height:${Math.max(540, height + 120)}px">
         <div class="island-water" style="width:${soloWidth}px;height:${height}px;margin-inline:auto;">
           ${safeIslands.length > 0 ? safeIslands.map((island, index) => {
             const pos = positions[index] || { left: 120, top: 80, width: 220 };
@@ -1254,3 +1254,4 @@ export function mountSocialExplore(container, {
     },
   };
 }
+
