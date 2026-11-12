@@ -19,7 +19,7 @@ The integration branch combines My world and Social Explore. The integrated Expl
 
 ## Run locally
 
-Use Node.js 20 or newer. Run `node --test` from the repository root. For a browser preview, serve the repository over HTTP with `python -m http.server 8000` and open `http://localhost:8000`.
+Use Node.js 22.12 or newer. Run `npm install`, then `npm run dev` for the browser preview. Run `npm test` for the automated suite and `npm run build` for the production build. See [Account setup](docs/ACCOUNT_SETUP.md) for the sign-in page and Supabase configuration.
 
 To reset your world, click the **Reset personal islands** button in the footer at the bottom of the page and confirm. This clears the current browser’s personal islands and progress, returning to an uncharted archipelago. Explore’s sample and community islands remain available.
 
@@ -150,3 +150,4 @@ To eliminate blocking latency when charting new islands or updating roadmaps:
 - **Instant First Milestone (generateStarterRoadmap)**: When a user creates or updates a custom island, Gemini Nano generates the initial milestone goal immediately. The onboarding dialog closes instantly, and the island is rendered with Goal 1 active and ready for practice.
 - **Asynchronous Background Roadmap Queue (generateRemainingRoadmapTasks)**: The remaining 7 intermediary tasks (XP_AWARDS.length = 8) are generated sequentially in the background via [generateContinuation](src/local-planner.mjs) and chained with proper prerequisites via [ppendRoadmapGoal](src/world.mjs).
 - **Non-blocking Reactive UI**: The Long-term plan summary displays milestone generation progress (✦ Generating remaining exercises in background…) and milestone completion indicators without interrupting learner practice. Background generation gracefully halts if an island is reset, demoted, or revised.
+
