@@ -1,0 +1,53 @@
+@import "tailwindcss/theme.css";
+@import "tailwindcss/utilities.css" source(none);
+@source "../components/ui";
+@source "./account.tsx";
+
+@theme inline {
+  --color-background: var(--surface);
+  --color-foreground: var(--ink);
+  --color-muted-foreground: var(--muted);
+  --color-input: var(--line);
+  --color-primary: var(--signal);
+  --color-primary-foreground: var(--ink);
+  --color-secondary: var(--paper);
+  --color-secondary-foreground: var(--ink);
+  --color-accent: var(--paper);
+  --color-accent-foreground: var(--ink);
+  --color-ring: var(--focus);
+  --color-destructive: #96352c;
+  --color-destructive-foreground: #fff;
+}
+
+.account-page { height: auto; }
+.account-page .masthead { grid-template-columns: 1fr auto; }
+.account-page .account-home { justify-self: end; }
+.account-main {
+  display: grid;
+  flex: 1 0 auto;
+  place-items: center;
+  width: var(--frame);
+  margin: 0 auto;
+  padding: clamp(24px, 6vh, 64px) 0;
+}
+.account-card {
+  width: min(100%, 420px);
+  padding: clamp(20px, 5vw, 36px);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+.account-card p { margin: 0; }
+.account-card .account-title { margin: 0; font-size: clamp(30px, 7vw, 42px); line-height: 1.05; }
+.account-card button { font-size: inherit; }
+.account-card .border { border-style: solid; }
+.account-card .account-primary { border: 1px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.account-divider { display: flex; align-items: center; gap: 10px; text-transform: uppercase; }
+.account-divider::before, .account-divider::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
+.account-text-button, .account-back { color: var(--focus); font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+.account-card .account-text-button { padding: 0; font-size: 13px; border: 0; background: transparent; }
+.account-card .account-back { display: block; margin-top: 20px; text-align: center; }
+.account-card .account-notice { margin-top: 16px; padding: 10px 12px; border-radius: 8px; background: var(--paper); font-size: 14px; }
+.account-card .account-error { color: #812a22; background: #fbeae4; }
